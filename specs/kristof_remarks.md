@@ -1,5 +1,5 @@
 
-## remarks
+## remarks v.1.0
 
 - no schema support needed on server
 - phonebook can be considered to be secure, phonebook will be secured by a blockchain of choice
