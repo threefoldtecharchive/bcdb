@@ -11,3 +11,4 @@ edition = "2018"
 [build-dependencies]
 bindgen = "0.53"
 cc = "1"
+protoc-rust-grpc = "0.6.2"

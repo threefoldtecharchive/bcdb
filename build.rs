@@ -1,3 +1,5 @@
+extern crate protoc_rust_grpc;
+
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -16,8 +18,17 @@ const CLANG_ARGS: [&str; 9] = [
 ];
 
 fn main() {
+    protoc_rust_grpc::run(protoc_rust_grpc::Args {
+        out_dir: "src/api",
+        includes: &[],
+        input: &["api.proto"],
+        rust_protobuf: true,
+        ..Default::default()
+    })
+    .expect("protoc-rust-grpc");
+
     // invalidate build if something in the libzdb dir changes
-    println!("cargo:rerun-if-changed=libzdb");
+    println!("cargo:rerun-if-changed=libzdb,api.proto");
 
     // generate static library
 
