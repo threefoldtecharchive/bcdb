@@ -28,9 +28,8 @@
 
 - one ZDB namespace per BCDB namespace (is there limit)
 - one sonic table or whatever they call it per BCDB namespace (is there limit?)
-- BCDB namespace identification = $3botid_$packageid_$schemaid
-    - $schemaid is unique per package id
-    - $package id uniquer per per author who creates packages
+- BCDB namespace identification = $3botid_$namespaceid
+- $namespace if is chosen by the 3bot who is writing to the BCDB server
     
 ## tags
 
