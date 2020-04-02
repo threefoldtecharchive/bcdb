@@ -4,6 +4,7 @@ extern crate failure;
 
 mod bcdb;
 mod sonic;
+mod storage;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
