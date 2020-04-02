@@ -9,6 +9,7 @@ tonic = "0.2"
 prost = "0.6"
 tokio = { version = "0.2", features = ["macros"] }
 failure = "0.1.7"
+redis = "0.15"
 
 [build-dependencies]
 bindgen = "0.53"
