@@ -23,19 +23,19 @@ package bcdb;
 // Interface exported by the server.
 service BCDB {
   // Set stores a document and return a header
-  rpc Set(Document) returns (Header) {}
+  rpc Set(SetRequest) returns (SetResponse) {}
 
   // Get a document from header
-  rpc Get(Header) returns (Document) {}
+  rpc Get(GetRequest) returns (GetResponse) {}
 
   // Modify updates a document meta
-  rpc Modify(Update) returns (Header) {}
+  rpc Update(UpdateRequest) returns (UpdateResponse) {}
 
   // List returns a list of coument IDs that matches a query
-  rpc List(Query) returns (stream Header) {}
+  rpc List(QueryRequest) returns (stream ListResponse) {}
 
   // Find like list but return full object
-  rpc Find(Query) returns (stream Document) {}
+  rpc Find(QueryRequest) returns (stream FindResponse) {}
 }
 
 // Tag is a single entry in an object.
@@ -58,23 +58,42 @@ message Tag {
 // Metadata represents a set of tags (also known as Metadata)
 message Metadata { repeated Tag tags = 1; }
 
-// Document is a full document
-message Document {
+// Set request
+message SetRequest {
   Metadata metadata = 1;
   bytes data = 2;
 }
 
-message Update {
-  Header header = 1;
+// Set response
+message SetResponse { string id = 1; }
+
+// Get request
+message GetRequest { string id = 1; }
+
+// Get response
+message GetResponse {
+  Metadata metadata = 1;
+  bytes data = 2;
+}
+
+// Update request
+message UpdateRequest {
+  string id = 1;
   Metadata metadata = 2;
 }
 
-// Header holds an information about a document object.
-// currently it only holds the ID of the document.
-message Header { string id = 1; }
+// Update response
+message UpdateResponse {}
 
-// Blob is binary data associated with a single document.
-// TODO: support chuncking for large blobks? how big a blob can be
-message Blob { bytes data = 1; }
+// Query request for finding entries
+message QueryRequest {}
 
-message Query {}
+// List response
+message ListResponse { string id = 1; }
+
+// Find response
+message FindResponse {
+  string id = 1;
+  Metadata metadata = 2;
+  bytes data = 3;
+}

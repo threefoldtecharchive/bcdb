@@ -1,4 +1,4 @@
-extern crate protoc_rust_grpc;
+extern crate tonic_build;
 
 use std::env;
 use std::fs;
@@ -18,17 +18,10 @@ const CLANG_ARGS: [&str; 9] = [
 ];
 
 fn main() {
-    protoc_rust_grpc::run(protoc_rust_grpc::Args {
-        out_dir: "src/api",
-        includes: &[],
-        input: &["api.proto"],
-        rust_protobuf: true,
-        ..Default::default()
-    })
-    .expect("protoc-rust-grpc");
-
+    tonic_build::compile_protos("proto/bcdb.proto")
+        .expect("failed to generate grpc stubs and types");
     // invalidate build if something in the libzdb dir changes
-    println!("cargo:rerun-if-changed=libzdb,api.proto");
+    println!("cargo:rerun-if-changed=libzdb,proto");
 
     // generate static library
 
