@@ -1,3 +1,5 @@
+extern crate tonic_build;
+
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -16,8 +18,10 @@ const CLANG_ARGS: [&str; 9] = [
 ];
 
 fn main() {
+    tonic_build::compile_protos("proto/bcdb.proto")
+        .expect("failed to generate grpc stubs and types");
     // invalidate build if something in the libzdb dir changes
-    println!("cargo:rerun-if-changed=libzdb");
+    println!("cargo:rerun-if-changed=libzdb,proto");
 
     // generate static library
 

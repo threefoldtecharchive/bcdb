@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package bcdb;
+
+// Interface exported by the server.
+service BCDB {
+  // Set stores a document and return a header
+  rpc Set(SetRequest) returns (SetResponse) {}
+
+  // Get a document from header
+  rpc Get(GetRequest) returns (GetResponse) {}
+
+  // Modify updates a document meta
+  rpc Update(UpdateRequest) returns (UpdateResponse) {}
+
+  // List returns a list of document IDs that matches a query
+  rpc List(QueryRequest) returns (stream ListResponse) {}
+
+  // Find like list but return full documents
+  rpc Find(QueryRequest) returns (stream FindResponse) {}
+}
+
+// Tag is a single entry in an object.
+// The tag key must be a string, but the
+// value can be either a string, double signed, or unsigned number
+// Tags are always indexed, and can be used to find the associated meta
+// objects later on.
+message Tag {
+  // key of the tag
+  string key = 1;
+  // value of the tag. Only supporting few primitive types
+  oneof value {
+    string string = 2;
+    double double = 3;
+    int64 number = 4;
+    uint64 unsigned = 5;
+  };
+}
+
+// Metadata represents a set of tags (also known as Metadata)
+message Metadata { repeated Tag tags = 1; }
+
+// Set request
+message SetRequest {
+  Metadata metadata = 1;
+  bytes data = 2;
+}
+
+// Set response
+message SetResponse { string id = 1; }
+
+// Get request
+message GetRequest { string id = 1; }
+
+// Get response
+message GetResponse {
+  Metadata metadata = 1;
+  bytes data = 2;
+}
+
+// Update request
+message UpdateRequest {
+  string id = 1;
+  Metadata metadata = 2;
+}
+
+// Update response
+message UpdateResponse {}
+
+// Query request for finding entries
+message QueryRequest {}
+
+// List response
+message ListResponse { string id = 1; }
+
+// Find response
+message FindResponse {
+  string id = 1;
+  Metadata metadata = 2;
+  bytes data = 3;
+}
