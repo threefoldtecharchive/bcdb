@@ -1,6 +1,9 @@
 use tonic::transport::Server;
+#[macro_use]
+extern crate failure;
 
 mod bcdb;
+mod sonic;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

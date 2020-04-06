@@ -8,6 +8,7 @@ edition = "2018"
 tonic = "0.2"
 prost = "0.6"
 tokio = { version = "0.2", features = ["macros"] }
+failure = "0.1.7"
 
 [build-dependencies]
 bindgen = "0.53"

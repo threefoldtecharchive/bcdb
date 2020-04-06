@@ -17,3 +17,9 @@ go-deps:
 
 go: go-deps
 	protoc -I$(include) $(proto) --go_out=plugins=grpc:go/bcdb
+
+js-deps:
+	mkdir -p js/bcdb
+
+js: js-deps
+	protoc -I$(include) $(proto) --js_out=js/bcdb
