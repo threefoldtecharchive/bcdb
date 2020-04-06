@@ -128,7 +128,6 @@ impl Search {
         P: AsRef<str>,
     {
         let mut p = Protocol::connect(add).await?;
-        println!("starting...");
         let response = p
             .run(vec![
                 Word::single("START"),
@@ -137,9 +136,7 @@ impl Search {
             ])
             .await?;
         match response {
-            Response::Started => {
-                println!("started");
-            }
+            Response::Started => {}
             _ => bail!("got unexpected response: {:?}", response),
         };
         Ok(Search { p: p })
