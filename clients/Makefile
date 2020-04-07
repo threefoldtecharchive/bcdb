@@ -22,4 +22,5 @@ js-deps:
 	mkdir -p js/bcdb
 
 js: js-deps
-	protoc -I$(include) $(proto) --js_out=js/bcdb
+	protoc -I$(include) $(proto) --js_out=import_style=commonjs:js/bcdb
+	protoc -I$(include) $(proto) --grpc-web_out=import_style=commonjs,mode=grpcwebtext:js/bcdb
