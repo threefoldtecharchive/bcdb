@@ -5,6 +5,9 @@ use tokio::prelude::*;
 
 type Result<T> = std::result::Result<T, Error>;
 
+//TODO: create proper error type
+
+/// Word wraps string objects for proper string escaping
 pub enum Word {
     Single(String),
     Multiple(String),
@@ -46,9 +49,7 @@ impl Protocol {
         let mut p = Protocol { s: s };
         let response = p.read().await?;
         match response {
-            Response::Connected => {
-                println!("connected");
-            }
+            Response::Connected => {}
             _ => bail!("got an expected response: {:?}", response),
         };
 
@@ -211,6 +212,7 @@ impl<'a> Tokenizer<'a> {
             } else if v == '\\' as u8 {
                 i += 1;
             }
+            // TODO: handle quoted string
             i += 1;
         }
 

@@ -22,18 +22,17 @@ impl std::fmt::Display for Channel {
     }
 }
 
-struct Ingest {
+pub struct Ingest {
     p: Protocol,
 }
 
 impl Ingest {
-    async fn new<A, P>(add: A, password: P) -> Result<Ingest>
+    pub async fn new<A, P>(add: A, password: P) -> Result<Ingest>
     where
         A: tokio::net::ToSocketAddrs,
         P: AsRef<str>,
     {
         let mut p = Protocol::connect(add).await?;
-        println!("starting...");
         let response = p
             .run(vec![
                 Word::single("START"),
@@ -42,15 +41,13 @@ impl Ingest {
             ])
             .await?;
         match response {
-            Response::Started => {
-                println!("started");
-            }
+            Response::Started => {}
             _ => bail!("got unexpected response: {:?}", response),
         };
         Ok(Ingest { p: p })
     }
 
-    async fn push<S>(&mut self, collection: S, bucket: S, object: S, text: S) -> Result<()>
+    pub async fn push<S>(&mut self, collection: S, bucket: S, object: S, text: S) -> Result<()>
     where
         S: AsRef<str>,
     {
@@ -71,7 +68,7 @@ impl Ingest {
         }
     }
 
-    async fn pop<S>(&mut self, collection: S, bucket: S, object: S, text: S) -> Result<u32>
+    pub async fn pop<S>(&mut self, collection: S, bucket: S, object: S, text: S) -> Result<u32>
     where
         S: AsRef<str>,
     {
@@ -95,7 +92,12 @@ impl Ingest {
     /**
      * count matches, note that object is only taken into account if bucket is set
      */
-    async fn count<S>(&mut self, collection: S, bucket: Option<S>, object: Option<S>) -> Result<u32>
+    pub async fn count<S>(
+        &mut self,
+        collection: S,
+        bucket: Option<S>,
+        object: Option<S>,
+    ) -> Result<u32>
     where
         S: AsRef<str>,
     {
@@ -117,12 +119,12 @@ impl Ingest {
     }
 }
 
-struct Search {
+pub struct Search {
     p: protocol::Protocol,
 }
 
 impl Search {
-    async fn new<A, P>(add: A, password: P) -> Result<Search>
+    pub async fn new<A, P>(add: A, password: P) -> Result<Search>
     where
         A: tokio::net::ToSocketAddrs,
         P: AsRef<str>,
@@ -142,7 +144,7 @@ impl Search {
         Ok(Search { p: p })
     }
 
-    async fn query<S>(
+    pub async fn query<S>(
         &mut self,
         collection: S,
         bucket: S,
