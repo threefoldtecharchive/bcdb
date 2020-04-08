@@ -1,9 +1,11 @@
+//! This crate provides a wrapper for a client to a 0-db running as a separate process on the same
+//! system. The 0-db must be running in sequential mode
+
 use crate::storage::{Error as StorageError, Key, Storage};
 
 use redis::RedisError;
 
 use std::convert::TryInto;
-use std::io;
 
 pub struct Zdb {
     client: redis::Client,
@@ -30,8 +32,8 @@ impl Zdb {
 }
 
 impl Storage for Zdb {
-    fn set(&mut self, data: &[u8]) -> Result<Key, StorageError> {
-        self.default_namespace.set(data)
+    fn set(&mut self, key: Option<Key>, data: &[u8]) -> Result<Key, StorageError> {
+        self.default_namespace.set(key, data)
     }
 
     fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, StorageError> {
@@ -62,8 +64,15 @@ impl Clone for Zdb {
 }
 
 impl Storage for Collection {
-    fn set(&mut self, data: &[u8]) -> Result<Key, StorageError> {
-        let raw_key: Vec<u8> = redis::cmd("SET").arg("").arg(data).query(&mut self.conn)?;
+    fn set(&mut self, key: Option<Key>, data: &[u8]) -> Result<Key, StorageError> {
+        let raw_key: Vec<u8> = redis::cmd("SET")
+            .arg(if let Some(key) = key {
+                Vec::from(&key.to_le_bytes()[..])
+            } else {
+                Vec::new()
+            })
+            .arg(data)
+            .query(&mut self.conn)?;
         debug_assert!(raw_key.len() == std::mem::size_of::<Key>());
         Ok(read_le_key(&raw_key))
     }

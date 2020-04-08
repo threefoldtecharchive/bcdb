@@ -8,7 +8,9 @@ pub type Key = u32;
 /// The generic set op instructions that are suported by storage implementations
 pub trait Storage {
     /// Set some data, returning a generated key which can later be used to retrieve the data
-    fn set(&mut self, data: &[u8]) -> Result<Key, Error>;
+    /// The caller can optionally provide a previously returned key. If such a key is provided,
+    /// the data previously attached to this key will be replaced by the new data.
+    fn set(&mut self, key: Option<Key>, data: &[u8]) -> Result<Key, Error>;
     /// Get data which has been set previously.
     fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, Error>;
 }
