@@ -2,6 +2,7 @@ use tonic::transport::Server;
 #[macro_use]
 extern crate failure;
 
+mod acl;
 mod bcdb;
 mod sonic;
 mod storage;
