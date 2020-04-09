@@ -1002,7 +1002,7 @@ proto.bcdb.SetResponse.prototype.toObject = function(opt_includeInstance) {
  */
 proto.bcdb.SetResponse.toObject = function(includeInstance, msg) {
   var f, obj = {
-    id: jspb.Message.getFieldWithDefault(msg, 1, "")
+    id: jspb.Message.getFieldWithDefault(msg, 1, 0)
   };
 
   if (includeInstance) {
@@ -1040,7 +1040,7 @@ proto.bcdb.SetResponse.deserializeBinaryFromReader = function(msg, reader) {
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
-      var value = /** @type {string} */ (reader.readString());
+      var value = /** @type {number} */ (reader.readUint32());
       msg.setId(value);
       break;
     default:
@@ -1073,8 +1073,8 @@ proto.bcdb.SetResponse.prototype.serializeBinary = function() {
 proto.bcdb.SetResponse.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
   f = message.getId();
-  if (f.length > 0) {
-    writer.writeString(
+  if (f !== 0) {
+    writer.writeUint32(
       1,
       f
     );
@@ -1083,20 +1083,20 @@ proto.bcdb.SetResponse.serializeBinaryToWriter = function(message, writer) {
 
 
 /**
- * optional string id = 1;
- * @return {string}
+ * optional uint32 id = 1;
+ * @return {number}
  */
 proto.bcdb.SetResponse.prototype.getId = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
 /**
- * @param {string} value
+ * @param {number} value
  * @return {!proto.bcdb.SetResponse} returns this
  */
 proto.bcdb.SetResponse.prototype.setId = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
+  return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
@@ -1132,7 +1132,7 @@ proto.bcdb.GetRequest.prototype.toObject = function(opt_includeInstance) {
  */
 proto.bcdb.GetRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
-    id: jspb.Message.getFieldWithDefault(msg, 1, "")
+    id: jspb.Message.getFieldWithDefault(msg, 1, 0)
   };
 
   if (includeInstance) {
@@ -1170,7 +1170,7 @@ proto.bcdb.GetRequest.deserializeBinaryFromReader = function(msg, reader) {
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
-      var value = /** @type {string} */ (reader.readString());
+      var value = /** @type {number} */ (reader.readUint32());
       msg.setId(value);
       break;
     default:
@@ -1203,8 +1203,8 @@ proto.bcdb.GetRequest.prototype.serializeBinary = function() {
 proto.bcdb.GetRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
   f = message.getId();
-  if (f.length > 0) {
-    writer.writeString(
+  if (f !== 0) {
+    writer.writeUint32(
       1,
       f
     );
@@ -1213,20 +1213,20 @@ proto.bcdb.GetRequest.serializeBinaryToWriter = function(message, writer) {
 
 
 /**
- * optional string id = 1;
- * @return {string}
+ * optional uint32 id = 1;
+ * @return {number}
  */
 proto.bcdb.GetRequest.prototype.getId = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
 /**
- * @param {string} value
+ * @param {number} value
  * @return {!proto.bcdb.GetRequest} returns this
  */
 proto.bcdb.GetRequest.prototype.setId = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
+  return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
@@ -1467,7 +1467,7 @@ proto.bcdb.UpdateRequest.prototype.toObject = function(opt_includeInstance) {
  */
 proto.bcdb.UpdateRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
-    id: jspb.Message.getFieldWithDefault(msg, 1, ""),
+    id: jspb.Message.getFieldWithDefault(msg, 1, 0),
     metadata: (f = msg.getMetadata()) && proto.bcdb.Metadata.toObject(includeInstance, f)
   };
 
@@ -1506,7 +1506,7 @@ proto.bcdb.UpdateRequest.deserializeBinaryFromReader = function(msg, reader) {
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
-      var value = /** @type {string} */ (reader.readString());
+      var value = /** @type {number} */ (reader.readUint32());
       msg.setId(value);
       break;
     case 2:
@@ -1544,8 +1544,8 @@ proto.bcdb.UpdateRequest.prototype.serializeBinary = function() {
 proto.bcdb.UpdateRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
   f = message.getId();
-  if (f.length > 0) {
-    writer.writeString(
+  if (f !== 0) {
+    writer.writeUint32(
       1,
       f
     );
@@ -1562,20 +1562,20 @@ proto.bcdb.UpdateRequest.serializeBinaryToWriter = function(message, writer) {
 
 
 /**
- * optional string id = 1;
- * @return {string}
+ * optional uint32 id = 1;
+ * @return {number}
  */
 proto.bcdb.UpdateRequest.prototype.getId = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
 /**
- * @param {string} value
+ * @param {number} value
  * @return {!proto.bcdb.UpdateRequest} returns this
  */
 proto.bcdb.UpdateRequest.prototype.setId = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
+  return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
@@ -1850,7 +1850,7 @@ proto.bcdb.ListResponse.prototype.toObject = function(opt_includeInstance) {
  */
 proto.bcdb.ListResponse.toObject = function(includeInstance, msg) {
   var f, obj = {
-    id: jspb.Message.getFieldWithDefault(msg, 1, "")
+    id: jspb.Message.getFieldWithDefault(msg, 1, 0)
   };
 
   if (includeInstance) {
@@ -1888,7 +1888,7 @@ proto.bcdb.ListResponse.deserializeBinaryFromReader = function(msg, reader) {
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
-      var value = /** @type {string} */ (reader.readString());
+      var value = /** @type {number} */ (reader.readUint32());
       msg.setId(value);
       break;
     default:
@@ -1921,8 +1921,8 @@ proto.bcdb.ListResponse.prototype.serializeBinary = function() {
 proto.bcdb.ListResponse.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
   f = message.getId();
-  if (f.length > 0) {
-    writer.writeString(
+  if (f !== 0) {
+    writer.writeUint32(
       1,
       f
     );
@@ -1931,20 +1931,20 @@ proto.bcdb.ListResponse.serializeBinaryToWriter = function(message, writer) {
 
 
 /**
- * optional string id = 1;
- * @return {string}
+ * optional uint32 id = 1;
+ * @return {number}
  */
 proto.bcdb.ListResponse.prototype.getId = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
 /**
- * @param {string} value
+ * @param {number} value
  * @return {!proto.bcdb.ListResponse} returns this
  */
 proto.bcdb.ListResponse.prototype.setId = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
+  return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
@@ -1980,7 +1980,7 @@ proto.bcdb.FindResponse.prototype.toObject = function(opt_includeInstance) {
  */
 proto.bcdb.FindResponse.toObject = function(includeInstance, msg) {
   var f, obj = {
-    id: jspb.Message.getFieldWithDefault(msg, 1, ""),
+    id: jspb.Message.getFieldWithDefault(msg, 1, 0),
     metadata: (f = msg.getMetadata()) && proto.bcdb.Metadata.toObject(includeInstance, f),
     data: msg.getData_asB64()
   };
@@ -2020,7 +2020,7 @@ proto.bcdb.FindResponse.deserializeBinaryFromReader = function(msg, reader) {
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
-      var value = /** @type {string} */ (reader.readString());
+      var value = /** @type {number} */ (reader.readUint32());
       msg.setId(value);
       break;
     case 2:
@@ -2062,8 +2062,8 @@ proto.bcdb.FindResponse.prototype.serializeBinary = function() {
 proto.bcdb.FindResponse.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
   f = message.getId();
-  if (f.length > 0) {
-    writer.writeString(
+  if (f !== 0) {
+    writer.writeUint32(
       1,
       f
     );
@@ -2087,20 +2087,20 @@ proto.bcdb.FindResponse.serializeBinaryToWriter = function(message, writer) {
 
 
 /**
- * optional string id = 1;
- * @return {string}
+ * optional uint32 id = 1;
+ * @return {number}
  */
 proto.bcdb.FindResponse.prototype.getId = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
 /**
- * @param {string} value
+ * @param {number} value
  * @return {!proto.bcdb.FindResponse} returns this
  */
 proto.bcdb.FindResponse.prototype.setId = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
+  return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
