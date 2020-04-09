@@ -1,4 +1,6 @@
-use crate::storage::{Error, Key, Storage};
+use crate::storage::{Key, Storage};
+use failure::Error;
+use serde::{Deserialize, Serialize};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -8,7 +10,7 @@ const delete: u32 = 0x1;
 
 /// Permissions bits. stores the value of current
 /// permissiones set associated with an acl
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Permissions(u32);
 
 impl Permissions {
@@ -55,6 +57,7 @@ impl Permissions {
 }
 
 // ACL object structure
+#[derive(Default, Serialize, Deserialize)]
 pub struct ACL {
     perm: Permissions,
     users: Vec<u64>,
@@ -69,10 +72,14 @@ where
 
 impl<S: Storage> ACLStorage<S> {
     fn create(&mut self, acl: ACL) -> Result<Key> {
-        Ok(0)
+        let bytes = serde_json::to_vec(&acl)?;
+        let key = self.inner.set(None, &bytes)?;
+        Ok(key)
     }
 
     fn update(&mut self, key: Key, acl: ACL) -> Result<()> {
+        let bytes = serde_json::to_vec(&acl)?;
+        self.inner.set(Some(key), &bytes)?;
         Ok(())
     }
 

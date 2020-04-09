@@ -12,6 +12,8 @@ failure = "0.1.7"
 redis = "0.15"
 r2d2 = "0.8"
 scheduled-thread-pool = "0.2"
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 
 [build-dependencies]
 bindgen = "0.53"
