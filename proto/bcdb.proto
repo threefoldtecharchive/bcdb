@@ -47,10 +47,10 @@ message SetRequest {
 }
 
 // Set response
-message SetResponse { string id = 1; }
+message SetResponse { uint32 id = 1; }
 
 // Get request
-message GetRequest { string id = 1; }
+message GetRequest { uint32 id = 1; }
 
 // Get response
 message GetResponse {
@@ -60,7 +60,7 @@ message GetResponse {
 
 // Update request
 message UpdateRequest {
-  string id = 1;
+  uint32 id = 1;
   Metadata metadata = 2;
 }
 
@@ -71,11 +71,11 @@ message UpdateResponse {}
 message QueryRequest {}
 
 // List response
-message ListResponse { string id = 1; }
+message ListResponse { uint32 id = 1; }
 
 // Find response
 message FindResponse {
-  string id = 1;
+  uint32 id = 1;
   Metadata metadata = 2;
   bytes data = 3;
 }
