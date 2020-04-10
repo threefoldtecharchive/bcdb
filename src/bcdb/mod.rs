@@ -37,9 +37,6 @@ impl Bcdb for BcdbService {
         }
 
         // TODO: create from impl for Tonic status for StorageError
-        // the problem with this clone is that it moves a ref to self in the closure,
-        // which forces us to mess with the lifetimes. Since the clone actually opens a new
-        // connection, it is not cheap and blocks the reactor. Need to find a way to solve this.
         let mut db = self.db.clone();
         let handle =
             spawn_blocking(move || db.set(None, &request.data).expect("failed to set data"));
