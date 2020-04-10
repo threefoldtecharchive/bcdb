@@ -45,6 +45,11 @@ impl Zdb {
             default_namespace,
         }
     }
+
+    /// Get a reference to a `Collection`.
+    pub fn collection(self, name: &str) -> Collection {
+        Collection::new(self.client.clone(), Some(name.into()), self.spawn_pool)
+    }
 }
 
 impl Storage for Zdb {
@@ -125,9 +130,20 @@ impl r2d2::ManageConnection for ZdbConnectionManager {
     type Error = redis::RedisError;
 
     fn connect(&self) -> Result<redis::Connection, redis::RedisError> {
-        let conn = self.client.get_connection()?;
+        let mut conn = self.client.get_connection()?;
         if let Some(ref ns) = self.namespace {
-            // TODO: set namespace
+            let namespaces: Vec<String> = redis::cmd("NSLIST").query(&mut conn)?;
+            let mut exists = false;
+            for existing_ns in namespaces {
+                if &existing_ns == ns {
+                    exists = true;
+                    break;
+                }
+            }
+            if !exists {
+                redis::cmd("NSNEW").arg(ns).query(&mut conn)?;
+            }
+            redis::cmd("SELECT").arg(ns).query(&mut conn)?;
         }
         Ok(conn)
     }
@@ -151,7 +167,7 @@ impl From<RedisError> for StorageError {
 }
 
 impl From<r2d2::Error> for StorageError {
-    fn from(e: r2d2::Error) -> Self {
+    fn from(_: r2d2::Error) -> Self {
         StorageError::IO(None)
     }
 }
