@@ -25,6 +25,21 @@ pub struct Collection {
     pool: r2d2::Pool<ZdbConnectionManager>,
 }
 
+/// An iterator over all keys in a collection.
+/// Leaking this value will cause the underlying connection to leak.
+pub struct CollectionKeys {
+    conn: r2d2::PooledConnection<ZdbConnectionManager>,
+    cursor: Option<Vec<u8>>,
+    /// since the scan method returns more than 1 key, yet does not specify exactly how many,
+    /// we keep track of an internal buffer
+    buffer: Vec<ScanEntry>,
+    /// keep track of which entry in the buffer we are at
+    buffer_idx: usize,
+}
+
+// Yes, this is a vec, and yes, this only represents a single element. It is what it is.
+type ScanEntry = Vec<(Vec<u8>, u32, u32)>;
+
 /// Zdb connection manager to be used by the r2d2 crate. Because namespaces in zdb are tied to the
 /// actual connection, we need to manage connection pools on namespace lvl.
 #[derive(Debug, Clone)]
@@ -60,6 +75,10 @@ impl Storage for Zdb {
     fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, StorageError> {
         self.default_namespace.get(key)
     }
+
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key>>, StorageError> {
+        self.default_namespace.keys()
+    }
 }
 
 impl Default for Zdb {
@@ -82,6 +101,7 @@ impl Collection {
             .min_idle(Some(1))
             .thread_pool(spawn_pool)
             // TODO: set connection lifetimes
+            // TODO: other configuration
             .build_unchecked(manager);
         Collection { pool }
     }
@@ -105,6 +125,49 @@ impl Storage for Collection {
         Ok(redis::cmd("GET")
             .arg(&key.to_le_bytes())
             .query(&mut *self.pool.get()?)?)
+    }
+
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key>>, StorageError> {
+        Ok(Box::new(CollectionKeys {
+            conn: self.pool.get()?,
+            cursor: None,
+            buffer: Vec::new(),
+            buffer_idx: 0,
+        }))
+    }
+}
+
+impl Iterator for CollectionKeys {
+    type Item = Key;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Note that entries are actually single element vectors of tuples, not regular tuples.
+        // If we have a buffer from a previous cmd execution, check for an entry there first
+        if self.buffer_idx < self.buffer.len() {
+            self.buffer_idx += 1;
+            return Some(read_le_key(&self.buffer[self.buffer_idx - 1][0].0));
+        }
+        // No more keys in buffer, fetch a new buffer from the remote
+        let mut scan_cmd = redis::cmd("SCAN");
+        // If we have a cursor (from a previous execution), set it
+        // Annoyingly, the redis lib does not allow to set a reference to a vec as argument, so
+        // we take here, but that's fine, since a result will update the cursor anyway.
+        if let Some(cur) = self.cursor.take() {
+            scan_cmd.arg(cur);
+        }
+        let res: (Vec<u8>, Vec<ScanEntry>) = match scan_cmd.query(&mut *self.conn) {
+            Ok(r) => Some(r),
+            Err(_) => None,
+        }?;
+
+        // set the new cursor
+        self.cursor = Some(res.0);
+        // set the buffer
+        self.buffer = res.1;
+        // reset buffer pointer, set it to one as we will return the first element
+        self.buffer_idx = 1;
+
+        Some(read_le_key(&self.buffer[0][0].0))
     }
 }
 
