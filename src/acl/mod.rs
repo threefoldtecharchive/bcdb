@@ -99,17 +99,23 @@ where
     inner: S,
 }
 
+/*!
+ * Storage is a wrapper around a raw Storage to easily set, get, and list
+ * ACL objects
+ */
 impl<S: Storage> ACLStorage<S> {
     pub fn new(storage: S) -> ACLStorage<S> {
         ACLStorage { inner: storage }
     }
 
+    /// Creates a new ACL and return the key
     pub fn create(&mut self, acl: &ACL) -> Result<Key> {
         let bytes = serde_json::to_vec(acl)?;
         let key = self.inner.set(None, &bytes)?;
         Ok(key)
     }
 
+    /// Get an ACL with key
     pub fn get(&mut self, key: Key) -> Result<Option<ACL>> {
         let bytes = self.inner.get(key)?;
         match bytes {
@@ -121,14 +127,15 @@ impl<S: Storage> ACLStorage<S> {
         }
     }
 
+    /// Overrides a value of an ACL
     pub fn update(&mut self, key: Key, acl: &ACL) -> Result<()> {
         let bytes = serde_json::to_vec(acl)?;
         self.inner.set(Some(key), &bytes)?;
         Ok(())
     }
 
+    /// iterates over all configured ACLs
     fn list<'a>(&'a mut self) -> Result<impl Iterator<Item = Result<(Key, ACL)>> + 'a> {
-        // not sure yet what to return
         Ok(self.inner.keys()?.filter_map(move |k| match self.get(k) {
             Ok(acl) => match acl {
                 Some(acl) => Some(Ok((k, acl))),
