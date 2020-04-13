@@ -61,6 +61,14 @@ impl Zdb {
         }
     }
 
+    /// Resets a collection then return a reference to a new *empty* collection
+    /// usually used for testing.
+    pub fn reset(self, name: &str) -> Collection {
+        let mut client = self.client.clone();
+        redis::cmd("NSDEL").arg(name).query::<()>(&mut client);
+        self.collection(name)
+    }
+
     /// Get a reference to a `Collection`.
     pub fn collection(self, name: &str) -> Collection {
         Collection::new(self.client.clone(), Some(name.into()), self.spawn_pool)
