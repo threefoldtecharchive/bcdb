@@ -79,3 +79,48 @@ message FindResponse {
   Metadata metadata = 2;
   bytes data = 3;
 }
+
+service Acl {
+  rpc Get(ACLGetRequest) returns (ACLGetResponse) {}
+
+  rpc Create(ACLCreateRequest) returns (ACLCreateResponse) {}
+
+  rpc List(ACLListRequest) returns (ACLListResponse) {}
+
+  rpc Set(ACLSetRequest) returns (ACLSetResponse) {}
+
+  rpc Grant(ACLUsersRequest) returns (ACLUsersResponse) {}
+
+  rpc Revoke(ACLUsersRequest) returns (ACLUsersResponse) {}
+}
+
+message ACL {
+  string perm = 1;
+  repeated uint64 users = 2;
+}
+
+message ACLGetRequest { uint32 key = 1; }
+
+message ACLGetResponse { ACL acl = 1; }
+
+message ACLCreateRequest { ACL acl = 1; }
+
+message ACLCreateResponse { uint32 key = 1; }
+
+message ACLListRequest {}
+
+message ACLListResponse { repeated ACL acls = 1; }
+
+message ACLSetRequest {
+  uint32 key = 1;
+  string perm = 2;
+}
+
+message ACLSetResponse {}
+
+message ACLUsersRequest {
+  uint32 key = 1;
+  repeated uint64 users = 2;
+}
+
+message ACLUsersResponse { uint64 updated = 1; }

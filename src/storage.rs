@@ -2,7 +2,7 @@ pub mod zdb;
 
 use std::{fmt, io};
 
-/// Key as they are expected by the Storage interface. For now, the key is expecteto be 4 bytes
+/// Key as they are expected by the Storage interface. For now, the key is expect to be 4 bytes
 pub type Key = u32;
 
 /// The generic set op instructions that are suported by storage implementations

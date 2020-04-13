@@ -4,9 +4,10 @@ use serde::{Deserialize, Serialize};
 
 type Result<T> = std::result::Result<T, Error>;
 
-const read: u32 = 0x4;
-const write: u32 = 0x2;
-const delete: u32 = 0x1;
+const READ: u32 = 0x4;
+const WRITE: u32 = 0x2;
+const DELETE: u32 = 0x1;
+const SYNTAX: &str = "rwd";
 
 /// Permissions bits. stores the value of current
 /// permissiones set associated with an acl
@@ -16,30 +17,30 @@ pub struct Permissions(u32);
 impl Permissions {
     /// set the read permissions bit
     pub fn set_read(self, t: bool) -> Self {
-        self.set(read, t)
+        self.set(READ, t)
     }
     /// set the write permissions bit
     pub fn set_write(self, t: bool) -> Self {
-        self.set(write, t)
+        self.set(WRITE, t)
     }
     /// set the delete permissions bit
     pub fn set_delete(self, t: bool) -> Self {
-        self.set(delete, t)
+        self.set(DELETE, t)
     }
 
     /// checks the read permissions bit
     pub fn is_read(&self) -> bool {
-        self.get(read)
+        self.get(READ)
     }
 
     /// checks the write permissions bit
     pub fn is_write(&self) -> bool {
-        self.get(write)
+        self.get(WRITE)
     }
 
     /// checks the delete permissions bit
     pub fn is_delete(&self) -> bool {
-        self.get(delete)
+        self.get(DELETE)
     }
 
     fn set(self, bit: u32, t: bool) -> Self {
@@ -53,6 +54,33 @@ impl Permissions {
 
     fn get(&self, bit: u32) -> bool {
         self.0 & bit > 0
+    }
+}
+
+impl std::str::FromStr for Permissions {
+    type Err = failure::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        if s.len() != 3 {
+            bail!("invalid format expecting format 'rwd' replace empty perm with a dash '-'");
+        }
+
+        let p = Ok(Permissions::default());
+
+        let p = s.chars().zip(SYNTAX.chars()).fold(p, |p, (v, c)| match p {
+            Ok(p) => {
+                let p = if v == c {
+                    p.0 << 1 | 1
+                } else if v == '-' {
+                    p.0 << 1
+                } else {
+                    bail!("invalid char '{}'", v);
+                };
+                Ok(Permissions(p))
+            }
+            Err(err) => Err(err),
+        });
+
+        p
     }
 }
 
@@ -92,18 +120,22 @@ impl From<Permissions> for ACL {
     }
 }
 
+#[derive(Clone)]
 pub struct ACLStorage<S>
 where
-    S: Storage,
+    S: Storage + Clone,
 {
     inner: S,
 }
 
-/*!
+/**
  * Storage is a wrapper around a raw Storage to easily set, get, and list
  * ACL objects
  */
-impl<S: Storage> ACLStorage<S> {
+impl<S> ACLStorage<S>
+where
+    S: Storage + Clone,
+{
     pub fn new(storage: S) -> ACLStorage<S> {
         ACLStorage { inner: storage }
     }
@@ -160,6 +192,39 @@ mod tests {
         assert_eq!(true, p.is_write());
         assert_eq!(false, p.is_delete());
         assert_eq!("rw-", p.to_string());
+    }
+
+    #[test]
+    fn permissions_parse() {
+        let p: Permissions = "rwd".parse().expect("failed to parse");
+
+        assert_eq!(p.is_read(), true);
+        assert_eq!(p.is_write(), true);
+        assert_eq!(p.is_delete(), true);
+
+        let p: Permissions = "r-d".parse().expect("failed to parse");
+
+        assert_eq!(p.is_read(), true);
+        assert_eq!(p.is_write(), false);
+        assert_eq!(p.is_delete(), true);
+
+        let p: Permissions = "r-d".parse().expect("failed to parse");
+
+        assert_eq!(p.is_read(), true);
+        assert_eq!(p.is_write(), false);
+        assert_eq!(p.is_delete(), true);
+
+        let p: Permissions = "--d".parse().expect("failed to parse");
+
+        assert_eq!(p.is_read(), false);
+        assert_eq!(p.is_write(), false);
+        assert_eq!(p.is_delete(), true);
+
+        let p: Permissions = "rw-".parse().expect("failed to parse");
+
+        assert_eq!(p.is_read(), true);
+        assert_eq!(p.is_write(), true);
+        assert_eq!(p.is_delete(), false);
     }
 
     #[test]

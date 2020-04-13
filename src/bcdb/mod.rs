@@ -1,15 +1,28 @@
-use generated::bcdb_server::Bcdb;
+use generated::acl_server::Acl as AclServiceTrait;
+use generated::bcdb_server::Bcdb as BcdbServiceTrait;
+
 use generated::*;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
-use tonic::{Request, Response, Status};
+use tonic::{Code, Request, Response, Status};
 
-use crate::storage::{zdb::Zdb, Storage};
+use crate::storage::{zdb::Collection, zdb::Zdb, Storage};
 
+pub use generated::acl_server::AclServer;
 pub use generated::bcdb_server::BcdbServer;
 
 pub mod generated {
     tonic::include_proto!("bcdb"); // The string specified here must match the proto package name
+}
+
+trait FailureExt {
+    fn status(&self) -> Status;
+}
+
+impl FailureExt for failure::Error {
+    fn status(&self) -> Status {
+        Status::new(Code::Internal, format!("{}", self))
+    }
 }
 
 #[derive(Default)]
@@ -18,7 +31,7 @@ pub struct BcdbService {
 }
 
 #[tonic::async_trait]
-impl Bcdb for BcdbService {
+impl BcdbServiceTrait for BcdbService {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
         let request = request.into_inner();
 
@@ -94,5 +107,95 @@ impl Bcdb for BcdbService {
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::FindStream>, Status> {
         Err(Status::unimplemented("not implemented yet!"))
+    }
+}
+
+use crate::acl::*;
+
+pub struct AclService {
+    store: ACLStorage<Collection>,
+}
+
+impl Default for AclService {
+    fn default() -> AclService {
+        AclService {
+            store: ACLStorage::new(Zdb::default().collection("acl")),
+        }
+    }
+}
+
+#[tonic::async_trait]
+impl AclServiceTrait for AclService {
+    async fn get(
+        &self,
+        request: Request<AclGetRequest>,
+    ) -> Result<Response<AclGetResponse>, Status> {
+        let request = request.into_inner();
+        let mut store = self.store.clone();
+
+        let acl = match store.get(request.key) {
+            Ok(acl) => match acl {
+                Some(acl) => acl,
+                None => return Err(Status::not_found("acl not found")),
+            },
+            Err(err) => {
+                return Err(err.status());
+            }
+        };
+
+        Ok(Response::new(AclGetResponse {
+            acl: Some(Acl {
+                perm: acl.perm.to_string(),
+                users: acl.users,
+            }),
+        }))
+    }
+
+    async fn create(
+        &self,
+        request: Request<AclCreateRequest>,
+    ) -> Result<Response<AclCreateResponse>, Status> {
+        let request = match request.into_inner().acl {
+            Some(request) => request,
+            None => return Err(Status::invalid_argument("missing acl")),
+        };
+
+        let acl = ACL {
+            perm: match request.perm.parse() {
+                Ok(perm) => perm,
+                Err(err) => return Err(err.status()),
+            },
+            users: request.users,
+        };
+
+        let mut store = self.store.clone();
+        match store.create(&acl) {
+            Ok(k) => Ok(Response::new(AclCreateResponse { key: k })),
+            Err(err) => Err(err.status()),
+        }
+    }
+    async fn list(
+        &self,
+        request: Request<AclListRequest>,
+    ) -> Result<Response<AclListResponse>, Status> {
+        Err(Status::unimplemented("not implmeneted"))
+    }
+    async fn set(
+        &self,
+        request: Request<AclSetRequest>,
+    ) -> Result<Response<AclSetResponse>, Status> {
+        Err(Status::unimplemented("not implmeneted"))
+    }
+    async fn grant(
+        &self,
+        request: Request<AclUsersRequest>,
+    ) -> Result<Response<AclUsersResponse>, Status> {
+        Err(Status::unimplemented("not implmeneted"))
+    }
+    async fn revoke(
+        &self,
+        request: Request<AclUsersRequest>,
+    ) -> Result<Response<AclUsersResponse>, Status> {
+        Err(Status::unimplemented("not implmeneted"))
     }
 }
