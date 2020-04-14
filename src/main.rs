@@ -4,6 +4,7 @@ extern crate failure;
 
 mod acl;
 mod bcdb;
+mod meta;
 mod sonic;
 mod storage;
 
