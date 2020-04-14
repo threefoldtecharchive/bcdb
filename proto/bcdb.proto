@@ -38,7 +38,16 @@ message Tag {
 }
 
 // Metadata represents a set of tags (also known as Metadata)
-message Metadata { repeated Tag tags = 1; }
+message Metadata {
+  // set of searchable tags.
+  repeated Tag tags = 1;
+  // an associated piece of text that can
+  // be used later with full text search
+  // to find the object back
+  string text = 2;
+  // acl is a ref to the acl key
+  uint64 acl = 3;
+}
 
 // Set request
 message SetRequest {
