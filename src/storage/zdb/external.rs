@@ -125,8 +125,14 @@ impl Storage for Collection {
             })
             .arg(data)
             .query(&mut *self.pool.get()?)?;
-        debug_assert!(raw_key.len() == std::mem::size_of::<Key>());
-        Ok(read_le_key(&raw_key))
+
+        match key {
+            Some(key) => Ok(key),
+            None => {
+                debug_assert!(raw_key.len() == std::mem::size_of::<Key>());
+                Ok(read_le_key(&raw_key))
+            }
+        }
     }
 
     fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, StorageError> {

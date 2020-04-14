@@ -1,7 +1,8 @@
 use generated::acl_server::Acl as AclServiceTrait;
 use generated::bcdb_server::Bcdb as BcdbServiceTrait;
-
 use generated::*;
+use std::collections::HashSet;
+use std::iter::FromIterator;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use tonic::{Code, Request, Response, Status};
@@ -160,12 +161,14 @@ impl AclServiceTrait for AclService {
             None => return Err(Status::invalid_argument("missing acl")),
         };
 
+        let set: HashSet<u64> = HashSet::from_iter(request.users);
+
         let acl = ACL {
             perm: match request.perm.parse() {
                 Ok(perm) => perm,
                 Err(err) => return Err(err.status()),
             },
-            users: request.users,
+            users: Vec::from_iter(set.into_iter()),
         };
 
         let mut store = self.store.clone();
@@ -179,7 +182,7 @@ impl AclServiceTrait for AclService {
 
     async fn list(
         &self,
-        request: Request<AclListRequest>,
+        _request: Request<AclListRequest>,
     ) -> Result<Response<Self::ListStream>, Status> {
         let (mut tx, rx) = mpsc::channel(10);
         let mut store = self.store.clone();
@@ -215,26 +218,108 @@ impl AclServiceTrait for AclService {
         });
 
         Ok(Response::new(rx))
-
-        //Err(Status::unimplemented("not implmeneted"))
     }
 
     async fn set(
         &self,
         request: Request<AclSetRequest>,
     ) -> Result<Response<AclSetResponse>, Status> {
-        Err(Status::unimplemented("not implmeneted"))
+        let request = request.into_inner();
+        let perm: Permissions = match request.perm.parse() {
+            Ok(perm) => perm,
+            Err(err) => {
+                return Err(Status::invalid_argument(format!(
+                    "failed to parse permission '{}': {}",
+                    request.perm, err
+                )))
+            }
+        };
+
+        let mut store = self.store.clone();
+        let mut acl = match store.get(request.key) {
+            Ok(acl) => match acl {
+                Some(acl) => acl,
+                None => return Err(Status::not_found("no acl found with key")),
+            },
+            Err(err) => return Err(err.status()),
+        };
+
+        acl.perm = perm;
+
+        match store.update(request.key, &acl) {
+            Ok(_) => Ok(Response::new(AclSetResponse {})),
+            Err(err) => Err(err.status()),
+        }
     }
+
     async fn grant(
         &self,
         request: Request<AclUsersRequest>,
     ) -> Result<Response<AclUsersResponse>, Status> {
-        Err(Status::unimplemented("not implmeneted"))
+        let request = request.into_inner();
+
+        let mut store = self.store.clone();
+        let mut acl = match store.get(request.key) {
+            Ok(acl) => match acl {
+                Some(acl) => acl,
+                None => return Err(Status::not_found("no acl found with key")),
+            },
+            Err(err) => return Err(err.status()),
+        };
+
+        let mut set: HashSet<u64> = HashSet::from_iter(acl.users);
+        let len = set.len();
+        request.users.iter().for_each(|u| {
+            set.insert(*u);
+        });
+
+        let updated = set.len() - len;
+        if updated > 0 {
+            acl.users = Vec::from_iter(set.into_iter());
+
+            match store.update(request.key, &acl) {
+                Ok(_) => Ok(Response::new(AclUsersResponse {
+                    updated: updated as u64,
+                })),
+                Err(err) => Err(err.status()),
+            }
+        } else {
+            Ok(Response::new(AclUsersResponse { updated: 0 }))
+        }
     }
     async fn revoke(
         &self,
         request: Request<AclUsersRequest>,
     ) -> Result<Response<AclUsersResponse>, Status> {
-        Err(Status::unimplemented("not implmeneted"))
+        let request = request.into_inner();
+
+        let mut store = self.store.clone();
+        let mut acl = match store.get(request.key) {
+            Ok(acl) => match acl {
+                Some(acl) => acl,
+                None => return Err(Status::not_found("no acl found with key")),
+            },
+            Err(err) => return Err(err.status()),
+        };
+
+        let mut set: HashSet<u64> = HashSet::from_iter(acl.users);
+        let len = set.len();
+        request.users.iter().for_each(|u| {
+            set.remove(u);
+        });
+
+        let updated = len - set.len();
+        if updated > 0 {
+            acl.users = Vec::from_iter(set.into_iter());
+
+            match store.update(request.key, &acl) {
+                Ok(_) => Ok(Response::new(AclUsersResponse {
+                    updated: updated as u64,
+                })),
+                Err(err) => Err(err.status()),
+            }
+        } else {
+            Ok(Response::new(AclUsersResponse { updated: 0 }))
+        }
     }
 }
