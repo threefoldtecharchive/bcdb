@@ -574,6 +574,451 @@ func (m *FindResponse) GetData() []byte {
 	return nil
 }
 
+type ACL struct {
+	Perm                 string   `protobuf:"bytes,1,opt,name=perm,proto3" json:"perm,omitempty"`
+	Users                []uint64 `protobuf:"varint,2,rep,packed,name=users,proto3" json:"users,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ACL) Reset()         { *m = ACL{} }
+func (m *ACL) String() string { return proto.CompactTextString(m) }
+func (*ACL) ProtoMessage()    {}
+func (*ACL) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{11}
+}
+
+func (m *ACL) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ACL.Unmarshal(m, b)
+}
+func (m *ACL) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ACL.Marshal(b, m, deterministic)
+}
+func (m *ACL) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ACL.Merge(m, src)
+}
+func (m *ACL) XXX_Size() int {
+	return xxx_messageInfo_ACL.Size(m)
+}
+func (m *ACL) XXX_DiscardUnknown() {
+	xxx_messageInfo_ACL.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ACL proto.InternalMessageInfo
+
+func (m *ACL) GetPerm() string {
+	if m != nil {
+		return m.Perm
+	}
+	return ""
+}
+
+func (m *ACL) GetUsers() []uint64 {
+	if m != nil {
+		return m.Users
+	}
+	return nil
+}
+
+type ACLGetRequest struct {
+	Key                  uint32   `protobuf:"varint,1,opt,name=key,proto3" json:"key,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ACLGetRequest) Reset()         { *m = ACLGetRequest{} }
+func (m *ACLGetRequest) String() string { return proto.CompactTextString(m) }
+func (*ACLGetRequest) ProtoMessage()    {}
+func (*ACLGetRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{12}
+}
+
+func (m *ACLGetRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ACLGetRequest.Unmarshal(m, b)
+}
+func (m *ACLGetRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ACLGetRequest.Marshal(b, m, deterministic)
+}
+func (m *ACLGetRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ACLGetRequest.Merge(m, src)
+}
+func (m *ACLGetRequest) XXX_Size() int {
+	return xxx_messageInfo_ACLGetRequest.Size(m)
+}
+func (m *ACLGetRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ACLGetRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ACLGetRequest proto.InternalMessageInfo
+
+func (m *ACLGetRequest) GetKey() uint32 {
+	if m != nil {
+		return m.Key
+	}
+	return 0
+}
+
+type ACLGetResponse struct {
+	Acl                  *ACL     `protobuf:"bytes,1,opt,name=acl,proto3" json:"acl,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ACLGetResponse) Reset()         { *m = ACLGetResponse{} }
+func (m *ACLGetResponse) String() string { return proto.CompactTextString(m) }
+func (*ACLGetResponse) ProtoMessage()    {}
+func (*ACLGetResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{13}
+}
+
+func (m *ACLGetResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ACLGetResponse.Unmarshal(m, b)
+}
+func (m *ACLGetResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ACLGetResponse.Marshal(b, m, deterministic)
+}
+func (m *ACLGetResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ACLGetResponse.Merge(m, src)
+}
+func (m *ACLGetResponse) XXX_Size() int {
+	return xxx_messageInfo_ACLGetResponse.Size(m)
+}
+func (m *ACLGetResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ACLGetResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ACLGetResponse proto.InternalMessageInfo
+
+func (m *ACLGetResponse) GetAcl() *ACL {
+	if m != nil {
+		return m.Acl
+	}
+	return nil
+}
+
+type ACLCreateRequest struct {
+	Acl                  *ACL     `protobuf:"bytes,1,opt,name=acl,proto3" json:"acl,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ACLCreateRequest) Reset()         { *m = ACLCreateRequest{} }
+func (m *ACLCreateRequest) String() string { return proto.CompactTextString(m) }
+func (*ACLCreateRequest) ProtoMessage()    {}
+func (*ACLCreateRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{14}
+}
+
+func (m *ACLCreateRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ACLCreateRequest.Unmarshal(m, b)
+}
+func (m *ACLCreateRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ACLCreateRequest.Marshal(b, m, deterministic)
+}
+func (m *ACLCreateRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ACLCreateRequest.Merge(m, src)
+}
+func (m *ACLCreateRequest) XXX_Size() int {
+	return xxx_messageInfo_ACLCreateRequest.Size(m)
+}
+func (m *ACLCreateRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ACLCreateRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ACLCreateRequest proto.InternalMessageInfo
+
+func (m *ACLCreateRequest) GetAcl() *ACL {
+	if m != nil {
+		return m.Acl
+	}
+	return nil
+}
+
+type ACLCreateResponse struct {
+	Key                  uint32   `protobuf:"varint,1,opt,name=key,proto3" json:"key,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ACLCreateResponse) Reset()         { *m = ACLCreateResponse{} }
+func (m *ACLCreateResponse) String() string { return proto.CompactTextString(m) }
+func (*ACLCreateResponse) ProtoMessage()    {}
+func (*ACLCreateResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{15}
+}
+
+func (m *ACLCreateResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ACLCreateResponse.Unmarshal(m, b)
+}
+func (m *ACLCreateResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ACLCreateResponse.Marshal(b, m, deterministic)
+}
+func (m *ACLCreateResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ACLCreateResponse.Merge(m, src)
+}
+func (m *ACLCreateResponse) XXX_Size() int {
+	return xxx_messageInfo_ACLCreateResponse.Size(m)
+}
+func (m *ACLCreateResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ACLCreateResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ACLCreateResponse proto.InternalMessageInfo
+
+func (m *ACLCreateResponse) GetKey() uint32 {
+	if m != nil {
+		return m.Key
+	}
+	return 0
+}
+
+type ACLListRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ACLListRequest) Reset()         { *m = ACLListRequest{} }
+func (m *ACLListRequest) String() string { return proto.CompactTextString(m) }
+func (*ACLListRequest) ProtoMessage()    {}
+func (*ACLListRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{16}
+}
+
+func (m *ACLListRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ACLListRequest.Unmarshal(m, b)
+}
+func (m *ACLListRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ACLListRequest.Marshal(b, m, deterministic)
+}
+func (m *ACLListRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ACLListRequest.Merge(m, src)
+}
+func (m *ACLListRequest) XXX_Size() int {
+	return xxx_messageInfo_ACLListRequest.Size(m)
+}
+func (m *ACLListRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ACLListRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ACLListRequest proto.InternalMessageInfo
+
+type ACLListResponse struct {
+	Key                  uint32   `protobuf:"varint,1,opt,name=key,proto3" json:"key,omitempty"`
+	Acl                  *ACL     `protobuf:"bytes,2,opt,name=acl,proto3" json:"acl,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ACLListResponse) Reset()         { *m = ACLListResponse{} }
+func (m *ACLListResponse) String() string { return proto.CompactTextString(m) }
+func (*ACLListResponse) ProtoMessage()    {}
+func (*ACLListResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{17}
+}
+
+func (m *ACLListResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ACLListResponse.Unmarshal(m, b)
+}
+func (m *ACLListResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ACLListResponse.Marshal(b, m, deterministic)
+}
+func (m *ACLListResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ACLListResponse.Merge(m, src)
+}
+func (m *ACLListResponse) XXX_Size() int {
+	return xxx_messageInfo_ACLListResponse.Size(m)
+}
+func (m *ACLListResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ACLListResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ACLListResponse proto.InternalMessageInfo
+
+func (m *ACLListResponse) GetKey() uint32 {
+	if m != nil {
+		return m.Key
+	}
+	return 0
+}
+
+func (m *ACLListResponse) GetAcl() *ACL {
+	if m != nil {
+		return m.Acl
+	}
+	return nil
+}
+
+type ACLSetRequest struct {
+	Key                  uint32   `protobuf:"varint,1,opt,name=key,proto3" json:"key,omitempty"`
+	Perm                 string   `protobuf:"bytes,2,opt,name=perm,proto3" json:"perm,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ACLSetRequest) Reset()         { *m = ACLSetRequest{} }
+func (m *ACLSetRequest) String() string { return proto.CompactTextString(m) }
+func (*ACLSetRequest) ProtoMessage()    {}
+func (*ACLSetRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{18}
+}
+
+func (m *ACLSetRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ACLSetRequest.Unmarshal(m, b)
+}
+func (m *ACLSetRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ACLSetRequest.Marshal(b, m, deterministic)
+}
+func (m *ACLSetRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ACLSetRequest.Merge(m, src)
+}
+func (m *ACLSetRequest) XXX_Size() int {
+	return xxx_messageInfo_ACLSetRequest.Size(m)
+}
+func (m *ACLSetRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ACLSetRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ACLSetRequest proto.InternalMessageInfo
+
+func (m *ACLSetRequest) GetKey() uint32 {
+	if m != nil {
+		return m.Key
+	}
+	return 0
+}
+
+func (m *ACLSetRequest) GetPerm() string {
+	if m != nil {
+		return m.Perm
+	}
+	return ""
+}
+
+type ACLSetResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ACLSetResponse) Reset()         { *m = ACLSetResponse{} }
+func (m *ACLSetResponse) String() string { return proto.CompactTextString(m) }
+func (*ACLSetResponse) ProtoMessage()    {}
+func (*ACLSetResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{19}
+}
+
+func (m *ACLSetResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ACLSetResponse.Unmarshal(m, b)
+}
+func (m *ACLSetResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ACLSetResponse.Marshal(b, m, deterministic)
+}
+func (m *ACLSetResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ACLSetResponse.Merge(m, src)
+}
+func (m *ACLSetResponse) XXX_Size() int {
+	return xxx_messageInfo_ACLSetResponse.Size(m)
+}
+func (m *ACLSetResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ACLSetResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ACLSetResponse proto.InternalMessageInfo
+
+type ACLUsersRequest struct {
+	Key                  uint32   `protobuf:"varint,1,opt,name=key,proto3" json:"key,omitempty"`
+	Users                []uint64 `protobuf:"varint,2,rep,packed,name=users,proto3" json:"users,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ACLUsersRequest) Reset()         { *m = ACLUsersRequest{} }
+func (m *ACLUsersRequest) String() string { return proto.CompactTextString(m) }
+func (*ACLUsersRequest) ProtoMessage()    {}
+func (*ACLUsersRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{20}
+}
+
+func (m *ACLUsersRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ACLUsersRequest.Unmarshal(m, b)
+}
+func (m *ACLUsersRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ACLUsersRequest.Marshal(b, m, deterministic)
+}
+func (m *ACLUsersRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ACLUsersRequest.Merge(m, src)
+}
+func (m *ACLUsersRequest) XXX_Size() int {
+	return xxx_messageInfo_ACLUsersRequest.Size(m)
+}
+func (m *ACLUsersRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ACLUsersRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ACLUsersRequest proto.InternalMessageInfo
+
+func (m *ACLUsersRequest) GetKey() uint32 {
+	if m != nil {
+		return m.Key
+	}
+	return 0
+}
+
+func (m *ACLUsersRequest) GetUsers() []uint64 {
+	if m != nil {
+		return m.Users
+	}
+	return nil
+}
+
+type ACLUsersResponse struct {
+	Updated              uint64   `protobuf:"varint,1,opt,name=updated,proto3" json:"updated,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ACLUsersResponse) Reset()         { *m = ACLUsersResponse{} }
+func (m *ACLUsersResponse) String() string { return proto.CompactTextString(m) }
+func (*ACLUsersResponse) ProtoMessage()    {}
+func (*ACLUsersResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{21}
+}
+
+func (m *ACLUsersResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ACLUsersResponse.Unmarshal(m, b)
+}
+func (m *ACLUsersResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ACLUsersResponse.Marshal(b, m, deterministic)
+}
+func (m *ACLUsersResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ACLUsersResponse.Merge(m, src)
+}
+func (m *ACLUsersResponse) XXX_Size() int {
+	return xxx_messageInfo_ACLUsersResponse.Size(m)
+}
+func (m *ACLUsersResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ACLUsersResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ACLUsersResponse proto.InternalMessageInfo
+
+func (m *ACLUsersResponse) GetUpdated() uint64 {
+	if m != nil {
+		return m.Updated
+	}
+	return 0
+}
+
 func init() {
 	proto.RegisterType((*Tag)(nil), "bcdb.Tag")
 	proto.RegisterType((*Metadata)(nil), "bcdb.Metadata")
@@ -586,6 +1031,17 @@ func init() {
 	proto.RegisterType((*QueryRequest)(nil), "bcdb.QueryRequest")
 	proto.RegisterType((*ListResponse)(nil), "bcdb.ListResponse")
 	proto.RegisterType((*FindResponse)(nil), "bcdb.FindResponse")
+	proto.RegisterType((*ACL)(nil), "bcdb.ACL")
+	proto.RegisterType((*ACLGetRequest)(nil), "bcdb.ACLGetRequest")
+	proto.RegisterType((*ACLGetResponse)(nil), "bcdb.ACLGetResponse")
+	proto.RegisterType((*ACLCreateRequest)(nil), "bcdb.ACLCreateRequest")
+	proto.RegisterType((*ACLCreateResponse)(nil), "bcdb.ACLCreateResponse")
+	proto.RegisterType((*ACLListRequest)(nil), "bcdb.ACLListRequest")
+	proto.RegisterType((*ACLListResponse)(nil), "bcdb.ACLListResponse")
+	proto.RegisterType((*ACLSetRequest)(nil), "bcdb.ACLSetRequest")
+	proto.RegisterType((*ACLSetResponse)(nil), "bcdb.ACLSetResponse")
+	proto.RegisterType((*ACLUsersRequest)(nil), "bcdb.ACLUsersRequest")
+	proto.RegisterType((*ACLUsersResponse)(nil), "bcdb.ACLUsersResponse")
 }
 
 func init() {
@@ -593,33 +1049,48 @@ func init() {
 }
 
 var fileDescriptor_41b705b2a83eae7f = []byte{
-	// 409 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x53, 0x5d, 0x8b, 0xd3, 0x40,
-	0x14, 0xcd, 0x24, 0xd9, 0xda, 0xbd, 0xc9, 0x86, 0x3a, 0xfa, 0x10, 0xca, 0xae, 0x84, 0x79, 0x8a,
-	0x22, 0x8b, 0x44, 0xfc, 0x03, 0x55, 0xcc, 0x82, 0xbb, 0x0f, 0x4e, 0xeb, 0xab, 0x30, 0x71, 0x86,
-	0x10, 0x6c, 0x93, 0x9a, 0x4c, 0x84, 0x3e, 0xfa, 0xee, 0x8f, 0x96, 0x99, 0x49, 0xf3, 0xa1, 0xb4,
-	0x20, 0xfb, 0x36, 0xf7, 0x9c, 0x7b, 0xee, 0xbd, 0xe7, 0x84, 0x00, 0x64, 0xdf, 0x78, 0x76, 0xbb,
-	0xaf, 0x2b, 0x59, 0x61, 0x57, 0xbd, 0xc9, 0x6f, 0x04, 0xce, 0x86, 0xe5, 0x78, 0x01, 0xce, 0x77,
-	0x71, 0x08, 0x51, 0x84, 0xe2, 0x4b, 0xaa, 0x9e, 0x38, 0x84, 0x59, 0x23, 0xeb, 0xa2, 0xcc, 0x43,
-	0x5b, 0x81, 0x77, 0x16, 0xed, 0x6a, 0xc5, 0xf0, 0xaa, 0xcd, 0xb6, 0x22, 0x74, 0x22, 0x14, 0x23,
-	0xc5, 0x98, 0x5a, 0x31, 0x65, 0xbb, 0xcb, 0x44, 0x1d, 0xba, 0x11, 0x8a, 0x1d, 0xc5, 0x98, 0x1a,
-	0x5f, 0xc3, 0xbc, 0x2d, 0x9b, 0x22, 0x2f, 0x05, 0x0f, 0x2f, 0x22, 0x14, 0xbb, 0x77, 0x16, 0xed,
-	0x91, 0xd5, 0x13, 0xb8, 0xf8, 0xc9, 0xb6, 0xad, 0x20, 0x2f, 0x61, 0xfe, 0x20, 0x24, 0xe3, 0x4c,
-	0x32, 0x7c, 0x03, 0xae, 0x64, 0x79, 0x13, 0xa2, 0xc8, 0x89, 0xbd, 0xe4, 0xf2, 0x56, 0xdf, 0xbe,
-	0x61, 0x39, 0xd5, 0x30, 0xb9, 0x07, 0x58, 0x0b, 0x49, 0xc5, 0x8f, 0x56, 0x34, 0x12, 0xbf, 0x82,
-	0xf9, 0xae, 0x13, 0x6a, 0x13, 0x5e, 0x12, 0x18, 0xc1, 0x71, 0x1c, 0xed, 0x79, 0x8c, 0xc1, 0xd5,
-	0x7d, 0xca, 0x97, 0x4f, 0xf5, 0x9b, 0xdc, 0x80, 0xa7, 0xa7, 0x35, 0xfb, 0xaa, 0x6c, 0x04, 0x0e,
-	0xc0, 0x2e, 0xb8, 0x1e, 0x74, 0x45, 0xed, 0x82, 0x93, 0x6b, 0x80, 0x74, 0x58, 0xf6, 0x37, 0xfb,
-	0x00, 0x5e, 0x3a, 0x12, 0x3f, 0xf6, 0x96, 0x4f, 0x70, 0xf5, 0x65, 0xcf, 0x99, 0x14, 0x27, 0xf6,
-	0x4d, 0x16, 0xd8, 0xe7, 0x17, 0x90, 0x05, 0x04, 0xc7, 0x61, 0xe6, 0x3c, 0x12, 0x80, 0xff, 0xb9,
-	0x15, 0xf5, 0xa1, 0x9b, 0x4e, 0x5e, 0x80, 0x7f, 0x5f, 0x34, 0xa7, 0xbd, 0x7f, 0x05, 0xff, 0x63,
-	0x51, 0xf2, 0x53, 0xfc, 0xff, 0x5c, 0xd3, 0xdb, 0x75, 0x06, 0xbb, 0xc9, 0x2f, 0x1b, 0xdc, 0xd5,
-	0xfb, 0x0f, 0x2b, 0xfc, 0x1a, 0x9c, 0xb5, 0x90, 0x78, 0x61, 0xd4, 0xc3, 0xc7, 0x5d, 0x3e, 0x1d,
-	0x21, 0x9d, 0x09, 0x4b, 0x75, 0xa7, 0x43, 0x77, 0xfa, 0x4f, 0x77, 0x3a, 0xe9, 0x7e, 0x07, 0x33,
-	0x13, 0x03, 0x7e, 0x66, 0xe8, 0x49, 0xc2, 0xcb, 0xe7, 0x53, 0xb0, 0x97, 0x25, 0xe0, 0xaa, 0x6c,
-	0x30, 0x36, 0xfc, 0x38, 0xb7, 0x65, 0x87, 0x8d, 0xb3, 0x23, 0xd6, 0x1b, 0xa4, 0x34, 0x2a, 0xaf,
-	0x73, 0x9a, 0x71, 0x9e, 0x4a, 0x93, 0xcd, 0xf4, 0x3f, 0xf9, 0xf6, 0x4f, 0x00, 0x00, 0x00, 0xff,
-	0xff, 0x3f, 0x64, 0x6e, 0xf3, 0xa1, 0x03, 0x00, 0x00,
+	// 648 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x55, 0x5b, 0x4f, 0xdb, 0x4c,
+	0x10, 0x8d, 0x2f, 0x09, 0x30, 0xb9, 0x7c, 0x61, 0xe1, 0xa3, 0x56, 0x0a, 0x95, 0xbb, 0x52, 0x25,
+	0xb7, 0xa2, 0x50, 0xb9, 0x42, 0x2d, 0xea, 0x4b, 0x83, 0xab, 0x1a, 0xa9, 0xe6, 0xa1, 0x1b, 0x78,
+	0xad, 0xe4, 0xe0, 0x55, 0x64, 0x11, 0x9c, 0xd4, 0x17, 0x24, 0x1e, 0xfb, 0xde, 0x1f, 0xd8, 0x9f,
+	0x53, 0xed, 0x25, 0xf6, 0x1a, 0x92, 0x48, 0xa8, 0x6f, 0xde, 0x99, 0x3d, 0x33, 0xe7, 0xcc, 0x9c,
+	0x95, 0x01, 0xc6, 0xd7, 0xd1, 0xf8, 0x68, 0x9e, 0xce, 0xf2, 0x19, 0x32, 0xd9, 0x37, 0xfe, 0xad,
+	0x81, 0x71, 0x19, 0x4e, 0x50, 0x1f, 0x8c, 0x1b, 0x7a, 0x6f, 0x69, 0xb6, 0xe6, 0x6c, 0x11, 0xf6,
+	0x89, 0x2c, 0x68, 0x65, 0x79, 0x1a, 0x27, 0x13, 0x4b, 0x67, 0xc1, 0xf3, 0x06, 0x91, 0x67, 0x96,
+	0x89, 0x66, 0xc5, 0x78, 0x4a, 0x2d, 0xc3, 0xd6, 0x1c, 0x8d, 0x65, 0xc4, 0x99, 0x65, 0x92, 0xe2,
+	0x76, 0x4c, 0x53, 0xcb, 0xb4, 0x35, 0xc7, 0x60, 0x19, 0x71, 0x46, 0xfb, 0xb0, 0x59, 0x24, 0x59,
+	0x3c, 0x49, 0x68, 0x64, 0x35, 0x6d, 0xcd, 0x31, 0xcf, 0x1b, 0xa4, 0x8c, 0x9c, 0x6d, 0x40, 0xf3,
+	0x2e, 0x9c, 0x16, 0x14, 0xbf, 0x86, 0xcd, 0x0b, 0x9a, 0x87, 0x51, 0x98, 0x87, 0xe8, 0x00, 0xcc,
+	0x3c, 0x9c, 0x64, 0x96, 0x66, 0x1b, 0x4e, 0xdb, 0xdd, 0x3a, 0xe2, 0xdc, 0x2f, 0xc3, 0x09, 0xe1,
+	0x61, 0x1c, 0x00, 0x8c, 0x68, 0x4e, 0xe8, 0xcf, 0x82, 0x66, 0x39, 0x7a, 0x03, 0x9b, 0xb7, 0x12,
+	0xc8, 0x45, 0xb4, 0xdd, 0x9e, 0x00, 0x2c, 0xca, 0x91, 0x32, 0x8f, 0x10, 0x98, 0xfc, 0x1e, 0xd3,
+	0xd5, 0x21, 0xfc, 0x1b, 0x1f, 0x40, 0x9b, 0x57, 0xcb, 0xe6, 0xb3, 0x24, 0xa3, 0xa8, 0x07, 0x7a,
+	0x1c, 0xf1, 0x42, 0x5d, 0xa2, 0xc7, 0x11, 0xde, 0x07, 0xf0, 0xab, 0x66, 0x0f, 0xb3, 0x17, 0xd0,
+	0xf6, 0x15, 0xf0, 0xbf, 0x72, 0xf9, 0x06, 0xdd, 0xab, 0x79, 0x14, 0xe6, 0x74, 0x45, 0xbf, 0x5a,
+	0x03, 0x7d, 0x7d, 0x03, 0xdc, 0x87, 0xde, 0xa2, 0x98, 0xa0, 0x87, 0x7b, 0xd0, 0xf9, 0x5e, 0xd0,
+	0xf4, 0x5e, 0x56, 0xc7, 0x2f, 0xa0, 0x13, 0xc4, 0xd9, 0x6a, 0xed, 0x3f, 0xa0, 0xf3, 0x35, 0x4e,
+	0xa2, 0x55, 0xf9, 0xa7, 0xb0, 0x29, 0xe5, 0x1a, 0x8a, 0xdc, 0x63, 0x30, 0x86, 0x5e, 0xc0, 0x52,
+	0x73, 0x9a, 0xde, 0x4a, 0x0b, 0xf2, 0x6f, 0xb4, 0x0b, 0xcd, 0x22, 0xa3, 0x69, 0x66, 0xe9, 0xb6,
+	0xe1, 0x98, 0x44, 0x1c, 0xf0, 0x4b, 0xe8, 0x0e, 0xbd, 0x40, 0xd9, 0x87, 0x62, 0xde, 0x2e, 0x37,
+	0x2f, 0x7e, 0x0b, 0xbd, 0xc5, 0x15, 0xc9, 0xfa, 0x39, 0x18, 0xe1, 0xf5, 0x54, 0xee, 0x43, 0x9a,
+	0x69, 0xe8, 0x05, 0x84, 0x45, 0xf1, 0x31, 0xf4, 0x87, 0x5e, 0xe0, 0xa5, 0x54, 0x19, 0xfa, 0x5a,
+	0xc0, 0x2b, 0xd8, 0x56, 0x00, 0xb2, 0xc5, 0x63, 0x1a, 0x7d, 0x4e, 0x43, 0x4c, 0x57, 0x0c, 0xfb,
+	0x33, 0xfc, 0x57, 0x46, 0x56, 0xc1, 0x16, 0xad, 0xf5, 0xa5, 0xad, 0x4f, 0xb8, 0xfa, 0xd1, 0x1a,
+	0xf5, 0xe5, 0x28, 0xf5, 0x6a, 0x94, 0x92, 0x8a, 0xe2, 0x71, 0x7c, 0xca, 0xa9, 0x5c, 0xb1, 0x91,
+	0xae, 0x2e, 0xb5, 0x7c, 0x03, 0x87, 0x7c, 0x5e, 0x12, 0x2a, 0x65, 0x58, 0xb0, 0x51, 0x70, 0xa3,
+	0x09, 0x6f, 0x98, 0x64, 0x71, 0x74, 0x7f, 0xe9, 0x60, 0x9e, 0x79, 0x5f, 0xce, 0xd0, 0x21, 0x18,
+	0x23, 0x9a, 0xa3, 0xbe, 0x50, 0x54, 0x49, 0x18, 0x6c, 0x2b, 0x11, 0xc9, 0xae, 0xc1, 0x6e, 0xfb,
+	0xd5, 0x6d, 0xff, 0xd1, 0x6d, 0xbf, 0x76, 0xfb, 0x04, 0x5a, 0xc2, 0xe7, 0x68, 0x47, 0xa4, 0x6b,
+	0x4f, 0x68, 0xb0, 0x5b, 0x0f, 0x96, 0x30, 0x17, 0x4c, 0xb6, 0x0c, 0x84, 0x44, 0x5e, 0x7d, 0x18,
+	0x03, 0x19, 0x53, 0x97, 0x85, 0x1b, 0xef, 0x34, 0x86, 0x61, 0x0f, 0x62, 0x1d, 0x46, 0x7d, 0x30,
+	0x0c, 0xe3, 0xfe, 0xd1, 0xc1, 0x18, 0x5e, 0x4f, 0x91, 0x2b, 0x44, 0xed, 0x94, 0x4b, 0x55, 0x74,
+	0xed, 0xd6, 0x83, 0x25, 0xc7, 0x4f, 0xd0, 0x12, 0x4e, 0x43, 0x7b, 0xe5, 0x8d, 0x9a, 0x57, 0x07,
+	0xcf, 0x1e, 0xc5, 0x4b, 0xf0, 0x07, 0x29, 0xb0, 0x2a, 0xae, 0xd8, 0x71, 0xf0, 0xff, 0x83, 0x68,
+	0x4d, 0x25, 0x5f, 0x56, 0xc5, 0x74, 0xb4, 0x8c, 0x69, 0x7d, 0x65, 0x1f, 0xa1, 0xe9, 0xa7, 0x61,
+	0x92, 0xa3, 0xaa, 0xae, 0xea, 0xaf, 0xc1, 0xde, 0xc3, 0x70, 0x89, 0x3c, 0x85, 0x16, 0xa1, 0x77,
+	0xb3, 0x1b, 0xfa, 0x64, 0xe8, 0xb8, 0xc5, 0xff, 0x67, 0xef, 0xff, 0x06, 0x00, 0x00, 0xff, 0xff,
+	0x4b, 0xbb, 0x2b, 0x02, 0xdd, 0x06, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -905,6 +1376,286 @@ var _BCDB_serviceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "Find",
 			Handler:       _BCDB_Find_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "bcdb.proto",
+}
+
+// AclClient is the client API for Acl service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type AclClient interface {
+	Get(ctx context.Context, in *ACLGetRequest, opts ...grpc.CallOption) (*ACLGetResponse, error)
+	Create(ctx context.Context, in *ACLCreateRequest, opts ...grpc.CallOption) (*ACLCreateResponse, error)
+	List(ctx context.Context, in *ACLListRequest, opts ...grpc.CallOption) (Acl_ListClient, error)
+	Set(ctx context.Context, in *ACLSetRequest, opts ...grpc.CallOption) (*ACLSetResponse, error)
+	Grant(ctx context.Context, in *ACLUsersRequest, opts ...grpc.CallOption) (*ACLUsersResponse, error)
+	Revoke(ctx context.Context, in *ACLUsersRequest, opts ...grpc.CallOption) (*ACLUsersResponse, error)
+}
+
+type aclClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewAclClient(cc grpc.ClientConnInterface) AclClient {
+	return &aclClient{cc}
+}
+
+func (c *aclClient) Get(ctx context.Context, in *ACLGetRequest, opts ...grpc.CallOption) (*ACLGetResponse, error) {
+	out := new(ACLGetResponse)
+	err := c.cc.Invoke(ctx, "/bcdb.Acl/Get", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aclClient) Create(ctx context.Context, in *ACLCreateRequest, opts ...grpc.CallOption) (*ACLCreateResponse, error) {
+	out := new(ACLCreateResponse)
+	err := c.cc.Invoke(ctx, "/bcdb.Acl/Create", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aclClient) List(ctx context.Context, in *ACLListRequest, opts ...grpc.CallOption) (Acl_ListClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_Acl_serviceDesc.Streams[0], "/bcdb.Acl/List", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &aclListClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Acl_ListClient interface {
+	Recv() (*ACLListResponse, error)
+	grpc.ClientStream
+}
+
+type aclListClient struct {
+	grpc.ClientStream
+}
+
+func (x *aclListClient) Recv() (*ACLListResponse, error) {
+	m := new(ACLListResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *aclClient) Set(ctx context.Context, in *ACLSetRequest, opts ...grpc.CallOption) (*ACLSetResponse, error) {
+	out := new(ACLSetResponse)
+	err := c.cc.Invoke(ctx, "/bcdb.Acl/Set", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aclClient) Grant(ctx context.Context, in *ACLUsersRequest, opts ...grpc.CallOption) (*ACLUsersResponse, error) {
+	out := new(ACLUsersResponse)
+	err := c.cc.Invoke(ctx, "/bcdb.Acl/Grant", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aclClient) Revoke(ctx context.Context, in *ACLUsersRequest, opts ...grpc.CallOption) (*ACLUsersResponse, error) {
+	out := new(ACLUsersResponse)
+	err := c.cc.Invoke(ctx, "/bcdb.Acl/Revoke", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AclServer is the server API for Acl service.
+type AclServer interface {
+	Get(context.Context, *ACLGetRequest) (*ACLGetResponse, error)
+	Create(context.Context, *ACLCreateRequest) (*ACLCreateResponse, error)
+	List(*ACLListRequest, Acl_ListServer) error
+	Set(context.Context, *ACLSetRequest) (*ACLSetResponse, error)
+	Grant(context.Context, *ACLUsersRequest) (*ACLUsersResponse, error)
+	Revoke(context.Context, *ACLUsersRequest) (*ACLUsersResponse, error)
+}
+
+// UnimplementedAclServer can be embedded to have forward compatible implementations.
+type UnimplementedAclServer struct {
+}
+
+func (*UnimplementedAclServer) Get(ctx context.Context, req *ACLGetRequest) (*ACLGetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+}
+func (*UnimplementedAclServer) Create(ctx context.Context, req *ACLCreateRequest) (*ACLCreateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
+}
+func (*UnimplementedAclServer) List(req *ACLListRequest, srv Acl_ListServer) error {
+	return status.Errorf(codes.Unimplemented, "method List not implemented")
+}
+func (*UnimplementedAclServer) Set(ctx context.Context, req *ACLSetRequest) (*ACLSetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Set not implemented")
+}
+func (*UnimplementedAclServer) Grant(ctx context.Context, req *ACLUsersRequest) (*ACLUsersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Grant not implemented")
+}
+func (*UnimplementedAclServer) Revoke(ctx context.Context, req *ACLUsersRequest) (*ACLUsersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Revoke not implemented")
+}
+
+func RegisterAclServer(s *grpc.Server, srv AclServer) {
+	s.RegisterService(&_Acl_serviceDesc, srv)
+}
+
+func _Acl_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ACLGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AclServer).Get(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/bcdb.Acl/Get",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AclServer).Get(ctx, req.(*ACLGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Acl_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ACLCreateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AclServer).Create(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/bcdb.Acl/Create",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AclServer).Create(ctx, req.(*ACLCreateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Acl_List_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ACLListRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AclServer).List(m, &aclListServer{stream})
+}
+
+type Acl_ListServer interface {
+	Send(*ACLListResponse) error
+	grpc.ServerStream
+}
+
+type aclListServer struct {
+	grpc.ServerStream
+}
+
+func (x *aclListServer) Send(m *ACLListResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Acl_Set_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ACLSetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AclServer).Set(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/bcdb.Acl/Set",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AclServer).Set(ctx, req.(*ACLSetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Acl_Grant_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ACLUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AclServer).Grant(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/bcdb.Acl/Grant",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AclServer).Grant(ctx, req.(*ACLUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Acl_Revoke_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ACLUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AclServer).Revoke(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/bcdb.Acl/Revoke",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AclServer).Revoke(ctx, req.(*ACLUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _Acl_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "bcdb.Acl",
+	HandlerType: (*AclServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Get",
+			Handler:    _Acl_Get_Handler,
+		},
+		{
+			MethodName: "Create",
+			Handler:    _Acl_Create_Handler,
+		},
+		{
+			MethodName: "Set",
+			Handler:    _Acl_Set_Handler,
+		},
+		{
+			MethodName: "Grant",
+			Handler:    _Acl_Grant_Handler,
+		},
+		{
+			MethodName: "Revoke",
+			Handler:    _Acl_Revoke_Handler,
+		},
+	},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "List",
+			Handler:       _Acl_List_Handler,
 			ServerStreams: true,
 		},
 	},

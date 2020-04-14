@@ -61,6 +61,14 @@ impl Zdb {
         }
     }
 
+    /// Resets a collection then return a reference to a new *empty* collection
+    /// usually used for testing.
+    pub fn reset(self, name: &str) -> Collection {
+        let mut client = self.client.clone();
+        redis::cmd("NSDEL").arg(name).query::<()>(&mut client);
+        self.collection(name)
+    }
+
     /// Get a reference to a `Collection`.
     pub fn collection(self, name: &str) -> Collection {
         Collection::new(self.client.clone(), Some(name.into()), self.spawn_pool)
@@ -76,7 +84,7 @@ impl Storage for Zdb {
         self.default_namespace.get(key)
     }
 
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key>>, StorageError> {
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key> + Send>, StorageError> {
         self.default_namespace.keys()
     }
 }
@@ -117,8 +125,14 @@ impl Storage for Collection {
             })
             .arg(data)
             .query(&mut *self.pool.get()?)?;
-        debug_assert!(raw_key.len() == std::mem::size_of::<Key>());
-        Ok(read_le_key(&raw_key))
+
+        match key {
+            Some(key) => Ok(key),
+            None => {
+                debug_assert!(raw_key.len() == std::mem::size_of::<Key>());
+                Ok(read_le_key(&raw_key))
+            }
+        }
     }
 
     fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, StorageError> {
@@ -127,7 +141,7 @@ impl Storage for Collection {
             .query(&mut *self.pool.get()?)?)
     }
 
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key>>, StorageError> {
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key> + Send>, StorageError> {
         Ok(Box::new(CollectionKeys {
             conn: self.pool.get()?,
             cursor: None,

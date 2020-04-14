@@ -2,7 +2,7 @@ pub mod zdb;
 
 use std::{fmt, io};
 
-/// Key as they are expected by the Storage interface. For now, the key is expecteto be 4 bytes
+/// Key as they are expected by the Storage interface. For now, the key is expect to be 4 bytes
 pub type Key = u32;
 
 /// The generic set op instructions that are suported by storage implementations
@@ -14,7 +14,7 @@ pub trait Storage {
     /// Get data which has been set previously.
     fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, Error>;
     /// Get an iterator over all keys in a collection
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key>>, Error>;
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key> + Send>, Error>;
 }
 
 #[derive(Debug)]

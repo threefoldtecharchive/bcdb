@@ -18,7 +18,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='bcdb',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=b'\n\nbcdb.proto\x12\x04\x62\x63\x64\x62\"e\n\x03Tag\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x10\n\x06string\x18\x02 \x01(\tH\x00\x12\x10\n\x06\x64ouble\x18\x03 \x01(\x01H\x00\x12\x10\n\x06number\x18\x04 \x01(\x03H\x00\x12\x12\n\x08unsigned\x18\x05 \x01(\x04H\x00\x42\x07\n\x05value\"#\n\x08Metadata\x12\x17\n\x04tags\x18\x01 \x03(\x0b\x32\t.bcdb.Tag\"<\n\nSetRequest\x12 \n\x08metadata\x18\x01 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"\x19\n\x0bSetResponse\x12\n\n\x02id\x18\x01 \x01(\r\"\x18\n\nGetRequest\x12\n\n\x02id\x18\x01 \x01(\r\"=\n\x0bGetResponse\x12 \n\x08metadata\x18\x01 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"=\n\rUpdateRequest\x12\n\n\x02id\x18\x01 \x01(\r\x12 \n\x08metadata\x18\x02 \x01(\x0b\x32\x0e.bcdb.Metadata\"\x10\n\x0eUpdateResponse\"\x0e\n\x0cQueryRequest\"\x1a\n\x0cListResponse\x12\n\n\x02id\x18\x01 \x01(\r\"J\n\x0c\x46indResponse\x12\n\n\x02id\x18\x01 \x01(\r\x12 \n\x08metadata\x18\x02 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x03 \x01(\x0c\x32\x81\x02\n\x04\x42\x43\x44\x42\x12,\n\x03Set\x12\x10.bcdb.SetRequest\x1a\x11.bcdb.SetResponse\"\x00\x12,\n\x03Get\x12\x10.bcdb.GetRequest\x1a\x11.bcdb.GetResponse\"\x00\x12\x35\n\x06Update\x12\x13.bcdb.UpdateRequest\x1a\x14.bcdb.UpdateResponse\"\x00\x12\x32\n\x04List\x12\x12.bcdb.QueryRequest\x1a\x12.bcdb.ListResponse\"\x00\x30\x01\x12\x32\n\x04\x46ind\x12\x12.bcdb.QueryRequest\x1a\x12.bcdb.FindResponse\"\x00\x30\x01\x62\x06proto3'
+  serialized_pb=b'\n\nbcdb.proto\x12\x04\x62\x63\x64\x62\"e\n\x03Tag\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x10\n\x06string\x18\x02 \x01(\tH\x00\x12\x10\n\x06\x64ouble\x18\x03 \x01(\x01H\x00\x12\x10\n\x06number\x18\x04 \x01(\x03H\x00\x12\x12\n\x08unsigned\x18\x05 \x01(\x04H\x00\x42\x07\n\x05value\"#\n\x08Metadata\x12\x17\n\x04tags\x18\x01 \x03(\x0b\x32\t.bcdb.Tag\"<\n\nSetRequest\x12 \n\x08metadata\x18\x01 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"\x19\n\x0bSetResponse\x12\n\n\x02id\x18\x01 \x01(\r\"\x18\n\nGetRequest\x12\n\n\x02id\x18\x01 \x01(\r\"=\n\x0bGetResponse\x12 \n\x08metadata\x18\x01 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"=\n\rUpdateRequest\x12\n\n\x02id\x18\x01 \x01(\r\x12 \n\x08metadata\x18\x02 \x01(\x0b\x32\x0e.bcdb.Metadata\"\x10\n\x0eUpdateResponse\"\x0e\n\x0cQueryRequest\"\x1a\n\x0cListResponse\x12\n\n\x02id\x18\x01 \x01(\r\"J\n\x0c\x46indResponse\x12\n\n\x02id\x18\x01 \x01(\r\x12 \n\x08metadata\x18\x02 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x03 \x01(\x0c\"\"\n\x03\x41\x43L\x12\x0c\n\x04perm\x18\x01 \x01(\t\x12\r\n\x05users\x18\x02 \x03(\x04\"\x1c\n\rACLGetRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\"(\n\x0e\x41\x43LGetResponse\x12\x16\n\x03\x61\x63l\x18\x01 \x01(\x0b\x32\t.bcdb.ACL\"*\n\x10\x41\x43LCreateRequest\x12\x16\n\x03\x61\x63l\x18\x01 \x01(\x0b\x32\t.bcdb.ACL\" \n\x11\x41\x43LCreateResponse\x12\x0b\n\x03key\x18\x01 \x01(\r\"\x10\n\x0e\x41\x43LListRequest\"6\n\x0f\x41\x43LListResponse\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\x16\n\x03\x61\x63l\x18\x02 \x01(\x0b\x32\t.bcdb.ACL\"*\n\rACLSetRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\x0c\n\x04perm\x18\x02 \x01(\t\"\x10\n\x0e\x41\x43LSetResponse\"-\n\x0f\x41\x43LUsersRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\r\n\x05users\x18\x02 \x03(\x04\"#\n\x10\x41\x43LUsersResponse\x12\x0f\n\x07updated\x18\x01 \x01(\x04\x32\x81\x02\n\x04\x42\x43\x44\x42\x12,\n\x03Set\x12\x10.bcdb.SetRequest\x1a\x11.bcdb.SetResponse\"\x00\x12,\n\x03Get\x12\x10.bcdb.GetRequest\x1a\x11.bcdb.GetResponse\"\x00\x12\x35\n\x06Update\x12\x13.bcdb.UpdateRequest\x1a\x14.bcdb.UpdateResponse\"\x00\x12\x32\n\x04List\x12\x12.bcdb.QueryRequest\x1a\x12.bcdb.ListResponse\"\x00\x30\x01\x12\x32\n\x04\x46ind\x12\x12.bcdb.QueryRequest\x1a\x12.bcdb.FindResponse\"\x00\x30\x01\x32\xd8\x02\n\x03\x41\x63l\x12\x32\n\x03Get\x12\x13.bcdb.ACLGetRequest\x1a\x14.bcdb.ACLGetResponse\"\x00\x12;\n\x06\x43reate\x12\x16.bcdb.ACLCreateRequest\x1a\x17.bcdb.ACLCreateResponse\"\x00\x12\x37\n\x04List\x12\x14.bcdb.ACLListRequest\x1a\x15.bcdb.ACLListResponse\"\x00\x30\x01\x12\x32\n\x03Set\x12\x13.bcdb.ACLSetRequest\x1a\x14.bcdb.ACLSetResponse\"\x00\x12\x38\n\x05Grant\x12\x15.bcdb.ACLUsersRequest\x1a\x16.bcdb.ACLUsersResponse\"\x00\x12\x39\n\x06Revoke\x12\x15.bcdb.ACLUsersRequest\x1a\x16.bcdb.ACLUsersResponse\"\x00\x62\x06proto3'
 )
 
 
@@ -416,6 +416,361 @@ _FINDRESPONSE = _descriptor.Descriptor(
   serialized_end=537,
 )
 
+
+_ACL = _descriptor.Descriptor(
+  name='ACL',
+  full_name='bcdb.ACL',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='perm', full_name='bcdb.ACL.perm', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='users', full_name='bcdb.ACL.users', index=1,
+      number=2, type=4, cpp_type=4, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=539,
+  serialized_end=573,
+)
+
+
+_ACLGETREQUEST = _descriptor.Descriptor(
+  name='ACLGetRequest',
+  full_name='bcdb.ACLGetRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='bcdb.ACLGetRequest.key', index=0,
+      number=1, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=575,
+  serialized_end=603,
+)
+
+
+_ACLGETRESPONSE = _descriptor.Descriptor(
+  name='ACLGetResponse',
+  full_name='bcdb.ACLGetResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='acl', full_name='bcdb.ACLGetResponse.acl', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=605,
+  serialized_end=645,
+)
+
+
+_ACLCREATEREQUEST = _descriptor.Descriptor(
+  name='ACLCreateRequest',
+  full_name='bcdb.ACLCreateRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='acl', full_name='bcdb.ACLCreateRequest.acl', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=647,
+  serialized_end=689,
+)
+
+
+_ACLCREATERESPONSE = _descriptor.Descriptor(
+  name='ACLCreateResponse',
+  full_name='bcdb.ACLCreateResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='bcdb.ACLCreateResponse.key', index=0,
+      number=1, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=691,
+  serialized_end=723,
+)
+
+
+_ACLLISTREQUEST = _descriptor.Descriptor(
+  name='ACLListRequest',
+  full_name='bcdb.ACLListRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=725,
+  serialized_end=741,
+)
+
+
+_ACLLISTRESPONSE = _descriptor.Descriptor(
+  name='ACLListResponse',
+  full_name='bcdb.ACLListResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='bcdb.ACLListResponse.key', index=0,
+      number=1, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='acl', full_name='bcdb.ACLListResponse.acl', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=743,
+  serialized_end=797,
+)
+
+
+_ACLSETREQUEST = _descriptor.Descriptor(
+  name='ACLSetRequest',
+  full_name='bcdb.ACLSetRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='bcdb.ACLSetRequest.key', index=0,
+      number=1, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='perm', full_name='bcdb.ACLSetRequest.perm', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=799,
+  serialized_end=841,
+)
+
+
+_ACLSETRESPONSE = _descriptor.Descriptor(
+  name='ACLSetResponse',
+  full_name='bcdb.ACLSetResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=843,
+  serialized_end=859,
+)
+
+
+_ACLUSERSREQUEST = _descriptor.Descriptor(
+  name='ACLUsersRequest',
+  full_name='bcdb.ACLUsersRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='bcdb.ACLUsersRequest.key', index=0,
+      number=1, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='users', full_name='bcdb.ACLUsersRequest.users', index=1,
+      number=2, type=4, cpp_type=4, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=861,
+  serialized_end=906,
+)
+
+
+_ACLUSERSRESPONSE = _descriptor.Descriptor(
+  name='ACLUsersResponse',
+  full_name='bcdb.ACLUsersResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='updated', full_name='bcdb.ACLUsersResponse.updated', index=0,
+      number=1, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=908,
+  serialized_end=943,
+)
+
 _TAG.oneofs_by_name['value'].fields.append(
   _TAG.fields_by_name['string'])
 _TAG.fields_by_name['string'].containing_oneof = _TAG.oneofs_by_name['value']
@@ -433,6 +788,9 @@ _SETREQUEST.fields_by_name['metadata'].message_type = _METADATA
 _GETRESPONSE.fields_by_name['metadata'].message_type = _METADATA
 _UPDATEREQUEST.fields_by_name['metadata'].message_type = _METADATA
 _FINDRESPONSE.fields_by_name['metadata'].message_type = _METADATA
+_ACLGETRESPONSE.fields_by_name['acl'].message_type = _ACL
+_ACLCREATEREQUEST.fields_by_name['acl'].message_type = _ACL
+_ACLLISTRESPONSE.fields_by_name['acl'].message_type = _ACL
 DESCRIPTOR.message_types_by_name['Tag'] = _TAG
 DESCRIPTOR.message_types_by_name['Metadata'] = _METADATA
 DESCRIPTOR.message_types_by_name['SetRequest'] = _SETREQUEST
@@ -444,6 +802,17 @@ DESCRIPTOR.message_types_by_name['UpdateResponse'] = _UPDATERESPONSE
 DESCRIPTOR.message_types_by_name['QueryRequest'] = _QUERYREQUEST
 DESCRIPTOR.message_types_by_name['ListResponse'] = _LISTRESPONSE
 DESCRIPTOR.message_types_by_name['FindResponse'] = _FINDRESPONSE
+DESCRIPTOR.message_types_by_name['ACL'] = _ACL
+DESCRIPTOR.message_types_by_name['ACLGetRequest'] = _ACLGETREQUEST
+DESCRIPTOR.message_types_by_name['ACLGetResponse'] = _ACLGETRESPONSE
+DESCRIPTOR.message_types_by_name['ACLCreateRequest'] = _ACLCREATEREQUEST
+DESCRIPTOR.message_types_by_name['ACLCreateResponse'] = _ACLCREATERESPONSE
+DESCRIPTOR.message_types_by_name['ACLListRequest'] = _ACLLISTREQUEST
+DESCRIPTOR.message_types_by_name['ACLListResponse'] = _ACLLISTRESPONSE
+DESCRIPTOR.message_types_by_name['ACLSetRequest'] = _ACLSETREQUEST
+DESCRIPTOR.message_types_by_name['ACLSetResponse'] = _ACLSETRESPONSE
+DESCRIPTOR.message_types_by_name['ACLUsersRequest'] = _ACLUSERSREQUEST
+DESCRIPTOR.message_types_by_name['ACLUsersResponse'] = _ACLUSERSRESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 Tag = _reflection.GeneratedProtocolMessageType('Tag', (_message.Message,), {
@@ -523,6 +892,83 @@ FindResponse = _reflection.GeneratedProtocolMessageType('FindResponse', (_messag
   })
 _sym_db.RegisterMessage(FindResponse)
 
+ACL = _reflection.GeneratedProtocolMessageType('ACL', (_message.Message,), {
+  'DESCRIPTOR' : _ACL,
+  '__module__' : 'bcdb_pb2'
+  # @@protoc_insertion_point(class_scope:bcdb.ACL)
+  })
+_sym_db.RegisterMessage(ACL)
+
+ACLGetRequest = _reflection.GeneratedProtocolMessageType('ACLGetRequest', (_message.Message,), {
+  'DESCRIPTOR' : _ACLGETREQUEST,
+  '__module__' : 'bcdb_pb2'
+  # @@protoc_insertion_point(class_scope:bcdb.ACLGetRequest)
+  })
+_sym_db.RegisterMessage(ACLGetRequest)
+
+ACLGetResponse = _reflection.GeneratedProtocolMessageType('ACLGetResponse', (_message.Message,), {
+  'DESCRIPTOR' : _ACLGETRESPONSE,
+  '__module__' : 'bcdb_pb2'
+  # @@protoc_insertion_point(class_scope:bcdb.ACLGetResponse)
+  })
+_sym_db.RegisterMessage(ACLGetResponse)
+
+ACLCreateRequest = _reflection.GeneratedProtocolMessageType('ACLCreateRequest', (_message.Message,), {
+  'DESCRIPTOR' : _ACLCREATEREQUEST,
+  '__module__' : 'bcdb_pb2'
+  # @@protoc_insertion_point(class_scope:bcdb.ACLCreateRequest)
+  })
+_sym_db.RegisterMessage(ACLCreateRequest)
+
+ACLCreateResponse = _reflection.GeneratedProtocolMessageType('ACLCreateResponse', (_message.Message,), {
+  'DESCRIPTOR' : _ACLCREATERESPONSE,
+  '__module__' : 'bcdb_pb2'
+  # @@protoc_insertion_point(class_scope:bcdb.ACLCreateResponse)
+  })
+_sym_db.RegisterMessage(ACLCreateResponse)
+
+ACLListRequest = _reflection.GeneratedProtocolMessageType('ACLListRequest', (_message.Message,), {
+  'DESCRIPTOR' : _ACLLISTREQUEST,
+  '__module__' : 'bcdb_pb2'
+  # @@protoc_insertion_point(class_scope:bcdb.ACLListRequest)
+  })
+_sym_db.RegisterMessage(ACLListRequest)
+
+ACLListResponse = _reflection.GeneratedProtocolMessageType('ACLListResponse', (_message.Message,), {
+  'DESCRIPTOR' : _ACLLISTRESPONSE,
+  '__module__' : 'bcdb_pb2'
+  # @@protoc_insertion_point(class_scope:bcdb.ACLListResponse)
+  })
+_sym_db.RegisterMessage(ACLListResponse)
+
+ACLSetRequest = _reflection.GeneratedProtocolMessageType('ACLSetRequest', (_message.Message,), {
+  'DESCRIPTOR' : _ACLSETREQUEST,
+  '__module__' : 'bcdb_pb2'
+  # @@protoc_insertion_point(class_scope:bcdb.ACLSetRequest)
+  })
+_sym_db.RegisterMessage(ACLSetRequest)
+
+ACLSetResponse = _reflection.GeneratedProtocolMessageType('ACLSetResponse', (_message.Message,), {
+  'DESCRIPTOR' : _ACLSETRESPONSE,
+  '__module__' : 'bcdb_pb2'
+  # @@protoc_insertion_point(class_scope:bcdb.ACLSetResponse)
+  })
+_sym_db.RegisterMessage(ACLSetResponse)
+
+ACLUsersRequest = _reflection.GeneratedProtocolMessageType('ACLUsersRequest', (_message.Message,), {
+  'DESCRIPTOR' : _ACLUSERSREQUEST,
+  '__module__' : 'bcdb_pb2'
+  # @@protoc_insertion_point(class_scope:bcdb.ACLUsersRequest)
+  })
+_sym_db.RegisterMessage(ACLUsersRequest)
+
+ACLUsersResponse = _reflection.GeneratedProtocolMessageType('ACLUsersResponse', (_message.Message,), {
+  'DESCRIPTOR' : _ACLUSERSRESPONSE,
+  '__module__' : 'bcdb_pb2'
+  # @@protoc_insertion_point(class_scope:bcdb.ACLUsersResponse)
+  })
+_sym_db.RegisterMessage(ACLUsersResponse)
+
 
 
 _BCDB = _descriptor.ServiceDescriptor(
@@ -531,8 +977,8 @@ _BCDB = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=540,
-  serialized_end=797,
+  serialized_start=946,
+  serialized_end=1203,
   methods=[
   _descriptor.MethodDescriptor(
     name='Set',
@@ -583,5 +1029,74 @@ _BCDB = _descriptor.ServiceDescriptor(
 _sym_db.RegisterServiceDescriptor(_BCDB)
 
 DESCRIPTOR.services_by_name['BCDB'] = _BCDB
+
+
+_ACL = _descriptor.ServiceDescriptor(
+  name='Acl',
+  full_name='bcdb.Acl',
+  file=DESCRIPTOR,
+  index=1,
+  serialized_options=None,
+  serialized_start=1206,
+  serialized_end=1550,
+  methods=[
+  _descriptor.MethodDescriptor(
+    name='Get',
+    full_name='bcdb.Acl.Get',
+    index=0,
+    containing_service=None,
+    input_type=_ACLGETREQUEST,
+    output_type=_ACLGETRESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
+    name='Create',
+    full_name='bcdb.Acl.Create',
+    index=1,
+    containing_service=None,
+    input_type=_ACLCREATEREQUEST,
+    output_type=_ACLCREATERESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
+    name='List',
+    full_name='bcdb.Acl.List',
+    index=2,
+    containing_service=None,
+    input_type=_ACLLISTREQUEST,
+    output_type=_ACLLISTRESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
+    name='Set',
+    full_name='bcdb.Acl.Set',
+    index=3,
+    containing_service=None,
+    input_type=_ACLSETREQUEST,
+    output_type=_ACLSETRESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
+    name='Grant',
+    full_name='bcdb.Acl.Grant',
+    index=4,
+    containing_service=None,
+    input_type=_ACLUSERSREQUEST,
+    output_type=_ACLUSERSRESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
+    name='Revoke',
+    full_name='bcdb.Acl.Revoke',
+    index=5,
+    containing_service=None,
+    input_type=_ACLUSERSREQUEST,
+    output_type=_ACLUSERSRESPONSE,
+    serialized_options=None,
+  ),
+])
+_sym_db.RegisterServiceDescriptor(_ACL)
+
+DESCRIPTOR.services_by_name['Acl'] = _ACL
 
 # @@protoc_insertion_point(module_scope)
