@@ -84,7 +84,7 @@ impl Storage for Zdb {
         self.default_namespace.get(key)
     }
 
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key>>, StorageError> {
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key> + Send>, StorageError> {
         self.default_namespace.keys()
     }
 }
@@ -135,7 +135,7 @@ impl Storage for Collection {
             .query(&mut *self.pool.get()?)?)
     }
 
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key>>, StorageError> {
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key> + Send>, StorageError> {
         Ok(Box::new(CollectionKeys {
             conn: self.pool.get()?,
             cursor: None,

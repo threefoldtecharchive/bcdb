@@ -61,7 +61,10 @@ impl std::str::FromStr for Permissions {
     type Err = failure::Error;
     fn from_str(s: &str) -> Result<Self> {
         if s.len() != 3 {
-            bail!("invalid format expecting format 'rwd' replace empty perm with a dash '-'");
+            bail!(
+                "invalid format expecting format '{}' replace empty perm with a dash '-'",
+                SYNTAX
+            );
         }
 
         let p = Ok(Permissions::default());
@@ -167,7 +170,7 @@ where
     }
 
     /// iterates over all configured ACLs
-    fn list<'a>(&'a mut self) -> Result<impl Iterator<Item = Result<(Key, ACL)>> + 'a> {
+    pub fn list<'a>(&'a mut self) -> Result<impl Iterator<Item = Result<(Key, ACL)>> + 'a> {
         Ok(self.inner.keys()?.filter_map(move |k| match self.get(k) {
             Ok(acl) => match acl {
                 Some(acl) => Some(Ok((k, acl))),

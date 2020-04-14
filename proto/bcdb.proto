@@ -85,7 +85,7 @@ service Acl {
 
   rpc Create(ACLCreateRequest) returns (ACLCreateResponse) {}
 
-  rpc List(ACLListRequest) returns (ACLListResponse) {}
+  rpc List(ACLListRequest) returns (stream ACLListResponse) {}
 
   rpc Set(ACLSetRequest) returns (ACLSetResponse) {}
 
@@ -109,7 +109,10 @@ message ACLCreateResponse { uint32 key = 1; }
 
 message ACLListRequest {}
 
-message ACLListResponse { repeated ACL acls = 1; }
+message ACLListResponse {
+  uint32 key = 1;
+  ACL acl = 2;
+}
 
 message ACLSetRequest {
   uint32 key = 1;

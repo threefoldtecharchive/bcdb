@@ -14,7 +14,7 @@ pub trait Storage {
     /// Get data which has been set previously.
     fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, Error>;
     /// Get an iterator over all keys in a collection
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key>>, Error>;
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key> + Send>, Error>;
 }
 
 #[derive(Debug)]

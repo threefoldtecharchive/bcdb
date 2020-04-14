@@ -174,12 +174,51 @@ impl AclServiceTrait for AclService {
             Err(err) => Err(err.status()),
         }
     }
+
+    type ListStream = mpsc::Receiver<Result<AclListResponse, Status>>;
+
     async fn list(
         &self,
         request: Request<AclListRequest>,
-    ) -> Result<Response<AclListResponse>, Status> {
-        Err(Status::unimplemented("not implmeneted"))
+    ) -> Result<Response<Self::ListStream>, Status> {
+        let (mut tx, rx) = mpsc::channel(10);
+        let mut store = self.store.clone();
+
+        tokio::spawn(async move {
+            let iter = match store.list() {
+                Ok(iter) => iter,
+                Err(err) => {
+                    tx.send(Err(err.status())).await.unwrap();
+                    return;
+                }
+            };
+
+            for item in iter {
+                let (key, acl) = match item {
+                    Ok(item) => item,
+                    Err(err) => {
+                        tx.send(Err(err.status())).await.unwrap();
+                        return;
+                    }
+                };
+
+                tx.send(Ok(AclListResponse {
+                    key: key,
+                    acl: Some(Acl {
+                        perm: acl.perm.to_string(),
+                        users: acl.users,
+                    }),
+                }))
+                .await
+                .unwrap();
+            }
+        });
+
+        Ok(Response::new(rx))
+
+        //Err(Status::unimplemented("not implmeneted"))
     }
+
     async fn set(
         &self,
         request: Request<AclSetRequest>,
