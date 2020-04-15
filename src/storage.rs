@@ -1,4 +1,8 @@
+pub mod encrypted;
 pub mod zdb;
+
+#[cfg(test)]
+pub mod memory;
 
 use std::{fmt, io};
 
@@ -18,11 +22,16 @@ pub trait Storage {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// An IO error has occured - an error on the connection to the remote Zdb
     IO(Option<io::Error>),
     /// An error in the redis protocol
     Protocol(String),
+    /// A cryptographic error occurred, this can only happen if the storage supports encryption
+    Crypto,
+    /// A generic error
+    Other,
 }
 
 impl fmt::Display for Error {
@@ -33,6 +42,8 @@ impl fmt::Display for Error {
                 None => write!(f, "Zdb IO Error"),
             },
             Error::Protocol(e) => write!(f, "protocol error: {}", e),
+            Error::Crypto => write!(f, "cryptographic error"),
+            Error::Other => write!(f, "Unknown error"),
         }
     }
 }
