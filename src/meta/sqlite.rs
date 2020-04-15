@@ -1,4 +1,4 @@
-use crate::meta::{Key, Meta, Storage, Tag};
+use crate::meta::{Key, Meta, Storage, StorageFactory, Tag};
 use async_trait::async_trait;
 use failure::Error;
 use sqlx::prelude::*;
@@ -10,27 +10,79 @@ use tokio::stream::Stream;
 
 type Result<T> = std::result::Result<T, Error>;
 
-struct SqliteMetaStore {
-    pool: SqlitePool,
+pub struct SqliteMetaStoreFactor {
+    root: String,
+}
+
+impl SqliteMetaStoreFactor {
+    pub fn new<P>(root: P) -> Result<SqliteMetaStoreFactor>
+    where
+        P: Into<String>,
+    {
+        let root = root.into();
+        std::fs::create_dir_all(&root)?;
+
+        Ok(SqliteMetaStoreFactor { root: root })
+    }
+}
+
+#[async_trait]
+impl StorageFactory for SqliteMetaStoreFactor {
+    type Storage = SqliteMetaStore;
+
+    async fn new(&self, typ: &str) -> Result<Self::Storage> {
+        let p = std::path::PathBuf::new()
+            .join(&self.root)
+            .join(format!("{}.sqlite", typ));
+
+        //let p = p.join(format!("{}.sqlite", typ))?;
+
+        let p = match p.to_str() {
+            Some(p) => p,
+            None => bail!("empty path to db"),
+        };
+
+        let store = SqliteMetaStore::new(p).await?;
+        Ok(store)
+    }
+}
+
+pub struct SqliteMetaStore {
+    schema: Schema,
 }
 
 impl SqliteMetaStore {
-    async fn new() -> Result<SqliteMetaStore> {
-        let pool = SqlitePool::new(":memory:").await?;
-        //Self::schame(&pool);
+    async fn new(db: &str) -> Result<SqliteMetaStore> {
+        let pool = SqlitePool::new(db).await?;
+        let mut schema = Schema::new(pool);
+        schema.setup().await?;
 
-        Ok(SqliteMetaStore { pool: pool })
+        Ok(SqliteMetaStore { schema })
     }
 }
 
 #[async_trait]
 impl Storage for SqliteMetaStore {
     async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
-        Ok(())
+        self.schema.insert(key, meta.tags).await
     }
 
     async fn get(&mut self, key: Key) -> Result<Meta> {
-        bail!("not implemented")
+        let tags = self.schema.get(key).await?;
+        Ok(Meta { tags: tags })
+    }
+
+    async fn find<'a>(
+        &'a mut self,
+        tags: Vec<Tag>,
+    ) -> Result<Box<dyn Stream<Item = Result<Key>> + 'a>> {
+        use tokio::stream::StreamExt;
+        let cur = self.schema.find(tags).await?.map(|v| match v {
+            Ok(v) => Ok(v),
+            Err(err) => Err(format_err!("{}", err)),
+        });
+        //tokio::pin!(cur);
+        Ok(Box::new(cur))
     }
 }
 
@@ -113,7 +165,7 @@ impl Schema {
     async fn find<'a>(
         &'a mut self,
         tags: Vec<Tag>,
-    ) -> Result<impl Stream<Item = std::result::Result<f64, SqlError>> + 'a> {
+    ) -> Result<impl Stream<Item = std::result::Result<Key, SqlError>> + 'a> {
         let q = "SELECT key FROM metadata WHERE tag = ? AND value = ?";
         let mut query_str = String::new();
 
@@ -133,7 +185,7 @@ impl Schema {
             key: f64,
         }
         let cur = query
-            .map(|r: SqliteRow| Row::from_row(&r).expect("failed to load item").key)
+            .map(|r: SqliteRow| Row::from_row(&r).expect("failed to load item").key as Key)
             .fetch(&self.c);
         Ok(cur)
     }
