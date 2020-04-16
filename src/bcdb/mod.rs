@@ -58,6 +58,14 @@ impl<M> BcdbService<M>
 where
     M: MetaStorageFactory,
 {
+    fn new(zdb: Zdb, factory: M) -> BcdbService<M> {
+        BcdbService {
+            db: zdb,
+            factory: factory,
+            stores: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
     async fn get_store(&self, collection: &str) -> Result<M::Storage, Error> {
         {
             let stores = self.stores.lock().unwrap();
