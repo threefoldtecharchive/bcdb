@@ -53,7 +53,6 @@ func main() {
 	}
 
 	for {
-		fmt.Println("doing receive")
 		obj, err := list.Recv()
 		if err == io.EOF {
 			break
