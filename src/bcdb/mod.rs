@@ -130,8 +130,30 @@ where
     }
 
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
-        let id = request.into_inner().id;
+        let request = request.into_inner();
+        let id = request.id;
 
+        let mut metastore = match self.get_store(&request.collection).await {
+            Ok(store) => store,
+            Err(err) => return Err(err.status()),
+        };
+
+        let meta = match metastore.get(id).await {
+            Ok(meta) => meta,
+            Err(err) => return Err(err.status()),
+        };
+        let mut tags = vec![];
+        for tag in meta.tags {
+            tags.push(Tag {
+                key: tag.key,
+                value: tag.value,
+            })
+        }
+        let metadata = Metadata {
+            acl: 0,
+            tags: tags,
+            collection: request.collection,
+        };
         // TODO: from impl for error
         let mut db = self.db.clone();
         let handle = spawn_blocking(move || db.get(id).expect("failed to load data"));
@@ -142,7 +164,7 @@ where
         }
         Ok(Response::new(GetResponse {
             data: data.unwrap(), // This unwrap is safe as we checked the none case above
-            metadata: None,
+            metadata: Some(metadata),
         }))
     }
 

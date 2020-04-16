@@ -36,9 +36,7 @@ message Tag {
 message Metadata {
   // set of searchable tags.
   repeated Tag tags = 1;
-  // an associated piece of text that can
-  // be used later with full text search
-  // to find the object back
+  // required collection
   string collection = 2;
   // acl is a ref to the acl key
   uint64 acl = 3;
@@ -54,7 +52,10 @@ message SetRequest {
 message SetResponse { uint32 id = 1; }
 
 // Get request
-message GetRequest { uint32 id = 1; }
+message GetRequest {
+  uint32 id = 1;
+  string collection = 2;
+}
 
 // Get response
 message GetResponse {
