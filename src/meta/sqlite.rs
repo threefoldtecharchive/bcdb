@@ -210,7 +210,9 @@ mod tests {
     #[tokio::test]
     async fn schema() {
         let db = "/tmp/testing.sqlite3";
-        std::fs::remove_file(db).expect("failed to clean up file");
+        if std::path::Path::new(db).exists() {
+            std::fs::remove_file(db).expect("failed to clean up file");
+        }
 
         let constr = format!("sqlite://{}", db);
         let c = SqlitePool::new(&constr).await.expect("failed to connect");
@@ -243,11 +245,5 @@ mod tests {
                 println!("{}: {}", t.key, t.value);
             }
         }
-        // use tokio::stream::StreamExt;
-        // tokio::pin!(cur);
-        // //tokio::spawn(async move {});
-        // while let Some(row) = cur.next().await {
-
-        // }
     }
 }

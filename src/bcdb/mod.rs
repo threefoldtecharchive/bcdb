@@ -34,16 +34,16 @@ impl FailureExt for Error {
 }
 
 //TODO: use generics for both object store type and meta factory type.
-pub struct BcdbService<M>
+pub struct BcdbService<S, M>
 where
     M: MetaStorageFactory,
 {
-    db: Zdb,
+    db: S,
     factory: M,
     stores: Arc<Mutex<HashMap<String, M::Storage>>>,
 }
 
-impl Default for BcdbService<SqliteMetaStoreFactory> {
+impl Default for BcdbService<Zdb, SqliteMetaStoreFactory> {
     fn default() -> Self {
         BcdbService {
             db: Zdb::default(),
@@ -54,14 +54,15 @@ impl Default for BcdbService<SqliteMetaStoreFactory> {
     }
 }
 
-impl<M> BcdbService<M>
+impl<S, M> BcdbService<S, M>
 where
+    S: ObjectStorage,
     M: MetaStorageFactory,
 {
-    fn new(zdb: Zdb, factory: M) -> BcdbService<M> {
+    fn new(db: S, factory: M) -> BcdbService<S, M> {
         BcdbService {
-            db: zdb,
-            factory: factory,
+            db,
+            factory,
             stores: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -106,8 +107,9 @@ where
 }
 
 #[tonic::async_trait]
-impl<M> BcdbServiceTrait for BcdbService<M>
+impl<S, M> BcdbServiceTrait for BcdbService<S, M>
 where
+    S: ObjectStorage + Clone + Send + Sync + 'static,
     M: MetaStorageFactory,
 {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
