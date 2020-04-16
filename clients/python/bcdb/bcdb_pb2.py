@@ -18,7 +18,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='bcdb',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=b'\n\nbcdb.proto\x12\x04\x62\x63\x64\x62\"!\n\x03Tag\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"D\n\x08Metadata\x12\x17\n\x04tags\x18\x01 \x03(\x0b\x32\t.bcdb.Tag\x12\x12\n\ncollection\x18\x02 \x01(\t\x12\x0b\n\x03\x61\x63l\x18\x03 \x01(\x04\"<\n\nSetRequest\x12 \n\x08metadata\x18\x01 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"\x19\n\x0bSetResponse\x12\n\n\x02id\x18\x01 \x01(\r\",\n\nGetRequest\x12\n\n\x02id\x18\x01 \x01(\r\x12\x12\n\ncollection\x18\x02 \x01(\t\"=\n\x0bGetResponse\x12 \n\x08metadata\x18\x01 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"=\n\rUpdateRequest\x12\n\n\x02id\x18\x01 \x01(\r\x12 \n\x08metadata\x18\x02 \x01(\x0b\x32\x0e.bcdb.Metadata\"\x10\n\x0eUpdateResponse\"\x0e\n\x0cQueryRequest\"\x1a\n\x0cListResponse\x12\n\n\x02id\x18\x01 \x01(\r\"J\n\x0c\x46indResponse\x12\n\n\x02id\x18\x01 \x01(\r\x12 \n\x08metadata\x18\x02 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x03 \x01(\x0c\"\"\n\x03\x41\x43L\x12\x0c\n\x04perm\x18\x01 \x01(\t\x12\r\n\x05users\x18\x02 \x03(\x04\"\x1c\n\rACLGetRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\"(\n\x0e\x41\x43LGetResponse\x12\x16\n\x03\x61\x63l\x18\x01 \x01(\x0b\x32\t.bcdb.ACL\"*\n\x10\x41\x43LCreateRequest\x12\x16\n\x03\x61\x63l\x18\x01 \x01(\x0b\x32\t.bcdb.ACL\" \n\x11\x41\x43LCreateResponse\x12\x0b\n\x03key\x18\x01 \x01(\r\"\x10\n\x0e\x41\x43LListRequest\"6\n\x0f\x41\x43LListResponse\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\x16\n\x03\x61\x63l\x18\x02 \x01(\x0b\x32\t.bcdb.ACL\"*\n\rACLSetRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\x0c\n\x04perm\x18\x02 \x01(\t\"\x10\n\x0e\x41\x43LSetResponse\"-\n\x0f\x41\x43LUsersRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\r\n\x05users\x18\x02 \x03(\x04\"#\n\x10\x41\x43LUsersResponse\x12\x0f\n\x07updated\x18\x01 \x01(\x04\x32\x81\x02\n\x04\x42\x43\x44\x42\x12,\n\x03Set\x12\x10.bcdb.SetRequest\x1a\x11.bcdb.SetResponse\"\x00\x12,\n\x03Get\x12\x10.bcdb.GetRequest\x1a\x11.bcdb.GetResponse\"\x00\x12\x35\n\x06Update\x12\x13.bcdb.UpdateRequest\x1a\x14.bcdb.UpdateResponse\"\x00\x12\x32\n\x04List\x12\x12.bcdb.QueryRequest\x1a\x12.bcdb.ListResponse\"\x00\x30\x01\x12\x32\n\x04\x46ind\x12\x12.bcdb.QueryRequest\x1a\x12.bcdb.FindResponse\"\x00\x30\x01\x32\xd8\x02\n\x03\x41\x63l\x12\x32\n\x03Get\x12\x13.bcdb.ACLGetRequest\x1a\x14.bcdb.ACLGetResponse\"\x00\x12;\n\x06\x43reate\x12\x16.bcdb.ACLCreateRequest\x1a\x17.bcdb.ACLCreateResponse\"\x00\x12\x37\n\x04List\x12\x14.bcdb.ACLListRequest\x1a\x15.bcdb.ACLListResponse\"\x00\x30\x01\x12\x32\n\x03Set\x12\x13.bcdb.ACLSetRequest\x1a\x14.bcdb.ACLSetResponse\"\x00\x12\x38\n\x05Grant\x12\x15.bcdb.ACLUsersRequest\x1a\x16.bcdb.ACLUsersResponse\"\x00\x12\x39\n\x06Revoke\x12\x15.bcdb.ACLUsersRequest\x1a\x16.bcdb.ACLUsersResponse\"\x00\x62\x06proto3'
+  serialized_pb=b'\n\nbcdb.proto\x12\x04\x62\x63\x64\x62\"!\n\x03Tag\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"D\n\x08Metadata\x12\x17\n\x04tags\x18\x01 \x03(\x0b\x32\t.bcdb.Tag\x12\x12\n\ncollection\x18\x02 \x01(\t\x12\x0b\n\x03\x61\x63l\x18\x03 \x01(\x04\"<\n\nSetRequest\x12 \n\x08metadata\x18\x01 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"\x19\n\x0bSetResponse\x12\n\n\x02id\x18\x01 \x01(\r\",\n\nGetRequest\x12\n\n\x02id\x18\x01 \x01(\r\x12\x12\n\ncollection\x18\x02 \x01(\t\"=\n\x0bGetResponse\x12 \n\x08metadata\x18\x01 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"=\n\rUpdateRequest\x12\n\n\x02id\x18\x01 \x01(\r\x12 \n\x08metadata\x18\x02 \x01(\x0b\x32\x0e.bcdb.Metadata\"\x10\n\x0eUpdateResponse\";\n\x0cQueryRequest\x12\x12\n\ncollection\x18\x01 \x01(\t\x12\x17\n\x04tags\x18\x02 \x03(\x0b\x32\t.bcdb.Tag\"\x1a\n\x0cListResponse\x12\n\n\x02id\x18\x01 \x01(\r\"J\n\x0c\x46indResponse\x12\n\n\x02id\x18\x01 \x01(\r\x12 \n\x08metadata\x18\x02 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x03 \x01(\x0c\"\"\n\x03\x41\x43L\x12\x0c\n\x04perm\x18\x01 \x01(\t\x12\r\n\x05users\x18\x02 \x03(\x04\"\x1c\n\rACLGetRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\"(\n\x0e\x41\x43LGetResponse\x12\x16\n\x03\x61\x63l\x18\x01 \x01(\x0b\x32\t.bcdb.ACL\"*\n\x10\x41\x43LCreateRequest\x12\x16\n\x03\x61\x63l\x18\x01 \x01(\x0b\x32\t.bcdb.ACL\" \n\x11\x41\x43LCreateResponse\x12\x0b\n\x03key\x18\x01 \x01(\r\"\x10\n\x0e\x41\x43LListRequest\"6\n\x0f\x41\x43LListResponse\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\x16\n\x03\x61\x63l\x18\x02 \x01(\x0b\x32\t.bcdb.ACL\"*\n\rACLSetRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\x0c\n\x04perm\x18\x02 \x01(\t\"\x10\n\x0e\x41\x43LSetResponse\"-\n\x0f\x41\x43LUsersRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\r\n\x05users\x18\x02 \x03(\x04\"#\n\x10\x41\x43LUsersResponse\x12\x0f\n\x07updated\x18\x01 \x01(\x04\x32\x81\x02\n\x04\x42\x43\x44\x42\x12,\n\x03Set\x12\x10.bcdb.SetRequest\x1a\x11.bcdb.SetResponse\"\x00\x12,\n\x03Get\x12\x10.bcdb.GetRequest\x1a\x11.bcdb.GetResponse\"\x00\x12\x35\n\x06Update\x12\x13.bcdb.UpdateRequest\x1a\x14.bcdb.UpdateResponse\"\x00\x12\x32\n\x04List\x12\x12.bcdb.QueryRequest\x1a\x12.bcdb.ListResponse\"\x00\x30\x01\x12\x32\n\x04\x46ind\x12\x12.bcdb.QueryRequest\x1a\x12.bcdb.FindResponse\"\x00\x30\x01\x32\xd8\x02\n\x03\x41\x63l\x12\x32\n\x03Get\x12\x13.bcdb.ACLGetRequest\x1a\x14.bcdb.ACLGetResponse\"\x00\x12;\n\x06\x43reate\x12\x16.bcdb.ACLCreateRequest\x1a\x17.bcdb.ACLCreateResponse\"\x00\x12\x37\n\x04List\x12\x14.bcdb.ACLListRequest\x1a\x15.bcdb.ACLListResponse\"\x00\x30\x01\x12\x32\n\x03Set\x12\x13.bcdb.ACLSetRequest\x1a\x14.bcdb.ACLSetResponse\"\x00\x12\x38\n\x05Grant\x12\x15.bcdb.ACLUsersRequest\x1a\x16.bcdb.ACLUsersResponse\"\x00\x12\x39\n\x06Revoke\x12\x15.bcdb.ACLUsersRequest\x1a\x16.bcdb.ACLUsersResponse\"\x00\x62\x06proto3'
 )
 
 
@@ -321,6 +321,20 @@ _QUERYREQUEST = _descriptor.Descriptor(
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
+    _descriptor.FieldDescriptor(
+      name='collection', full_name='bcdb.QueryRequest.collection', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='tags', full_name='bcdb.QueryRequest.tags', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -334,7 +348,7 @@ _QUERYREQUEST = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=404,
-  serialized_end=418,
+  serialized_end=463,
 )
 
 
@@ -364,8 +378,8 @@ _LISTRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=420,
-  serialized_end=446,
+  serialized_start=465,
+  serialized_end=491,
 )
 
 
@@ -409,8 +423,8 @@ _FINDRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=448,
-  serialized_end=522,
+  serialized_start=493,
+  serialized_end=567,
 )
 
 
@@ -447,8 +461,8 @@ _ACL = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=524,
-  serialized_end=558,
+  serialized_start=569,
+  serialized_end=603,
 )
 
 
@@ -478,8 +492,8 @@ _ACLGETREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=560,
-  serialized_end=588,
+  serialized_start=605,
+  serialized_end=633,
 )
 
 
@@ -509,8 +523,8 @@ _ACLGETRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=590,
-  serialized_end=630,
+  serialized_start=635,
+  serialized_end=675,
 )
 
 
@@ -540,8 +554,8 @@ _ACLCREATEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=632,
-  serialized_end=674,
+  serialized_start=677,
+  serialized_end=719,
 )
 
 
@@ -571,8 +585,8 @@ _ACLCREATERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=676,
-  serialized_end=708,
+  serialized_start=721,
+  serialized_end=753,
 )
 
 
@@ -595,8 +609,8 @@ _ACLLISTREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=710,
-  serialized_end=726,
+  serialized_start=755,
+  serialized_end=771,
 )
 
 
@@ -633,8 +647,8 @@ _ACLLISTRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=728,
-  serialized_end=782,
+  serialized_start=773,
+  serialized_end=827,
 )
 
 
@@ -671,8 +685,8 @@ _ACLSETREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=784,
-  serialized_end=826,
+  serialized_start=829,
+  serialized_end=871,
 )
 
 
@@ -695,8 +709,8 @@ _ACLSETRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=828,
-  serialized_end=844,
+  serialized_start=873,
+  serialized_end=889,
 )
 
 
@@ -733,8 +747,8 @@ _ACLUSERSREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=846,
-  serialized_end=891,
+  serialized_start=891,
+  serialized_end=936,
 )
 
 
@@ -764,14 +778,15 @@ _ACLUSERSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=893,
-  serialized_end=928,
+  serialized_start=938,
+  serialized_end=973,
 )
 
 _METADATA.fields_by_name['tags'].message_type = _TAG
 _SETREQUEST.fields_by_name['metadata'].message_type = _METADATA
 _GETRESPONSE.fields_by_name['metadata'].message_type = _METADATA
 _UPDATEREQUEST.fields_by_name['metadata'].message_type = _METADATA
+_QUERYREQUEST.fields_by_name['tags'].message_type = _TAG
 _FINDRESPONSE.fields_by_name['metadata'].message_type = _METADATA
 _ACLGETRESPONSE.fields_by_name['acl'].message_type = _ACL
 _ACLCREATEREQUEST.fields_by_name['acl'].message_type = _ACL
@@ -962,8 +977,8 @@ _BCDB = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=931,
-  serialized_end=1188,
+  serialized_start=976,
+  serialized_end=1233,
   methods=[
   _descriptor.MethodDescriptor(
     name='Set',
@@ -1022,8 +1037,8 @@ _ACL = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=1,
   serialized_options=None,
-  serialized_start=1191,
-  serialized_end=1535,
+  serialized_start=1236,
+  serialized_end=1580,
   methods=[
   _descriptor.MethodDescriptor(
     name='Get',

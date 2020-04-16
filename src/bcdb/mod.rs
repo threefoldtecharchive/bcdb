@@ -80,8 +80,6 @@ where
     M: MetaStorageFactory,
 {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
-        debug!("received a set call");
-
         let request = request.into_inner();
 
         let data = request.data;
@@ -129,12 +127,10 @@ where
         // TODO: proper error
         let id = handle.await.expect("failed to run blocking task");
 
-        debug!("data stored in zdb with id: {}", id);
         let mut metastore = match self.get_store(&metadata.collection).await {
             Ok(store) => store,
             Err(err) => return Err(err.status()),
         };
-        debug!("storing data in metadata");
         match metastore.set(id, m).await {
             Ok(_) => Ok(Response::new(SetResponse { id })),
             Err(err) => Err(err.status()),
@@ -208,22 +204,25 @@ where
         }
 
         let (mut tx, rx) = mpsc::channel(10);
-        //let store = self.get_store(collection: &str)
         tokio::spawn(async move {
-            // let cur = metastore.find(tags).await.unwrap();
-            // tokio::pin!(cur);
-            // while let Some(row) = cur.next().await {
-            //     let tags = getter
-            //         .get(row.expect("invalid row") as Key)
-            //         .await
-            //         .expect("object not found");
-            //     for t in tags {
-            //         println!("{}: {}", t.key, t.value);
-            //     }
-            // }
+            let mut rx = match metastore.find(tags).await {
+                Ok(rx) => rx,
+                Err(err) => {
+                    tx.send(Err(Status::internal(format!("{}", err))))
+                        .await
+                        .unwrap();
+                    return;
+                }
+            };
 
-            for i in 0..3 {
-                tx.send(Ok(ListResponse { id: i })).await.unwrap();
+            while let Some(id) = rx.recv().await {
+                match id {
+                    Ok(id) => tx.send(Ok(ListResponse { id: id })).await.unwrap(),
+                    Err(err) => tx
+                        .send(Err(Status::internal(format!("{}", err))))
+                        .await
+                        .unwrap(),
+                }
             }
         });
 

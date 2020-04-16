@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"example.com/test/bcdb"
 	"google.golang.org/grpc"
@@ -43,31 +44,24 @@ func main() {
 	// }
 
 	// id := response.GetId()
-	var id uint32 = 5
-	fmt.Println("ID: ", id)
 
-	result, err := cl.Get(context.TODO(), &bcdb.GetRequest{Id: id, Collection: "files"})
+	list, err := cl.List(context.TODO(), &bcdb.QueryRequest{
+		Collection: "files",
+	})
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("data: %v\n", string(result.Data))
-	fmt.Printf("meta: %+v\n", result.Metadata)
+	for {
+		fmt.Println("doing receive")
+		obj, err := list.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			panic(err)
+		}
 
-	// // test list
-	// list, err := cl.List(context.TODO(), &bcdb.QueryRequest{})
-	// if err != nil {
-	// 	panic(err)
-	// }
+		fmt.Println("ID: ", obj.Id)
+	}
 
-	// for {
-	// 	msg, err := list.Recv()
-	// 	if err == io.EOF {
-	// 		break
-	// 	} else if err != nil {
-	// 		panic(err)
-	// 	}
-
-	// 	fmt.Println("ID: ", msg.Id)
-	// }
 }

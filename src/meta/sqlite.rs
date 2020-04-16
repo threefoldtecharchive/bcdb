@@ -7,6 +7,7 @@ use sqlx::Error as SqlError;
 use sqlx::SqlitePool;
 use tokio::prelude::*;
 use tokio::stream::Stream;
+use tokio::sync::mpsc;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -35,8 +36,6 @@ impl StorageFactory for SqliteMetaStoreFactory {
             bail!("collection name must not be empty");
         }
         let p = std::path::PathBuf::from(&self.root).join(format!("{}.sqlite", collection));
-
-        debug!("creating sql meta store at: {:?}", p);
 
         let p = match p.to_str() {
             Some(p) => p,
@@ -74,17 +73,8 @@ impl Storage for SqliteMetaStore {
         Ok(Meta { tags: tags })
     }
 
-    async fn find<'a>(
-        &'a mut self,
-        tags: Vec<Tag>,
-    ) -> Result<Box<dyn Stream<Item = Result<Key>> + 'a>> {
-        use tokio::stream::StreamExt;
-        let cur = self.schema.find(tags).await?.map(|v| match v {
-            Ok(v) => Ok(v),
-            Err(err) => Err(format_err!("{}", err)),
-        });
-        //tokio::pin!(cur);
-        Ok(Box::new(cur))
+    async fn find(&mut self, tags: Vec<Tag>) -> Result<mpsc::Receiver<Result<Key>>> {
+        self.schema.find(tags).await
     }
 }
 
@@ -164,10 +154,7 @@ impl Schema {
         Ok(tags)
     }
 
-    async fn find<'a>(
-        &'a mut self,
-        tags: Vec<Tag>,
-    ) -> Result<impl Stream<Item = std::result::Result<Key, SqlError>> + 'a> {
+    async fn find<'a>(&'a mut self, tags: Vec<Tag>) -> Result<mpsc::Receiver<Result<Key>>> {
         let q = "SELECT key FROM metadata WHERE tag = ? AND value = ?";
         let mut query_str = String::new();
 
@@ -182,19 +169,37 @@ impl Schema {
             //no tags where provided
             query_str.push_str("SELECT DISTINCT key FROM metadata");
         }
-
-        let mut query = sqlx::query(q);
-        for tag in tags {
-            query = query.bind(tag.key).bind(tag.value);
-        }
         #[derive(sqlx::FromRow, Debug)]
         struct Row {
             key: f64,
         }
-        let cur = query
-            .map(|r: SqliteRow| Row::from_row(&r).expect("failed to load item").key as Key)
-            .fetch(&self.c);
-        Ok(cur)
+        let (mut tx, rx) = mpsc::channel(10);
+        let pool = self.c.clone();
+        tokio::spawn(async move {
+            let mut query = sqlx::query(&query_str);
+            for tag in tags {
+                query = query.bind(tag.key).bind(tag.value);
+            }
+
+            let mut cur = query.fetch(&pool);
+
+            loop {
+                let res = match cur.next().await {
+                    Err(err) => Err(format_err!("{}", err)),
+                    Ok(row) => match row {
+                        None => break, // end of results
+                        Some(row) => {
+                            let row = Row::from_row(&row).unwrap();
+                            Ok(row.key as Key)
+                        }
+                    },
+                };
+
+                tx.send(res).await.expect("failed to send results");
+            }
+        });
+
+        Ok(rx)
     }
 }
 
@@ -224,20 +229,25 @@ mod tests {
             .expect("failed to insert object");
 
         let mut getter = schema.clone();
-        let cur = schema
+        let mut cur = schema
             .find(vec![Tag::new("name", "filename")])
             .await
             .expect("failed to do fine");
-        use tokio::stream::StreamExt;
-        tokio::pin!(cur);
-        while let Some(row) = cur.next().await {
-            let tags = getter
-                .get(row.expect("invalid row") as Key)
-                .await
-                .expect("object not found");
+        loop {
+            let key = match cur.recv().await {
+                Some(key) => key,
+                None => break,
+            };
+            let tags = getter.get(key.unwrap()).await.expect("object not found");
             for t in tags {
                 println!("{}: {}", t.key, t.value);
             }
         }
+        // use tokio::stream::StreamExt;
+        // tokio::pin!(cur);
+        // //tokio::spawn(async move {});
+        // while let Some(row) = cur.next().await {
+
+        // }
     }
 }

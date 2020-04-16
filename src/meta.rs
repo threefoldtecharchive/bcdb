@@ -1,10 +1,11 @@
 use crate::storage::Key;
 use async_trait::async_trait;
 use failure::Error;
-use tokio::stream::Stream;
+use tokio::sync::mpsc;
 
 pub mod sqlite;
 
+#[derive(Debug)]
 pub struct Tag {
     pub key: String,
     pub value: String,
@@ -34,10 +35,7 @@ pub struct Meta {
 pub trait Storage: Send + Sync + 'static {
     async fn set(&mut self, key: Key, meta: Meta) -> Result<(), Error>;
     async fn get(&mut self, key: Key) -> Result<Meta, Error>;
-    async fn find<'a>(
-        &'a mut self,
-        tags: Vec<Tag>,
-    ) -> Result<Box<dyn Stream<Item = Result<Key, Error>> + 'a>, Error>;
+    async fn find(&mut self, tags: Vec<Tag>) -> Result<mpsc::Receiver<Result<Key, Error>>, Error>;
 }
 
 #[async_trait]
