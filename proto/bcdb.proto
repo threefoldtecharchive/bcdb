@@ -29,12 +29,7 @@ message Tag {
   // key of the tag
   string key = 1;
   // value of the tag. Only supporting few primitive types
-  oneof value {
-    string string = 2;
-    double double = 3;
-    int64 number = 4;
-    uint64 unsigned = 5;
-  };
+  string value = 2;
 }
 
 // Metadata represents a set of tags (also known as Metadata)
@@ -44,7 +39,7 @@ message Metadata {
   // an associated piece of text that can
   // be used later with full text search
   // to find the object back
-  string text = 2;
+  string collection = 2;
   // acl is a ref to the acl key
   uint64 acl = 3;
 }

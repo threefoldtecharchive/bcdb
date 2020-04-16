@@ -8,52 +8,54 @@ use sqlx::SqlitePool;
 use tokio::prelude::*;
 use tokio::stream::Stream;
 
-type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
-pub struct SqliteMetaStoreFactor {
+pub struct SqliteMetaStoreFactory {
     root: String,
 }
 
-impl SqliteMetaStoreFactor {
-    pub fn new<P>(root: P) -> Result<SqliteMetaStoreFactor>
+impl SqliteMetaStoreFactory {
+    pub fn new<P>(root: P) -> Result<SqliteMetaStoreFactory>
     where
         P: Into<String>,
     {
         let root = root.into();
         std::fs::create_dir_all(&root)?;
 
-        Ok(SqliteMetaStoreFactor { root: root })
+        Ok(SqliteMetaStoreFactory { root: root })
     }
 }
 
 #[async_trait]
-impl StorageFactory for SqliteMetaStoreFactor {
+impl StorageFactory for SqliteMetaStoreFactory {
     type Storage = SqliteMetaStore;
 
-    async fn new(&self, typ: &str) -> Result<Self::Storage> {
-        let p = std::path::PathBuf::new()
-            .join(&self.root)
-            .join(format!("{}.sqlite", typ));
+    async fn new(&self, collection: &str) -> Result<Self::Storage> {
+        if collection.len() == 0 {
+            bail!("collection name must not be empty");
+        }
+        let p = std::path::PathBuf::from(&self.root).join(format!("{}.sqlite", collection));
 
-        //let p = p.join(format!("{}.sqlite", typ))?;
+        debug!("creating sql meta store at: {:?}", p);
 
         let p = match p.to_str() {
             Some(p) => p,
             None => bail!("empty path to db"),
         };
 
-        let store = SqliteMetaStore::new(p).await?;
+        let store = SqliteMetaStore::new(&format!("sqlite://{}", p)).await?;
         Ok(store)
     }
 }
 
+#[derive(Clone)]
 pub struct SqliteMetaStore {
     schema: Schema,
 }
 
 impl SqliteMetaStore {
-    async fn new(db: &str) -> Result<SqliteMetaStore> {
-        let pool = SqlitePool::new(db).await?;
+    async fn new(collection: &str) -> Result<SqliteMetaStore> {
+        let pool = SqlitePool::new(collection).await?;
         let mut schema = Schema::new(pool);
         schema.setup().await?;
 

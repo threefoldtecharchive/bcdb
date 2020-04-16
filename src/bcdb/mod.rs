@@ -1,13 +1,19 @@
+use failure::Error;
 use generated::acl_server::Acl as AclServiceTrait;
 use generated::bcdb_server::Bcdb as BcdbServiceTrait;
 use generated::*;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::FromIterator;
+use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use tonic::{Code, Request, Response, Status};
 
-use crate::storage::{zdb::Collection, zdb::Zdb, Storage};
+use crate::meta::sqlite::SqliteMetaStoreFactory;
+use crate::meta::{self, Storage as MetaStorage, StorageFactory as MetaStorageFactory};
+
+use crate::storage::{zdb::Collection, zdb::Zdb, Storage as ObjectStorage};
 
 pub use generated::acl_server::AclServer;
 pub use generated::bcdb_server::BcdbServer;
@@ -20,44 +26,107 @@ trait FailureExt {
     fn status(&self) -> Status;
 }
 
-impl FailureExt for failure::Error {
+impl FailureExt for Error {
     fn status(&self) -> Status {
         Status::new(Code::Internal, format!("{}", self))
     }
 }
 
-#[derive(Default)]
-pub struct BcdbService {
+//TODO: use generics for both object store type and meta factory type.
+pub struct BcdbService<M>
+where
+    M: MetaStorageFactory,
+{
     db: Zdb,
+    factory: M,
+    stores: Arc<Mutex<HashMap<String, M::Storage>>>,
 }
 
-#[tonic::async_trait]
-impl BcdbServiceTrait for BcdbService {
-    async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
-        let request = request.into_inner();
+impl Default for BcdbService<SqliteMetaStoreFactory> {
+    fn default() -> Self {
+        BcdbService {
+            db: Zdb::default(),
+            factory: SqliteMetaStoreFactory::new("/tmp/meta")
+                .expect("failed to create default meta store factory"),
+            stores: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+}
 
-        if let Some(ref metadata) = request.metadata {
-            for t in metadata.tags.iter() {
-                println!("Tag: {}", t.key);
-                if let Some(ref value) = t.value {
-                    match value {
-                        tag::Value::String(v) => println!("\tstring: {}", v),
-                        tag::Value::Double(v) => println!("\tdouble: {}", v),
-                        tag::Value::Unsigned(v) => println!("\tunsigned: {}", v),
-                        tag::Value::Number(v) => println!("\tnumber: {}", v),
-                    }
-                }
+impl<M> BcdbService<M>
+where
+    M: MetaStorageFactory,
+{
+    async fn get_store(&self, collection: &str) -> Result<M::Storage, Error> {
+        {
+            let stores = self.stores.lock().unwrap();
+            if let Some(store) = stores.get(collection) {
+                return Ok(store.clone());
             }
         }
 
+        let store = self.factory.new(collection).await?;
+        let mut stores = self.stores.lock().unwrap();
+        stores.insert(collection.into(), store.clone());
+
+        Ok(store)
+    }
+}
+
+#[tonic::async_trait]
+impl<M> BcdbServiceTrait for BcdbService<M>
+where
+    M: MetaStorageFactory,
+{
+    async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
+        debug!("received a set call");
+
+        let request = request.into_inner();
+
+        let data = request.data;
+        let metadata = match request.metadata {
+            Some(metadata) => metadata,
+            None => return Err(Status::invalid_argument("metadata is required")),
+        };
+
+        //build metadata for storage
+        let mut m = meta::Meta { tags: vec![] };
+        for tag in metadata.tags {
+            m.tags.push(meta::Tag {
+                key: tag.key,
+                value: tag.value,
+            });
+        }
+
+        m.tags
+            .push(meta::Tag::new("_size", &format!("{}", data.len())));
+        m.tags.push(meta::Tag::new(
+            "_created",
+            &format!(
+                "{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+            ),
+        ));
+
         // TODO: create from impl for Tonic status for StorageError
         let mut db = self.db.clone();
-        let handle =
-            spawn_blocking(move || db.set(None, &request.data).expect("failed to set data"));
+        let handle = spawn_blocking(move || db.set(None, &data).expect("failed to set data"));
         // TODO: proper error
         let id = handle.await.expect("failed to run blocking task");
 
-        Ok(Response::new(SetResponse { id }))
+        debug!("data stored in zdb with id: {}", id);
+        let mut metastore = match self.get_store(&metadata.collection).await {
+            Ok(store) => store,
+            Err(err) => return Err(err.status()),
+        };
+        debug!("storing data in metadata");
+        match metastore.set(id, m).await {
+            Ok(_) => Ok(Response::new(SetResponse { id })),
+            Err(err) => Err(err.status()),
+        }
     }
 
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {

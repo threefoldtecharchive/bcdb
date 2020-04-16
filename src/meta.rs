@@ -27,7 +27,7 @@ pub struct Meta {
 }
 
 #[async_trait]
-pub trait Storage {
+pub trait Storage: Send + Sync + 'static {
     async fn set(&mut self, key: Key, meta: Meta) -> Result<(), Error>;
     async fn get(&mut self, key: Key) -> Result<Meta, Error>;
     async fn find<'a>(
@@ -37,8 +37,8 @@ pub trait Storage {
 }
 
 #[async_trait]
-pub trait StorageFactory {
-    type Storage: Storage;
+pub trait StorageFactory: Send + Sync + 'static {
+    type Storage: Storage + Clone;
 
     async fn new(&self, typ: &str) -> Result<Self::Storage, Error>;
 }

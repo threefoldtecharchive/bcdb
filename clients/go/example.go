@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 
 	"example.com/test/bcdb"
 	"google.golang.org/grpc"
@@ -20,10 +19,19 @@ func main() {
 	req := bcdb.SetRequest{
 		Data: []byte("hello world"),
 		Metadata: &bcdb.Metadata{
+			Collection: "files",
 			Tags: []*bcdb.Tag{
 				&bcdb.Tag{
 					Key:   "name",
-					Value: &bcdb.Tag_String_{String_: "test"},
+					Value: "azmy",
+				},
+				&bcdb.Tag{
+					Key:   "dir",
+					Value: "/path/to/file",
+				},
+				&bcdb.Tag{
+					Key:   "type",
+					Value: "file",
 				},
 			},
 		},
@@ -36,20 +44,20 @@ func main() {
 
 	fmt.Println(response.GetId())
 
-	// test list
-	list, err := cl.List(context.TODO(), &bcdb.QueryRequest{})
-	if err != nil {
-		panic(err)
-	}
+	// // test list
+	// list, err := cl.List(context.TODO(), &bcdb.QueryRequest{})
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	for {
-		msg, err := list.Recv()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			panic(err)
-		}
+	// for {
+	// 	msg, err := list.Recv()
+	// 	if err == io.EOF {
+	// 		break
+	// 	} else if err != nil {
+	// 		panic(err)
+	// 	}
 
-		fmt.Println("ID: ", msg.Id)
-	}
+	// 	fmt.Println("ID: ", msg.Id)
+	// }
 }
