@@ -9,7 +9,6 @@ extern crate log;
 mod acl;
 mod bcdb;
 mod meta;
-mod sonic;
 mod storage;
 
 #[tokio::main]
