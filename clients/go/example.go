@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"example.com/test/bcdb"
 	"google.golang.org/grpc"
@@ -17,13 +18,24 @@ func main() {
 
 	cl := bcdb.NewBCDBClient(client)
 
+	name := fmt.Sprintf("test-file-name-%d", time.Now().Unix())
 	req := bcdb.SetRequest{
 		Data: []byte("hello world"),
 		Metadata: &bcdb.Metadata{
+			Acl:        100,
+			Collection: "files",
 			Tags: []*bcdb.Tag{
-				&bcdb.Tag{
+				{
 					Key:   "name",
-					Value: &bcdb.Tag_String_{String_: "test"},
+					Value: name,
+				},
+				{
+					Key:   "dir",
+					Value: "/path/to/file",
+				},
+				{
+					Key:   "type",
+					Value: "file",
 				},
 			},
 		},
@@ -34,22 +46,28 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(response.GetId())
+	id := response.GetId()
+	fmt.Println("ID:", id)
 
-	// test list
-	list, err := cl.List(context.TODO(), &bcdb.QueryRequest{})
+	list, err := cl.Find(context.TODO(), &bcdb.QueryRequest{
+		Collection: "files",
+		Tags: []*bcdb.Tag{
+			{Key: "type", Value: "file"},
+		},
+	})
 	if err != nil {
 		panic(err)
 	}
 
 	for {
-		msg, err := list.Recv()
+		obj, err := list.Recv()
 		if err == io.EOF {
 			break
 		} else if err != nil {
 			panic(err)
 		}
 
-		fmt.Println("ID: ", msg.Id)
+		fmt.Printf("ID: %+v\n", obj)
 	}
+
 }

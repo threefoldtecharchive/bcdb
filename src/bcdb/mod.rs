@@ -1,13 +1,20 @@
+use failure::Error;
 use generated::acl_server::Acl as AclServiceTrait;
 use generated::bcdb_server::Bcdb as BcdbServiceTrait;
 use generated::*;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::FromIterator;
+use std::sync::{Arc, Mutex};
+use tokio::stream::StreamExt;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use tonic::{Code, Request, Response, Status};
 
-use crate::storage::{zdb::Collection, zdb::Zdb, Storage};
+use crate::meta::sqlite::SqliteMetaStoreFactory;
+use crate::meta::{self, Storage as MetaStorage, StorageFactory as MetaStorageFactory};
+
+use crate::storage::{zdb::Collection, zdb::Zdb, Storage as ObjectStorage};
 
 pub use generated::acl_server::AclServer;
 pub use generated::bcdb_server::BcdbServer;
@@ -20,48 +27,162 @@ trait FailureExt {
     fn status(&self) -> Status;
 }
 
-impl FailureExt for failure::Error {
+impl FailureExt for Error {
     fn status(&self) -> Status {
         Status::new(Code::Internal, format!("{}", self))
     }
 }
 
-#[derive(Default)]
-pub struct BcdbService {
+//TODO: use generics for both object store type and meta factory type.
+pub struct BcdbService<M>
+where
+    M: MetaStorageFactory,
+{
     db: Zdb,
+    factory: M,
+    stores: Arc<Mutex<HashMap<String, M::Storage>>>,
 }
 
-#[tonic::async_trait]
-impl BcdbServiceTrait for BcdbService {
-    async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
-        let request = request.into_inner();
+impl Default for BcdbService<SqliteMetaStoreFactory> {
+    fn default() -> Self {
+        BcdbService {
+            db: Zdb::default(),
+            factory: SqliteMetaStoreFactory::new("/tmp/meta")
+                .expect("failed to create default meta store factory"),
+            stores: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+}
 
-        if let Some(ref metadata) = request.metadata {
-            for t in metadata.tags.iter() {
-                println!("Tag: {}", t.key);
-                if let Some(ref value) = t.value {
-                    match value {
-                        tag::Value::String(v) => println!("\tstring: {}", v),
-                        tag::Value::Double(v) => println!("\tdouble: {}", v),
-                        tag::Value::Unsigned(v) => println!("\tunsigned: {}", v),
-                        tag::Value::Number(v) => println!("\tnumber: {}", v),
-                    }
-                }
+impl<M> BcdbService<M>
+where
+    M: MetaStorageFactory,
+{
+    fn new(zdb: Zdb, factory: M) -> BcdbService<M> {
+        BcdbService {
+            db: zdb,
+            factory: factory,
+            stores: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    async fn get_store(&self, collection: &str) -> Result<M::Storage, Error> {
+        {
+            let stores = self.stores.lock().unwrap();
+            if let Some(store) = stores.get(collection) {
+                return Ok(store.clone());
             }
         }
 
+        let store = self.factory.new(collection).await?;
+        let mut stores = self.stores.lock().unwrap();
+        stores.insert(collection.into(), store.clone());
+
+        Ok(store)
+    }
+
+    fn build_meta<C>(collection: C, meta: meta::Meta) -> Metadata
+    where
+        C: Into<String>,
+    {
+        let mut tags = vec![];
+        let mut acl: u64 = 0;
+        for tag in meta.tags {
+            if tag.key == ":acl" {
+                acl = tag.value.parse().unwrap_or(0);
+            }
+            tags.push(Tag {
+                key: tag.key,
+                value: tag.value,
+            })
+        }
+
+        Metadata {
+            acl: acl,
+            tags: tags,
+            collection: collection.into(),
+        }
+    }
+}
+
+#[tonic::async_trait]
+impl<M> BcdbServiceTrait for BcdbService<M>
+where
+    M: MetaStorageFactory,
+{
+    async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
+        let request = request.into_inner();
+
+        let data = request.data;
+        let metadata = match request.metadata {
+            Some(metadata) => metadata,
+            None => return Err(Status::invalid_argument("metadata is required")),
+        };
+
+        //build metadata for storage
+        let mut m = meta::Meta { tags: vec![] };
+        for tag in metadata.tags {
+            let t = meta::Tag {
+                key: tag.key,
+                value: tag.value,
+            };
+            if t.is_reserved() {
+                return Err(Status::invalid_argument(format!(
+                    "not allowed use of reserved tags: {}",
+                    t.key
+                )));
+            }
+            m.tags.push(t);
+        }
+        // TODO: make sure that there are no repeated tags.
+
+        //adding default tags to object.
+        m.tags
+            .push(meta::Tag::new(":acl", &format!("{}", metadata.acl)));
+        m.tags
+            .push(meta::Tag::new(":size", &format!("{}", data.len())));
+        m.tags.push(meta::Tag::new(
+            ":created",
+            &format!(
+                "{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+            ),
+        ));
+
         // TODO: create from impl for Tonic status for StorageError
         let mut db = self.db.clone();
-        let handle =
-            spawn_blocking(move || db.set(None, &request.data).expect("failed to set data"));
+        let handle = spawn_blocking(move || db.set(None, &data).expect("failed to set data"));
         // TODO: proper error
         let id = handle.await.expect("failed to run blocking task");
 
-        Ok(Response::new(SetResponse { id }))
+        let mut metastore = match self.get_store(&metadata.collection).await {
+            Ok(store) => store,
+            Err(err) => return Err(err.status()),
+        };
+        match metastore.set(id, m).await {
+            Ok(_) => Ok(Response::new(SetResponse { id })),
+            Err(err) => Err(err.status()),
+        }
     }
 
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
-        let id = request.into_inner().id;
+        let request = request.into_inner();
+        let id = request.id;
+
+        let mut metastore = match self.get_store(&request.collection).await {
+            Ok(store) => store,
+            Err(err) => return Err(err.status()),
+        };
+
+        let meta = match metastore.get(id).await {
+            Ok(meta) => meta,
+            Err(err) => return Err(err.status()),
+        };
+
+        let metadata = Self::build_meta(request.collection, meta);
 
         // TODO: from impl for error
         let mut db = self.db.clone();
@@ -73,7 +194,7 @@ impl BcdbServiceTrait for BcdbService {
         }
         Ok(Response::new(GetResponse {
             data: data.unwrap(), // This unwrap is safe as we checked the none case above
-            metadata: None,
+            metadata: Some(metadata),
         }))
     }
 
@@ -90,11 +211,40 @@ impl BcdbServiceTrait for BcdbService {
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::ListStream>, Status> {
-        let (mut tx, rx) = mpsc::channel(10);
+        let request = request.into_inner();
+        let mut metastore = match self.get_store(&request.collection).await {
+            Ok(store) => store,
+            Err(err) => return Err(err.status()),
+        };
 
+        let mut tags = vec![];
+        for tag in request.tags {
+            tags.push(meta::Tag {
+                key: tag.key,
+                value: tag.value,
+            })
+        }
+
+        let (mut tx, rx) = mpsc::channel(10);
         tokio::spawn(async move {
-            for i in 0..3 {
-                tx.send(Ok(ListResponse { id: i })).await.unwrap();
+            let mut rx = match metastore.find(tags).await {
+                Ok(rx) => rx,
+                Err(err) => {
+                    tx.send(Err(Status::internal(format!("{}", err))))
+                        .await
+                        .unwrap();
+                    return;
+                }
+            };
+
+            while let Some(id) = rx.recv().await {
+                match id {
+                    Ok(id) => tx.send(Ok(ListResponse { id: id })).await.unwrap(),
+                    Err(err) => tx
+                        .send(Err(Status::internal(format!("{}", err))))
+                        .await
+                        .unwrap(),
+                }
             }
         });
 
@@ -107,7 +257,63 @@ impl BcdbServiceTrait for BcdbService {
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::FindStream>, Status> {
-        Err(Status::unimplemented("not implemented yet!"))
+        let request = request.into_inner();
+        let collection = request.collection;
+        let mut metastore = match self.get_store(&collection).await {
+            Ok(store) => store,
+            Err(err) => return Err(err.status()),
+        };
+
+        let mut tags = vec![];
+        for tag in request.tags {
+            tags.push(meta::Tag {
+                key: tag.key,
+                value: tag.value,
+            })
+        }
+
+        let (mut tx, rx) = mpsc::channel(10);
+        tokio::spawn(async move {
+            let mut getter = metastore.clone();
+            let mut rx = match metastore.find(tags).await {
+                Ok(rx) => rx,
+                Err(err) => {
+                    tx.send(Err(Status::internal(format!("{}", err))))
+                        .await
+                        .unwrap();
+                    return;
+                }
+            };
+
+            while let Some(id) = rx.recv().await {
+                let id = match id {
+                    Ok(id) => id,
+                    Err(err) => {
+                        tx.send(Err(err.status())).await.unwrap();
+                        return;
+                    }
+                };
+
+                let meta = match getter.get(id).await {
+                    Ok(meta) => meta,
+                    Err(err) => {
+                        tx.send(Err(err.status())).await.unwrap();
+                        return;
+                    }
+                };
+
+                let metadata = Self::build_meta(&collection, meta);
+
+                tx.send(Ok(FindResponse {
+                    id: id,
+                    metadata: Some(metadata),
+                }))
+                .await
+                .unwrap();
+            }
+        });
+
+        Ok(Response::new(rx))
     }
 }
 
