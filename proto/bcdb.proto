@@ -85,7 +85,6 @@ message ListResponse { uint32 id = 1; }
 message FindResponse {
   uint32 id = 1;
   Metadata metadata = 2;
-  bytes data = 3;
 }
 
 service Acl {

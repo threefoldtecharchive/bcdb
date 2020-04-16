@@ -72,6 +72,29 @@ where
 
         Ok(store)
     }
+
+    fn build_meta<C>(collection: C, meta: meta::Meta) -> Metadata
+    where
+        C: Into<String>,
+    {
+        let mut tags = vec![];
+        let mut acl: u64 = 0;
+        for tag in meta.tags {
+            if tag.key == ":acl" {
+                acl = tag.value.parse().unwrap_or(0);
+            }
+            tags.push(Tag {
+                key: tag.key,
+                value: tag.value,
+            })
+        }
+
+        Metadata {
+            acl: acl,
+            tags: tags,
+            collection: collection.into(),
+        }
+    }
 }
 
 #[tonic::async_trait]
@@ -150,18 +173,9 @@ where
             Ok(meta) => meta,
             Err(err) => return Err(err.status()),
         };
-        let mut tags = vec![];
-        for tag in meta.tags {
-            tags.push(Tag {
-                key: tag.key,
-                value: tag.value,
-            })
-        }
-        let metadata = Metadata {
-            acl: 0,
-            tags: tags,
-            collection: request.collection,
-        };
+
+        let metadata = Self::build_meta(request.collection, meta);
+
         // TODO: from impl for error
         let mut db = self.db.clone();
         let handle = spawn_blocking(move || db.get(id).expect("failed to load data"));
@@ -235,7 +249,63 @@ where
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::FindStream>, Status> {
-        Err(Status::unimplemented("not implemented yet!"))
+        let request = request.into_inner();
+        let collection = request.collection;
+        let mut metastore = match self.get_store(&collection).await {
+            Ok(store) => store,
+            Err(err) => return Err(err.status()),
+        };
+
+        let mut tags = vec![];
+        for tag in request.tags {
+            tags.push(meta::Tag {
+                key: tag.key,
+                value: tag.value,
+            })
+        }
+
+        let (mut tx, rx) = mpsc::channel(10);
+        tokio::spawn(async move {
+            let mut getter = metastore.clone();
+            let mut rx = match metastore.find(tags).await {
+                Ok(rx) => rx,
+                Err(err) => {
+                    tx.send(Err(Status::internal(format!("{}", err))))
+                        .await
+                        .unwrap();
+                    return;
+                }
+            };
+
+            while let Some(id) = rx.recv().await {
+                let id = match id {
+                    Ok(id) => id,
+                    Err(err) => {
+                        tx.send(Err(err.status())).await.unwrap();
+                        return;
+                    }
+                };
+
+                let meta = match getter.get(id).await {
+                    Ok(meta) => meta,
+                    Err(err) => {
+                        tx.send(Err(err.status())).await.unwrap();
+                        return;
+                    }
+                };
+
+                let metadata = Self::build_meta(&collection, meta);
+
+                tx.send(Ok(FindResponse {
+                    id: id,
+                    metadata: Some(metadata),
+                }))
+                .await
+                .unwrap();
+            }
+        });
+
+        Ok(Response::new(rx))
     }
 }
 
