@@ -20,6 +20,10 @@ impl Tag {
             value: value.into(),
         }
     }
+
+    pub fn is_reserved(&self) -> bool {
+        self.key.starts_with(":")
+    }
 }
 
 pub struct Meta {

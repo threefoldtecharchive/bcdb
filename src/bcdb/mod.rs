@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::sync::{Arc, Mutex};
+use tokio::stream::StreamExt;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use tonic::{Code, Request, Response, Status};
@@ -92,16 +93,27 @@ where
         //build metadata for storage
         let mut m = meta::Meta { tags: vec![] };
         for tag in metadata.tags {
-            m.tags.push(meta::Tag {
+            let t = meta::Tag {
                 key: tag.key,
                 value: tag.value,
-            });
+            };
+            if t.is_reserved() {
+                return Err(Status::invalid_argument(format!(
+                    "not allowed use of reserved tags: {}",
+                    t.key
+                )));
+            }
+            m.tags.push(t);
         }
+        // TODO: make sure that there are no repeated tags.
 
+        //adding default tags to object.
         m.tags
-            .push(meta::Tag::new("_size", &format!("{}", data.len())));
+            .push(meta::Tag::new(":acl", &format!("{}", metadata.acl)));
+        m.tags
+            .push(meta::Tag::new(":size", &format!("{}", data.len())));
         m.tags.push(meta::Tag::new(
-            "_created",
+            ":created",
             &format!(
                 "{}",
                 std::time::SystemTime::now()
@@ -181,9 +193,35 @@ where
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::ListStream>, Status> {
-        let (mut tx, rx) = mpsc::channel(10);
+        let request = request.into_inner();
+        let mut metastore = match self.get_store(&request.collection).await {
+            Ok(store) => store,
+            Err(err) => return Err(err.status()),
+        };
 
+        let mut tags = vec![];
+        for tag in request.tags {
+            tags.push(meta::Tag {
+                key: tag.key,
+                value: tag.value,
+            })
+        }
+
+        let (mut tx, rx) = mpsc::channel(10);
+        //let store = self.get_store(collection: &str)
         tokio::spawn(async move {
+            // let cur = metastore.find(tags).await.unwrap();
+            // tokio::pin!(cur);
+            // while let Some(row) = cur.next().await {
+            //     let tags = getter
+            //         .get(row.expect("invalid row") as Key)
+            //         .await
+            //         .expect("object not found");
+            //     for t in tags {
+            //         println!("{}: {}", t.key, t.value);
+            //     }
+            // }
+
             for i in 0..3 {
                 tx.send(Ok(ListResponse { id: i })).await.unwrap();
             }

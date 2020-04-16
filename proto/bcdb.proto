@@ -73,7 +73,10 @@ message UpdateRequest {
 message UpdateResponse {}
 
 // Query request for finding entries
-message QueryRequest {}
+message QueryRequest {
+  string collection = 1;
+  repeated Tag tags = 2;
+}
 
 // List response
 message ListResponse { uint32 id = 1; }

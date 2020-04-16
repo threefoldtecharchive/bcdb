@@ -178,6 +178,11 @@ impl Schema {
             query_str.push_str(q);
         }
 
+        if query_str.len() == 0 {
+            //no tags where provided
+            query_str.push_str("SELECT DISTINCT key FROM metadata");
+        }
+
         let mut query = sqlx::query(q);
         for tag in tags {
             query = query.bind(tag.key).bind(tag.value);
