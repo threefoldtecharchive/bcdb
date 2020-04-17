@@ -6,6 +6,7 @@ extern crate failure;
 
 mod acl;
 mod bcdb;
+mod identity;
 mod meta;
 mod storage;
 
