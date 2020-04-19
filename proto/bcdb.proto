@@ -32,14 +32,16 @@ message Tag {
   string value = 2;
 }
 
+message AclRef { uint64 acl = 1; }
+
 // Metadata represents a set of tags (also known as Metadata)
 message Metadata {
   // set of searchable tags.
   repeated Tag tags = 1;
   // required collection
   string collection = 2;
-  // acl is a ref to the acl key
-  uint64 acl = 3;
+  // acl is a ref to the acl key (optional)
+  AclRef acl = 3;
 }
 
 // Set request

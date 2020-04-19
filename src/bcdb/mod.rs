@@ -86,10 +86,12 @@ where
         C: Into<String>,
     {
         let mut tags = vec![];
-        let mut acl: u64 = 0;
+        let mut acl = None;
         for tag in meta.tags {
             if tag.key == ":acl" {
-                acl = tag.value.parse().unwrap_or(0);
+                acl = Some(AclRef {
+                    acl: tag.value.parse().unwrap_or(0),
+                });
             }
             tags.push(Tag {
                 key: tag.key,
@@ -134,11 +136,14 @@ where
             }
             m.tags.push(t);
         }
-        // TODO: make sure that there are no repeated tags.
 
         //adding default tags to object.
-        m.tags
-            .push(meta::Tag::new(":acl", &format!("{}", metadata.acl)));
+        // note: acl is optional
+        match metadata.acl {
+            Some(acl) => m.tags.push(meta::Tag::new(":acl", &format!("{}", acl.acl))),
+            None => {}
+        };
+
         m.tags
             .push(meta::Tag::new(":size", &format!("{}", data.len())));
         m.tags.push(meta::Tag::new(
@@ -202,7 +207,56 @@ where
         &self,
         request: Request<UpdateRequest>,
     ) -> Result<Response<UpdateResponse>, Status> {
-        Err(Status::unimplemented("not implemented yet!"))
+        let request = request.into_inner();
+
+        let metadata = match request.metadata {
+            Some(metadata) => metadata,
+            None => return Err(Status::invalid_argument("metadata is required")),
+        };
+
+        //build metadata for storage
+        let mut m = meta::Meta { tags: vec![] };
+        for tag in metadata.tags {
+            let t = meta::Tag {
+                key: tag.key,
+                value: tag.value,
+            };
+            if t.is_reserved() {
+                return Err(Status::invalid_argument(format!(
+                    "not allowed use of reserved tags: {}",
+                    t.key
+                )));
+            }
+            m.tags.push(t);
+        }
+
+        //adding default tags to object.
+        // note: acl is optional
+        match metadata.acl {
+            Some(acl) => m.tags.push(meta::Tag::new(":acl", &format!("{}", acl.acl))),
+            None => {}
+        };
+
+        m.tags.push(meta::Tag::new(
+            ":updated",
+            &format!(
+                "{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+            ),
+        ));
+
+        let mut metastore = match self.get_store(&metadata.collection).await {
+            Ok(store) => store,
+            Err(err) => return Err(err.status()),
+        };
+
+        match metastore.set(request.id, m).await {
+            Ok(_) => Ok(Response::new(UpdateResponse {})),
+            Err(err) => Err(err.status()),
+        }
     }
 
     type ListStream = mpsc::Receiver<Result<ListResponse, Status>>;

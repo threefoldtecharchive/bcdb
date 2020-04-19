@@ -22,7 +22,7 @@ func main() {
 	req := bcdb.SetRequest{
 		Data: []byte("hello world"),
 		Metadata: &bcdb.Metadata{
-			Acl:        100,
+			Acl:        &bcdb.AclRef{Acl: 100},
 			Collection: "files",
 			Tags: []*bcdb.Tag{
 				{

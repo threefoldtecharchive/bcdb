@@ -97,17 +97,8 @@ impl Schema {
             value TEXT
         );
 
-        CREATE INDEX IF NOT EXISTS metadata_key ON metadata (
-            key
-        );
-
-        CREATE INDEX IF NOT EXISTS metadata_tag ON metadata (
-            tag
-        );
-
-        CREATE INDEX IF NOT EXISTS metadata_value ON metadata (
-            value
-        );
+        CREATE UNIQUE INDEX IF NOT EXISTS metadata_unique ON metadata (key, tag);
+        CREATE INDEX IF NOT EXISTS metadata_value ON metadata (value);
         ",
         )
         .execute(&self.c)
@@ -120,12 +111,17 @@ impl Schema {
         let mut tx: sqlx::Transaction<_> = self.c.begin().await?;
         for tag in tags {
             sqlx::query(
-                "INSERT INTO metadata (key, tag, value) VALUES
-                (?, ?, ?);",
+                "
+                INSERT INTO metadata (key, tag, value) values
+                (?, ?, ?)
+                ON CONFLICT (key, tag)
+                DO UPDATE SET value = ?;
+                ",
             )
             .bind(key as f64) // only f64 is supported by sqlite.
-            .bind(tag.key)
-            .bind(tag.value)
+            .bind(&tag.key)
+            .bind(&tag.value)
+            .bind(&tag.value)
             .execute(&mut tx)
             .await?;
         }
