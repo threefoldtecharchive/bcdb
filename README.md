@@ -45,9 +45,9 @@ In case there is no client generated in your preferred language, use the `proto/
 - [x] Find objects that matches set of tags
   - find is similar to list, except `list` only returns object IDs, while `find` also return object full meta
 - [x] Update object meta with ID
-- Authentication
+- [ ] Authentication
   - [ ] Specifications
-- [-] ACL
+- [ ] ACL
   - [x] Assign ACL to object on Set
   - [x] Configure ACL (grant, revoke, and update permissions)
   - [ ] Check user access request against associated ACL
