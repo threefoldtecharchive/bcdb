@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::sync::{Arc, Mutex};
-use tokio::stream::StreamExt;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use tonic::{Code, Request, Response, Status};

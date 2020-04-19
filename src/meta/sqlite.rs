@@ -2,11 +2,7 @@ use crate::meta::{Key, Meta, Storage, StorageFactory, Tag};
 use async_trait::async_trait;
 use failure::Error;
 use sqlx::prelude::*;
-use sqlx::sqlite::{SqliteCursor, SqliteRow};
-use sqlx::Error as SqlError;
 use sqlx::SqlitePool;
-use tokio::prelude::*;
-use tokio::stream::Stream;
 use tokio::sync::mpsc;
 
 pub type Result<T> = std::result::Result<T, Error>;

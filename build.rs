@@ -1,21 +1,21 @@
 extern crate tonic_build;
 
-use std::env;
-use std::fs;
-use std::path::{Path, PathBuf};
+// use std::env;
+// use std::fs;
+// use std::path::{Path, PathBuf};
 
 // arguments to pass to `clang`, these are taken from the libzdb makefile
-const CLANG_ARGS: [&str; 9] = [
-    "-g",
-    "-fPIC",
-    "-std=gnu11",
-    "-O0",
-    "-W",
-    "-Wall",
-    "-Wextra",
-    "-msse4.2",
-    "-Wno-implicit-fallthrough",
-];
+// const CLANG_ARGS: [&str; 9] = [
+//     "-g",
+//     "-fPIC",
+//     "-std=gnu11",
+//     "-O0",
+//     "-W",
+//     "-Wall",
+//     "-Wextra",
+//     "-msse4.2",
+//     "-Wno-implicit-fallthrough",
+// ];
 
 fn main() {
     tonic_build::compile_protos("proto/bcdb.proto")

@@ -16,14 +16,19 @@ pub struct Permissions(u32);
 
 impl Permissions {
     /// set the read permissions bit
+    #[allow(dead_code)]
     pub fn set_read(self, t: bool) -> Self {
         self.set(READ, t)
     }
+
     /// set the write permissions bit
+    #[allow(dead_code)]
     pub fn set_write(self, t: bool) -> Self {
         self.set(WRITE, t)
     }
+
     /// set the delete permissions bit
+    #[allow(dead_code)]
     pub fn set_delete(self, t: bool) -> Self {
         self.set(DELETE, t)
     }
