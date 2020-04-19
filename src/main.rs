@@ -9,8 +9,15 @@ mod bcdb;
 mod meta;
 mod storage;
 
+const MEAT_DIR: &str = ".bcdb-meta";
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let meta_dir = match dirs::home_dir() {
+        Some(p) => p.join(".bcdb-meta"),
+        None => std::path::PathBuf::from(MEAT_DIR),
+    };
+
     let matches = App::new("bcdb")
         .arg(
             Arg::with_name("zdb")
@@ -34,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("meta")
                 .short("m")
                 .takes_value(true)
-                .default_value("meta"),
+                .default_value(meta_dir.to_str().unwrap_or(MEAT_DIR)),
         )
         .arg(
             Arg::with_name("debug")
