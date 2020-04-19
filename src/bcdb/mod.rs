@@ -36,6 +36,7 @@ impl FailureExt for Error {
 //TODO: use generics for both object store type and meta factory type.
 pub struct BcdbService<S, M>
 where
+    S: ObjectStorage,
     M: MetaStorageFactory,
 {
     db: S,
@@ -59,7 +60,7 @@ where
     S: ObjectStorage,
     M: MetaStorageFactory,
 {
-    fn new(db: S, factory: M) -> BcdbService<S, M> {
+    pub fn new(db: S, factory: M) -> BcdbService<S, M> {
         BcdbService {
             db,
             factory,
@@ -375,20 +376,37 @@ where
 
 use crate::acl::*;
 
-pub struct AclService {
-    store: ACLStorage<Collection>,
+pub struct AclService<S>
+where
+    S: ObjectStorage,
+{
+    store: ACLStorage<S>,
 }
 
-impl Default for AclService {
-    fn default() -> AclService {
+impl Default for AclService<Collection> {
+    fn default() -> AclService<Collection> {
         AclService {
             store: ACLStorage::new(Zdb::default().collection("acl")),
         }
     }
 }
 
+impl<S> AclService<S>
+where
+    S: ObjectStorage,
+{
+    pub fn new(store: S) -> AclService<S> {
+        AclService {
+            store: ACLStorage::new(store),
+        }
+    }
+}
+
 #[tonic::async_trait]
-impl AclServiceTrait for AclService {
+impl<S> AclServiceTrait for AclService<S>
+where
+    S: ObjectStorage + Clone + Send + Sync + 'static,
+{
     async fn get(
         &self,
         request: Request<AclGetRequest>,

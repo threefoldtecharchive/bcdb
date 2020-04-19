@@ -126,7 +126,7 @@ impl From<Permissions> for ACL {
 #[derive(Clone)]
 pub struct ACLStorage<S>
 where
-    S: Storage + Clone,
+    S: Storage,
 {
     inner: S,
 }
@@ -137,7 +137,7 @@ where
  */
 impl<S> ACLStorage<S>
 where
-    S: Storage + Clone,
+    S: Storage,
 {
     pub fn new(storage: S) -> ACLStorage<S> {
         ACLStorage { inner: storage }

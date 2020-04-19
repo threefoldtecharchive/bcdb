@@ -20,6 +20,7 @@ log = "0.4"
 simple_logger = "1.6"
 aes-gcm = "0.5"
 rand = "0.7"
+clap = "2.33.0"
 
 [build-dependencies]
 bindgen = "0.53"
