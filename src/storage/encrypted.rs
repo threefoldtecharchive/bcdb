@@ -69,7 +69,7 @@ where
 }
 
 impl From<aead::Error> for StorageError {
-    fn from(e: aead::Error) -> StorageError {
+    fn from(_: aead::Error) -> StorageError {
         StorageError::Crypto
     }
 }

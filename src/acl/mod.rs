@@ -232,9 +232,9 @@ mod tests {
 
     #[test]
     fn storage_default() {
-        use crate::storage::zdb::Zdb;
-        let db = Zdb::default();
-        let mut storage = ACLStorage::new(db.collection("acl"));
+        use crate::storage::memory::MemoryStorage;
+        let db = MemoryStorage::new();
+        let mut storage = ACLStorage::new(db);
 
         let key = storage
             .create(&ACL::default())
@@ -250,9 +250,9 @@ mod tests {
 
     #[test]
     fn storage_custom() {
-        use crate::storage::zdb::Zdb;
-        let db = Zdb::default();
-        let mut storage = ACLStorage::new(db.collection("acl"));
+        use crate::storage::memory::MemoryStorage;
+        let db = MemoryStorage::new();
+        let mut storage = ACLStorage::new(db);
         let mut acl = ACL::from(Permissions::default().set_read(true));
         acl.users.push(100);
 
@@ -269,9 +269,9 @@ mod tests {
 
     #[test]
     fn storage_list() {
-        use crate::storage::zdb::Zdb;
-        let db = Zdb::default();
-        let mut storage = ACLStorage::new(db.reset("acl-test"));
+        use crate::storage::memory::MemoryStorage;
+        let db = MemoryStorage::new();
+        let mut storage = ACLStorage::new(db);
 
         let mut acl = ACL::from(Permissions::default().set_read(true));
         acl.users.push(100);
