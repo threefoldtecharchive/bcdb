@@ -182,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn decode_public_key() {
+    fn decode_public_key_json() {
         let invalid_type = "35498";
         serde_json::from_str::<PublicKey>(&invalid_type).unwrap_err();
         let invalid_len_hex = "\"32daf139faden\"";
@@ -193,5 +193,21 @@ mod tests {
         serde_json::from_str::<PublicKey>(&invalid_point_hex).unwrap_err();
         let valid_hex = "\"3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29\"";
         serde_json::from_str::<PublicKey>(&valid_hex).unwrap();
+    }
+
+    #[test]
+    fn encode_public_key_json() {
+        let pk_bytes = &[
+            59, 106, 39, 188, 206, 182, 164, 45, 98, 163, 168, 208, 42, 111, 13, 115, 101, 50, 21,
+            119, 29, 226, 67, 166, 58, 192, 72, 161, 139, 89, 218, 41,
+        ];
+
+        let pk = PublicKey::from_bytes(pk_bytes).unwrap();
+        let json_key = serde_json::to_string(&pk).unwrap();
+
+        assert_eq!(
+            "\"3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29\"",
+            &json_key
+        );
     }
 }
