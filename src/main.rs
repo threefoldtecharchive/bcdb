@@ -11,8 +11,11 @@ use storage::{encrypted::EncryptedStorage, zdb::Zdb};
 
 #[macro_use]
 extern crate failure;
+#[macro_use]
+extern crate log;
 
 mod acl;
+mod auth;
 mod bcdb;
 mod identity;
 mod meta;
@@ -122,9 +125,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let acl_service = bcdb::AclService::new(acl_store);
 
     let addr = matches.value_of("listen").unwrap().parse()?;
+    let a = auth::Authenticator::new(None)?;
 
     Server::builder()
-        .add_service(bcdb::BcdbServer::new(bcdb_service))
+        .add_service(bcdb::BcdbServer::with_interceptor(bcdb_service, move |r| {
+            futures::executor::block_on(a.authenticate(r))
+        }))
+        //.add_service(bcdb::BcdbServer::new(bcdb_service))
         .add_service(bcdb::AclServer::new(acl_service))
         .serve(addr)
         .await?;
