@@ -5,8 +5,9 @@ use generated::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::FromIterator;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::sync::mpsc;
+use tokio::sync::Mutex;
 use tokio::task::spawn_blocking;
 use tonic::{Code, Request, Response, Status};
 
@@ -68,15 +69,12 @@ where
     }
 
     async fn get_store(&self, collection: &str) -> Result<M::Storage, Error> {
-        {
-            let stores = self.stores.lock().unwrap();
-            if let Some(store) = stores.get(collection) {
-                return Ok(store.clone());
-            }
+        let mut stores = self.stores.lock().await;
+        if let Some(store) = stores.get(collection) {
+            return Ok(store.clone());
         }
 
         let store = self.factory.new(collection).await?;
-        let mut stores = self.stores.lock().unwrap();
         stores.insert(collection.into(), store.clone());
 
         Ok(store)
