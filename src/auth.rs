@@ -74,16 +74,19 @@ impl Authenticator {
 #[derive(Debug)]
 struct AuthHeader {
     keyId: String,
-    algorithm: String,
+    algorithm: Option<String>,
     headers: String,
     signature: String,
+
+    created: Option<u64>,
+    expires: Option<u64>,
 }
 
 impl FromStr for AuthHeader {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         const PREFIX: &str = "Signature ";
-        enum Mode {
+        enum Scan {
             Key,
             ValueStart,
             Value,
@@ -93,7 +96,7 @@ impl FromStr for AuthHeader {
             Some(0) => (),
             _ => bail!("header is not starting with `Signature`"),
         };
-        let mut mode = Mode::Key;
+        let mut mode = Scan::Key;
         let mut key = String::new();
         let mut value = String::new();
 
@@ -101,57 +104,64 @@ impl FromStr for AuthHeader {
         //let mut previous = Mode::Unknown;
         for c in s[PREFIX.len()..].chars() {
             match mode {
-                Mode::Key => {
+                Scan::Key => {
                     if c == '=' {
-                        mode = Mode::ValueStart;
+                        mode = Scan::ValueStart;
                         continue;
                     }
 
                     key.push(c)
                 }
-                Mode::ValueStart => {
+                Scan::ValueStart => {
                     if c != '"' {
                         bail!("invalid value not starting with '\"'");
                     }
-                    mode = Mode::Value;
+                    mode = Scan::Value;
                 }
-                Mode::Value => {
+                Scan::Value => {
                     //TODO: skip sequence?
                     if c == '"' {
                         map.insert(key.trim().into(), value.clone());
                         key.clear();
                         value.clear();
 
-                        mode = Mode::Next;
+                        mode = Scan::Next;
                         continue;
                     }
                     value.push(c)
                 }
-                Mode::Next => {
+                Scan::Next => {
                     if c == ',' {
-                        mode = Mode::Key
+                        mode = Scan::Key
                     }
                 }
             }
         }
-        Ok(AuthHeader {
+
+        let header = AuthHeader {
             keyId: map
-                .get("keyId")
-                .ok_or(format_err!("missing KeyId value in Authorization"))?
-                .into(),
-            headers: map
-                .get("headers")
-                .ok_or(format_err!("missing headers value in Authorization"))?
-                .into(),
-            algorithm: map
-                .get("algorithm")
-                .ok_or(format_err!("missing algorithm value in Authorization"))?
-                .into(),
+                .remove("keyId")
+                .ok_or(format_err!("missing KeyId value in Authorization"))?,
+            headers: map.remove("headers").unwrap_or("(created)".into()),
+            algorithm: map.remove("algorithm"),
             signature: map
-                .get("signature")
-                .ok_or(format_err!("missing signature value in Authorization"))?
-                .into(),
-        })
+                .remove("signature")
+                .ok_or(format_err!("missing signature value in Authorization"))?,
+            created: match map.remove("created") {
+                Some(v) => Some(v.parse()?),
+                None => None,
+            },
+            expires: match map.remove("expires") {
+                Some(v) => Some(v.parse()?),
+                None => None,
+            },
+        };
+
+        if map.len() > 0 {
+            bail!("authorization header has unknown arguments");
+        }
+
+        Ok(header)
     }
 }
 
@@ -177,7 +187,7 @@ mod tests {
             .parse()
             .unwrap();
 
-        assert_eq!(auth.algorithm, "hs2019");
+        assert_eq!(auth.algorithm, Some("hs2019".into()));
         assert_eq!(auth.keyId, "rsa-key-1");
         assert_eq!(auth.signature, "Base64(RSA-SHA512(signing string))");
         assert_eq!(
