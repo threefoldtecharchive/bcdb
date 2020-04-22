@@ -1,6 +1,6 @@
 use ed25519_dalek::{
-    Keypair, PublicKey as PubKey, SecretKey, Signature as Sig, KEYPAIR_LENGTH, SECRET_KEY_LENGTH,
-    SIGNATURE_LENGTH,
+    Keypair, PublicKey as PubKey, SecretKey, Signature as Sig, KEYPAIR_LENGTH, PUBLIC_KEY_LENGTH,
+    SECRET_KEY_LENGTH, SIGNATURE_LENGTH,
 };
 use serde::de::{Error as SerdeError, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -45,6 +45,16 @@ impl Identity {
         Ok(Identity { kp })
     }
 
+    /// Get a view into the byte representation of the private key part of the keypair
+    pub fn as_sk_bytes(&self) -> &[u8; SECRET_KEY_LENGTH] {
+        self.kp.secret.as_bytes()
+    }
+
+    /// Get a copy of the public key of the keypair
+    pub fn public_key(&self) -> PublicKey {
+        PublicKey { pk: self.kp.public }
+    }
+
     /// Create a detached signature for a message.
     pub fn sign(&self, msg: &[u8]) -> Signature {
         Signature(self.kp.sign(msg))
@@ -59,9 +69,16 @@ impl Identity {
 }
 
 impl PublicKey {
+    /// Create a public key from the given byte slice. The byte slice must be 32 bytes long, and
+    /// represent a valid compressed point on the curve.
     pub fn from_bytes(pk_bytes: &[u8]) -> Result<PublicKey, Error> {
         let pk = PubKey::from_bytes(pk_bytes).map_err(|_| Error::MalformedPublicKey)?;
         Ok(PublicKey { pk })
+    }
+
+    /// Get a view into the byte representation of this public key.
+    pub fn as_bytes(&self) -> &[u8; PUBLIC_KEY_LENGTH] {
+        &self.pk.as_bytes()
     }
 
     pub fn verify(&self, msg: &[u8], sig: &Signature) -> Result<(), Error> {

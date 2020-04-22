@@ -1,6 +1,7 @@
 use aead::{generic_array::GenericArray, Aead, NewAead};
 use aes_gcm::{aead, Aes256Gcm};
 use rand::prelude::*;
+use rand::rngs::OsRng;
 
 use super::{Error as StorageError, Key, Storage};
 
@@ -10,7 +11,7 @@ const NONCE_SIZE: usize = 12;
 #[derive(Clone)]
 pub struct EncryptedStorage<S> {
     cipher: Aes256Gcm,
-    nonce_source: ThreadRng,
+    nonce_source: OsRng,
     backend: S,
 }
 
@@ -30,7 +31,7 @@ where
         assert_eq!(key.len(), ENCRYPTION_KEY_SIZE);
         let key = GenericArray::clone_from_slice(key);
         let cipher = Aes256Gcm::new(key);
-        let nonce_source = rand::thread_rng();
+        let nonce_source = OsRng;
         EncryptedStorage {
             cipher,
             nonce_source,

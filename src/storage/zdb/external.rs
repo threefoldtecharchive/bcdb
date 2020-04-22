@@ -62,8 +62,12 @@ impl Zdb {
     }
 
     /// Get a reference to a `Collection`.
-    pub fn collection(self, name: &str) -> Collection {
-        Collection::new(self.client.clone(), Some(name.into()), self.spawn_pool)
+    pub fn collection(&self, name: &str) -> Collection {
+        Collection::new(
+            self.client.clone(),
+            Some(name.into()),
+            self.spawn_pool.clone(),
+        )
     }
 }
 
