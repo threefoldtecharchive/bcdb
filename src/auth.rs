@@ -1,4 +1,4 @@
-use crate::identity::PublicKey;
+use crate::identity::{PublicKey, Signature};
 use failure::Error;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -58,9 +58,6 @@ impl Authenticator {
 
     pub async fn authenticate<T>(&self, request: Request<T>) -> Result<Request<T>, Status> {
         let meta = request.metadata();
-        for p in meta.iter() {
-            println!("{:?}", p);
-        }
 
         let header: AuthHeader = match meta.get("authorization") {
             None => return Err(Status::unauthenticated("missing authorization header")),
@@ -85,11 +82,6 @@ impl Authenticator {
             }
         };
 
-        debug!("Auth header: {:?}", header);
-        debug!("Sig String: {}", sig_str);
-
-        debug!("trying to get the key for user: {}", header.key_id);
-
         let key = match self.get_key(header.key_id).await {
             Ok(key) => key,
             Err(err) => {
@@ -100,10 +92,35 @@ impl Authenticator {
             }
         };
 
-        debug!("key retrieved");
-        //let key = match self.get_key(header.key_id) {};
+        let signature = Signature::from_bytes(&match base64::decode(header.signature) {
+            Ok(s) => s,
+            Err(err) => {
+                return Err(Status::unauthenticated(format!(
+                    "invalid signature format expecting base64: {}",
+                    err
+                )))
+            }
+        });
 
-        debug!("PubKey: {}", key);
+        let signature = match signature {
+            Ok(s) => s,
+            Err(err) => {
+                return Err(Status::unauthenticated(format!(
+                    "invalid signature bytes: {}",
+                    err
+                )))
+            }
+        };
+
+        match key.verify(sig_str.as_bytes(), &signature) {
+            Ok(_) => (),
+            Err(err) => {
+                return Err(Status::unauthenticated(format!(
+                    "failed to validate identity: {}",
+                    err
+                )))
+            }
+        };
 
         Ok(request)
     }
@@ -165,7 +182,7 @@ impl AuthHeader {
                     Some(v) => format!("{}", v),
                     None => bail!("(created) argument is not set"),
                 },
-                "(expires)" => match self.created {
+                "(expires)" => match self.expires {
                     Some(v) => format!("{}", v),
                     None => bail!("(expired) argument is not set"),
                 },
