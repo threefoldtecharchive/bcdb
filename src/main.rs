@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .arg(
             Arg::with_name("seed_file")
                 .help("path to the file containing the mnemonic")
-                .long("seed_file")
+                .long("seed-file")
                 .takes_value(true)
                 .required_unless("seed")
                 .env("SEED_FILE"),
