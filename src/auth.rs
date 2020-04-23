@@ -1,17 +1,17 @@
 use crate::identity::PublicKey;
 use failure::Error;
-use reqwest::{Client, Url};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
+use surf;
 use tokio::sync::Mutex;
 use tonic::{Request, Status};
+use url::Url;
 
 const BASE_URL: &str = "https://explorer.devnet.grid.tf/explorer/users/";
 
 pub struct Authenticator {
-    client: Client,
     base_url: Url,
     cache: Arc<Mutex<HashMap<u64, PublicKey>>>,
 }
@@ -29,7 +29,6 @@ impl Authenticator {
                 None => BASE_URL,
             }
             .parse()?,
-            client: Client::new(),
             cache: Arc::new(Mutex::new(HashMap::new())),
         })
     }
@@ -42,11 +41,19 @@ impl Authenticator {
 
         let url = self.base_url.join(&format!("{}", id))?;
         debug!("getting user info at: {}", url);
-        let resp: User = self.client.get(url).send().await?.json().await?;
+        let resp: User = match surf::get(url).recv_json().await {
+            Ok(u) => u,
+            Err(err) => bail!("failed to get user: {}", err),
+        };
+
         debug!("user key retrieved");
         cache.insert(id, resp.pubkey.clone());
 
         Ok(resp.pubkey)
+    }
+
+    pub fn authenticate_blocking<T>(&self, request: Request<T>) -> Result<Request<T>, Status> {
+        futures::executor::block_on(self.authenticate(request))
     }
 
     pub async fn authenticate<T>(&self, request: Request<T>) -> Result<Request<T>, Status> {

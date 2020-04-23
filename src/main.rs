@@ -128,9 +128,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let a = auth::Authenticator::new(None)?;
 
     Server::builder()
-        .add_service(bcdb::BcdbServer::with_interceptor(bcdb_service, move |r| {
-            futures::executor::block_on(a.authenticate(r))
-        }))
+        .add_service(bcdb::BcdbServer::with_interceptor(
+            bcdb_service,
+            move |request| a.authenticate_blocking(request),
+        ))
         //.add_service(bcdb::BcdbServer::new(bcdb_service))
         .add_service(bcdb::AclServer::new(acl_service))
         .serve(addr)
