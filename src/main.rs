@@ -95,7 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut file = File::open(matches.value_of("seed_file").unwrap())?;
             let mut content = String::new();
             file.read_to_string(&mut content)?;
-            Mnemonic::from_phrase(content, Language::English)?
+            Mnemonic::from_phrase(content.trim(), Language::English)?
         };
         id = Identity::from_sk_bytes(mnemonic.entropy())?;
     }
