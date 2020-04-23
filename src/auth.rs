@@ -1,3 +1,4 @@
+use crate::identity::PublicKey;
 use failure::Error;
 use reqwest::{Client, Url};
 use serde::Deserialize;
@@ -12,12 +13,12 @@ const BASE_URL: &str = "https://explorer.devnet.grid.tf/explorer/users/";
 pub struct Authenticator {
     client: Client,
     base_url: Url,
-    cache: Arc<Mutex<HashMap<u64, String>>>,
+    cache: Arc<Mutex<HashMap<u64, PublicKey>>>,
 }
 
 #[derive(Deserialize)]
 struct User {
-    pub pubkey: String,
+    pub pubkey: PublicKey,
 }
 
 impl Authenticator {
@@ -33,14 +34,16 @@ impl Authenticator {
         })
     }
 
-    async fn get_key(&self, id: u64) -> Result<String, Error> {
+    async fn get_key(&self, id: u64) -> Result<PublicKey, Error> {
         let mut cache = self.cache.lock().await;
         if let Some(key) = cache.get(&id) {
-            return Ok(key.into());
+            return Ok(key.clone());
         }
 
         let url = self.base_url.join(&format!("{}", id))?;
+        debug!("getting user info at: {}", url);
         let resp: User = self.client.get(url).send().await?.json().await?;
+        debug!("user key retrieved");
         cache.insert(id, resp.pubkey.clone());
 
         Ok(resp.pubkey)
@@ -65,7 +68,35 @@ impl Authenticator {
             },
         };
 
+        let sig_str = match header.signature_str() {
+            Ok(s) => s,
+            Err(err) => {
+                return Err(Status::unauthenticated(format!(
+                    "failed to build signing string: {}",
+                    err
+                )))
+            }
+        };
+
         debug!("Auth header: {:?}", header);
+        debug!("Sig String: {}", sig_str);
+
+        debug!("trying to get the key for user: {}", header.key_id);
+
+        let key = match self.get_key(header.key_id).await {
+            Ok(key) => key,
+            Err(err) => {
+                return Err(Status::unauthenticated(format!(
+                    "could not get user key: {}",
+                    err
+                )))
+            }
+        };
+
+        debug!("key retrieved");
+        //let key = match self.get_key(header.key_id) {};
+
+        debug!("PubKey: {}", key);
 
         Ok(request)
     }
@@ -73,13 +104,76 @@ impl Authenticator {
 
 #[derive(Debug)]
 struct AuthHeader {
-    keyId: String,
+    key_id: u64,
     algorithm: Option<String>,
     headers: String,
     signature: String,
 
     created: Option<u64>,
     expires: Option<u64>,
+}
+
+impl AuthHeader {
+    fn valid(&self) -> Result<(), Error> {
+        if self.headers.trim() == "" {
+            bail!("invalid headers can not be empty");
+        }
+        use std::time::SystemTime;
+
+        match self.created {
+            Some(v) => {
+                if v > SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)?
+                    .as_secs()
+                {
+                    bail!("(created) argument is in the future")
+                }
+            }
+            None => (),
+        };
+
+        match self.expires {
+            Some(v) => {
+                if v < SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)?
+                    .as_secs()
+                {
+                    bail!("(expired) argument is in the past")
+                }
+            }
+            None => (),
+        };
+        Ok(())
+    }
+
+    pub fn signature_str(&self) -> Result<String, Error> {
+        self.valid()?;
+        use std::fmt::Write;
+
+        let mut sig_str = String::new();
+        let headers = self.headers.split_ascii_whitespace();
+        for header in headers {
+            let value = match header {
+                "(created)" => match self.created {
+                    Some(v) => format!("{}", v),
+                    None => bail!("(created) argument is not set"),
+                },
+                "(expires)" => match self.created {
+                    Some(v) => format!("{}", v),
+                    None => bail!("(expired) argument is not set"),
+                },
+                "(key-id)" => format!("{}", self.key_id),
+                _ => bail!("unknown signature string argument '{}'", header),
+            };
+            if sig_str.len() > 0 {
+                sig_str.push('\n');
+            }
+
+            write!(sig_str, "{}: {}", header, value)?;
+        }
+
+        Ok(sig_str)
+    }
 }
 
 impl FromStr for AuthHeader {
@@ -101,7 +195,6 @@ impl FromStr for AuthHeader {
         let mut value = String::new();
 
         let mut map: HashMap<String, String> = HashMap::new();
-        //let mut previous = Mode::Unknown;
         for c in s[PREFIX.len()..].chars() {
             match mode {
                 Scan::Key => {
@@ -139,9 +232,11 @@ impl FromStr for AuthHeader {
         }
 
         let header = AuthHeader {
-            keyId: map
+            key_id: map
                 .remove("keyId")
-                .ok_or(format_err!("missing KeyId value in Authorization"))?,
+                .ok_or(format_err!("missing KeyId value in Authorization"))?
+                .parse()
+                .or_else(|v| bail!("invalid key-id format"))?,
             headers: map.remove("headers").unwrap_or("(created)".into()),
             algorithm: map.remove("algorithm"),
             signature: map
@@ -173,28 +268,47 @@ mod tests {
     async fn get_user_key() {
         let auth = Authenticator::new(None).unwrap();
         match auth.get_key(1).await {
-            Ok(key) => println!("pubkey: {}", key),
+            Ok(key) => println!("pubkey: {:?}", key),
             Err(err) => panic!(err), //assert_eq!(true, false, "failed to get user id: {}", err),
         };
 
         assert_eq!(auth.cache.lock().await.len(), 1);
     }
+
+    #[tokio::test]
+    async fn get_user_blocking() {
+        let auth = Authenticator::new(None).unwrap();
+        match futures::executor::block_on(auth.get_key(1)) {
+            Ok(key) => println!("pubkey: {:?}", key),
+            Err(err) => panic!(err), //assert_eq!(true, false, "failed to get user id: {}", err),
+        };
+    }
+
     #[test]
     fn auth_header_parse() {
-        let auth: AuthHeader = "Signature keyId=\"rsa-key-1\",algorithm=\"hs2019\",
+        let auth: AuthHeader = "Signature keyId=\"10\",algorithm=\"hs2019\",
         headers=\"(request-target) (created) host digest content-length\",
         signature=\"Base64(RSA-SHA512(signing string))\""
             .parse()
             .unwrap();
 
         assert_eq!(auth.algorithm, Some("hs2019".into()));
-        assert_eq!(auth.keyId, "rsa-key-1");
+        assert_eq!(auth.key_id, 10);
         assert_eq!(auth.signature, "Base64(RSA-SHA512(signing string))");
         assert_eq!(
             auth.headers,
             "(request-target) (created) host digest content-length"
         )
     }
+    #[test]
+    fn auth_header_parse_invalid_key_id() {
+        let auth: Result<AuthHeader, Error> = "Signature keyId=\"bad\",algorithm=\"hs2019\",
+        headers=\"(request-target) (created) host digest content-length\",signature=\"some signature\""
+            .parse();
+
+        assert_eq!(auth.is_err(), true);
+    }
+
     #[test]
     fn auth_header_parse_missing_value() {
         let auth: Result<AuthHeader, Error> = "Signature keyId=\"rsa-key-1\",algorithm=\"hs2019\",

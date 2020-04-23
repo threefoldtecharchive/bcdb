@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 
+	"time"
+
 	"example.com/test/bcdb"
 	"google.golang.org/grpc"
 )
@@ -13,8 +15,12 @@ type Authenticator struct {
 }
 
 func (a *Authenticator) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+	s := `Signature keyId="6",algorithm="hs2019",created="%d",expires="%d",headers="(created) (expires) (key-id)", signature="Base64(RSA-SHA512(signing string))"`
+	n := time.Now()
+	s = fmt.Sprintf(s, n.Unix(), n.Add(3*time.Second).Unix())
+
 	values := map[string]string{
-		"Authorization": `Signature keyId="rsa-key-1",algorithm="hs2019",headers="(request-target) (created) host digest content-length", signature="Base64(RSA-SHA512(signing string))"`,
+		"Authorization": s,
 	}
 	return values, nil
 }
