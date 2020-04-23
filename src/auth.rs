@@ -6,14 +6,16 @@ use std::str::FromStr;
 use std::sync::Arc;
 use surf;
 use tokio::sync::Mutex;
+use tonic::metadata::{AsciiMetadataValue, MetadataMap};
 use tonic::{Request, Status};
 use url::Url;
 
-const BASE_URL: &str = "https://explorer.devnet.grid.tf/explorer/users/";
+const BASE_URL: &str = "https://explorer.devnet.grid.tf/explorer/";
 
 pub struct Authenticator {
     base_url: Url,
     cache: Arc<Mutex<HashMap<u64, PublicKey>>>,
+    owner: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -22,7 +24,7 @@ struct User {
 }
 
 impl Authenticator {
-    pub fn new(base: Option<&str>) -> Result<Authenticator, Error> {
+    pub fn new(base: Option<&str>, owner: Option<PublicKey>) -> Result<Authenticator, Error> {
         Ok(Authenticator {
             base_url: match base {
                 Some(base) => base,
@@ -30,6 +32,7 @@ impl Authenticator {
             }
             .parse()?,
             cache: Arc::new(Mutex::new(HashMap::new())),
+            owner: owner.map(|k| format!("{}", k)),
         })
     }
 
@@ -39,7 +42,7 @@ impl Authenticator {
             return Ok(key.clone());
         }
 
-        let url = self.base_url.join(&format!("{}", id))?;
+        let url = self.base_url.join(&format!("users/{}", id))?;
         debug!("getting user info at: {}", url);
         let resp: User = match surf::get(url).recv_json().await {
             Ok(u) => u,
@@ -121,6 +124,22 @@ impl Authenticator {
                 )))
             }
         };
+
+        drop(meta);
+
+        let mut request = Request::new(request.into_inner());
+        let meta = request.metadata_mut();
+
+        meta.insert(
+            "key-id",
+            AsciiMetadataValue::from_str(&format!("{}", header.key_id)).unwrap(),
+        );
+
+        if let Some(ref owner) = self.owner {
+            if format!("{}", key).as_str() == owner.as_str() {
+                meta.insert("owner", AsciiMetadataValue::from_str("true").unwrap());
+            }
+        }
 
         Ok(request)
     }
@@ -284,13 +303,42 @@ impl FromStr for AuthHeader {
     }
 }
 
+pub trait MetadataMapAuth {
+    fn is_authenticated(&self) -> bool;
+    fn is_owner(&self) -> bool;
+    fn get_user(&self) -> Option<u64>;
+}
+
+impl MetadataMapAuth for MetadataMap {
+    fn is_authenticated(&self) -> bool {
+        match self.get("key-id") {
+            Some(_) => true,
+            None => false,
+        }
+    }
+
+    fn is_owner(&self) -> bool {
+        match self.get("owner") {
+            Some(_) => true,
+            None => false,
+        }
+    }
+
+    fn get_user(&self) -> Option<u64> {
+        match self.get("key-id") {
+            Some(u) => Some(u.to_str().unwrap().parse().unwrap()),
+            None => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[tokio::test]
     async fn get_user_key() {
-        let auth = Authenticator::new(None).unwrap();
+        let auth = Authenticator::new(None, None).unwrap();
         match auth.get_key(1).await {
             Ok(key) => println!("pubkey: {:?}", key),
             Err(err) => panic!(err), //assert_eq!(true, false, "failed to get user id: {}", err),
@@ -301,7 +349,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_user_blocking() {
-        let auth = Authenticator::new(None).unwrap();
+        let auth = Authenticator::new(None, None).unwrap();
         match futures::executor::block_on(auth.get_key(1)) {
             Ok(key) => println!("pubkey: {:?}", key),
             Err(err) => panic!(err), //assert_eq!(true, false, "failed to get user id: {}", err),

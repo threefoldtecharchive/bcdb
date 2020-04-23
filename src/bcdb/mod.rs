@@ -11,9 +11,9 @@ use tokio::sync::Mutex;
 use tokio::task::spawn_blocking;
 use tonic::{Code, Request, Response, Status};
 
+use crate::auth::MetadataMapAuth;
 use crate::meta::sqlite::SqliteMetaStoreFactory;
 use crate::meta::{self, Storage as MetaStorage, StorageFactory as MetaStorageFactory};
-
 use crate::storage::{zdb::Collection, zdb::Zdb, Storage as ObjectStorage};
 
 pub use generated::acl_server::AclServer;
@@ -113,6 +113,12 @@ where
     M: MetaStorageFactory,
 {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
+        let meta = request.metadata();
+
+        if !meta.is_owner() {
+            return Err(Status::unauthenticated("not authorized"));
+        }
+
         let request = request.into_inner();
 
         let data = request.data;
@@ -174,6 +180,12 @@ where
     }
 
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
+        let meta = request.metadata();
+
+        if !meta.is_owner() {
+            return Err(Status::unauthenticated("not authorized"));
+        }
+
         let request = request.into_inner();
         let id = request.id;
 
@@ -207,6 +219,12 @@ where
         &self,
         request: Request<UpdateRequest>,
     ) -> Result<Response<UpdateResponse>, Status> {
+        let meta = request.metadata();
+
+        if !meta.is_owner() {
+            return Err(Status::unauthenticated("not authorized"));
+        }
+
         let request = request.into_inner();
 
         let metadata = match request.metadata {
@@ -265,6 +283,12 @@ where
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::ListStream>, Status> {
+        let meta = request.metadata();
+
+        if !meta.is_owner() {
+            return Err(Status::unauthenticated("not authorized"));
+        }
+
         let request = request.into_inner();
         let mut metastore = match self.get_store(&request.collection).await {
             Ok(store) => store,
@@ -311,6 +335,12 @@ where
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::FindStream>, Status> {
+        let meta = request.metadata();
+
+        if !meta.is_owner() {
+            return Err(Status::unauthenticated("not authorized"));
+        }
+
         let request = request.into_inner();
         let collection = request.collection;
         let mut metastore = match self.get_store(&collection).await {
@@ -408,6 +438,12 @@ where
         &self,
         request: Request<AclGetRequest>,
     ) -> Result<Response<AclGetResponse>, Status> {
+        let meta = request.metadata();
+
+        if !meta.is_owner() {
+            return Err(Status::unauthenticated("not authorized"));
+        }
+
         let request = request.into_inner();
         let mut store = self.store.clone();
 
@@ -433,6 +469,12 @@ where
         &self,
         request: Request<AclCreateRequest>,
     ) -> Result<Response<AclCreateResponse>, Status> {
+        let meta = request.metadata();
+
+        if !meta.is_owner() {
+            return Err(Status::unauthenticated("not authorized"));
+        }
+
         let request = match request.into_inner().acl {
             Some(request) => request,
             None => return Err(Status::invalid_argument("missing acl")),
@@ -459,8 +501,14 @@ where
 
     async fn list(
         &self,
-        _request: Request<AclListRequest>,
+        request: Request<AclListRequest>,
     ) -> Result<Response<Self::ListStream>, Status> {
+        let meta = request.metadata();
+
+        if !meta.is_owner() {
+            return Err(Status::unauthenticated("not authorized"));
+        }
+
         let (mut tx, rx) = mpsc::channel(10);
         let mut store = self.store.clone();
 
@@ -501,6 +549,12 @@ where
         &self,
         request: Request<AclSetRequest>,
     ) -> Result<Response<AclSetResponse>, Status> {
+        let meta = request.metadata();
+
+        if !meta.is_owner() {
+            return Err(Status::unauthenticated("not authorized"));
+        }
+
         let request = request.into_inner();
         let perm: Permissions = match request.perm.parse() {
             Ok(perm) => perm,
@@ -533,6 +587,12 @@ where
         &self,
         request: Request<AclUsersRequest>,
     ) -> Result<Response<AclUsersResponse>, Status> {
+        let meta = request.metadata();
+
+        if !meta.is_owner() {
+            return Err(Status::unauthenticated("not authorized"));
+        }
+
         let request = request.into_inner();
 
         let mut store = self.store.clone();
@@ -568,6 +628,12 @@ where
         &self,
         request: Request<AclUsersRequest>,
     ) -> Result<Response<AclUsersResponse>, Status> {
+        let meta = request.metadata();
+
+        if !meta.is_owner() {
+            return Err(Status::unauthenticated("not authorized"));
+        }
+
         let request = request.into_inner();
 
         let mut store = self.store.clone();

@@ -80,6 +80,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .required_unless("seed")
                 .env("SEED_FILE"),
         )
+        .arg(
+            Arg::with_name("explorer")
+                .help("explorer URL for phonebook entries validations")
+                .long("explorer")
+                .takes_value(true)
+                .default_value("https://explorer.devnet.grid.tf/explorer/"),
+        )
         .get_matches();
 
     let level = if matches.is_present("debug") {
@@ -107,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // show the bytes
     debug!(
         "Starting server with identity, public key {}",
-        hex::encode(id.public_key().as_bytes())
+        id.public_key()
     );
     debug!("Using identity private key as symmetric encryption key for zdb data");
 
@@ -125,7 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let acl_service = bcdb::AclService::new(acl_store);
 
     let addr = matches.value_of("listen").unwrap().parse()?;
-    let a = auth::Authenticator::new(None)?;
+    let a = auth::Authenticator::new(matches.value_of("explorer"), Some(id.public_key()))?;
 
     Server::builder()
         .add_service(bcdb::BcdbServer::with_interceptor(
