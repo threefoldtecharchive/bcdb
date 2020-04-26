@@ -67,8 +67,11 @@ message GetResponse {
 
 // Update request
 message UpdateRequest {
+  message UpdateData { bytes data = 1; }
+
   uint32 id = 1;
   Metadata metadata = 2;
+  UpdateData data = 3;
 }
 
 // Update response

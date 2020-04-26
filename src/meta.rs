@@ -12,8 +12,9 @@ pub struct Tag {
 }
 
 impl Tag {
-    pub fn new<S>(key: S, value: S) -> Tag
+    pub fn new<K, S>(key: K, value: S) -> Tag
     where
+        K: Into<String>,
         S: Into<String>,
     {
         Tag {
@@ -29,6 +30,16 @@ impl Tag {
 
 pub struct Meta {
     pub tags: Vec<Tag>,
+}
+
+impl Meta {
+    pub fn add<K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        self.tags.push(Tag::new(key, value))
+    }
 }
 
 #[async_trait]

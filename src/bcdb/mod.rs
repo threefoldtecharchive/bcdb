@@ -12,7 +12,6 @@ use tokio::task::spawn_blocking;
 use tonic::{Code, Request, Response, Status};
 
 use crate::auth::MetadataMapAuth;
-use crate::meta::sqlite::SqliteMetaStoreFactory;
 use crate::meta::{self, Storage as MetaStorage, StorageFactory as MetaStorageFactory};
 use crate::storage::{zdb::Collection, zdb::Zdb, Storage as ObjectStorage};
 
@@ -104,7 +103,7 @@ where
         return Err(Status::unauthenticated("unauthorized request"));
     }
 
-    fn build_meta<C>(collection: C, meta: meta::Meta) -> Metadata
+    fn build_pb_meta<C>(collection: C, meta: meta::Meta) -> Metadata
     where
         C: Into<String>,
     {
@@ -127,6 +126,40 @@ where
             tags: tags,
             collection: collection.into(),
         }
+    }
+
+    fn build_meta(&self, metadata: &Metadata) -> Result<meta::Meta, Status> {
+        //build metadata for storage
+        let mut m = meta::Meta { tags: vec![] };
+        for tag in metadata.tags.iter() {
+            let t = meta::Tag {
+                key: tag.key.clone(),
+                value: tag.value.clone(),
+            };
+            if t.is_reserved() {
+                return Err(Status::invalid_argument(format!(
+                    "not allowed use of reserved tags: {}",
+                    t.key
+                )));
+            }
+            m.tags.push(t);
+        }
+
+        Ok(m)
+    }
+
+    async fn get_metadata(&self, collection: &str, id: u32) -> Result<Metadata, Status> {
+        let mut col = match self.get_collection(collection).await {
+            Ok(store) => store,
+            Err(err) => return Err(err.status()),
+        };
+
+        let info = match col.get(id).await {
+            Ok(info) => info,
+            Err(err) => return Err(err.status()),
+        };
+
+        Ok(Self::build_pb_meta(collection, info))
     }
 }
 
@@ -151,32 +184,15 @@ where
             None => return Err(Status::invalid_argument("metadata is required")),
         };
 
-        //build metadata for storage
-        let mut m = meta::Meta { tags: vec![] };
-        for tag in metadata.tags {
-            let t = meta::Tag {
-                key: tag.key,
-                value: tag.value,
-            };
-            if t.is_reserved() {
-                return Err(Status::invalid_argument(format!(
-                    "not allowed use of reserved tags: {}",
-                    t.key
-                )));
-            }
-            m.tags.push(t);
-        }
+        let mut m = self.build_meta(&metadata)?;
 
-        //adding default tags to object.
-        // note: acl is optional
         match metadata.acl {
-            Some(acl) => m.tags.push(meta::Tag::new(":acl", &format!("{}", acl.acl))),
+            Some(ref acl) => m.add(":acl", &format!("{}", acl.acl)),
             None => {}
         };
 
-        m.tags
-            .push(meta::Tag::new(":size", &format!("{}", data.len())));
-        m.tags.push(meta::Tag::new(
+        m.add(":size", &format!("{}", data.len()));
+        m.add(
             ":created",
             &format!(
                 "{}",
@@ -185,18 +201,25 @@ where
                     .unwrap()
                     .as_secs()
             ),
-        ));
+        );
 
-        // TODO: create from impl for Tonic status for StorageError
         let mut db = self.db.clone();
         let handle = spawn_blocking(move || db.set(None, &data).expect("failed to set data"));
-        // TODO: proper error
-        let id = handle.await.expect("failed to run blocking task");
+        let id = match handle.await {
+            Ok(id) => id,
+            Err(err) => {
+                return Err(Status::internal(format!(
+                    "failed to run blocking task: {}",
+                    err
+                )));
+            }
+        };
 
         let mut collection = match self.get_collection(&metadata.collection).await {
             Ok(store) => store,
             Err(err) => return Err(err.status()),
         };
+
         match collection.set(id, m).await {
             Ok(_) => Ok(Response::new(SetResponse { id })),
             Err(err) => Err(err.status()),
@@ -208,17 +231,7 @@ where
         let request = request.into_inner();
         let id = request.id;
 
-        let mut collection = match self.get_collection(&request.collection).await {
-            Ok(store) => store,
-            Err(err) => return Err(err.status()),
-        };
-
-        let info = match collection.get(id).await {
-            Ok(info) => info,
-            Err(err) => return Err(err.status()),
-        };
-
-        let metadata = Self::build_meta(request.collection, info);
+        let metadata = self.get_metadata(&request.collection, id).await?;
 
         if !auth.is_owner() {
             match metadata.acl {
@@ -247,43 +260,44 @@ where
         &self,
         request: Request<UpdateRequest>,
     ) -> Result<Response<UpdateResponse>, Status> {
-        let auth = request.metadata();
-
-        if !auth.is_owner() {
-            return Err(Status::unauthenticated("not authorized"));
-        }
+        let auth = request.metadata().clone();
 
         let request = request.into_inner();
+        let id = request.id;
+        let data = request.data;
 
-        let metadata = match request.metadata {
+        let new_metadata = match request.metadata {
             Some(metadata) => metadata,
             None => return Err(Status::invalid_argument("metadata is required")),
         };
 
-        //build metadata for storage
-        let mut m = meta::Meta { tags: vec![] };
-        for tag in metadata.tags {
-            let t = meta::Tag {
-                key: tag.key,
-                value: tag.value,
+        let metadata = self.get_metadata(&new_metadata.collection, id).await?;
+
+        if !auth.is_owner() {
+            match metadata.acl {
+                Some(ref acl) => {
+                    self.is_authorized(acl.acl, auth.get_user().unwrap(), "-w-".parse().unwrap())?;
+                }
+
+                None => (),
             };
-            if t.is_reserved() {
-                return Err(Status::invalid_argument(format!(
-                    "not allowed use of reserved tags: {}",
-                    t.key
-                )));
-            }
-            m.tags.push(t);
         }
 
-        //adding default tags to object.
-        // note: acl is optional
+        let mut m = self.build_meta(&new_metadata)?;
+
         match metadata.acl {
-            Some(acl) => m.tags.push(meta::Tag::new(":acl", &format!("{}", acl.acl))),
+            Some(ref acl) => {
+                if auth.is_owner() {
+                    m.add(":acl", &format!("{}", acl.acl));
+                } else {
+                    //trying to update acl while u are not the owner
+                    return Err(Status::unauthenticated("only owner can update acl"));
+                }
+            }
             None => {}
         };
 
-        m.tags.push(meta::Tag::new(
+        m.add(
             ":updated",
             &format!(
                 "{}",
@@ -292,9 +306,24 @@ where
                     .unwrap()
                     .as_secs()
             ),
-        ));
+        );
 
-        let mut collection = match self.get_collection(&metadata.collection).await {
+        // updating data is optional in an update call
+        if let Some(data) = data {
+            m.add(":size", &format!("{}", data.data.len()));
+
+            let mut db = self.db.clone();
+            let handle =
+                spawn_blocking(move || db.set(Some(id), &data.data).expect("failed to set data"));
+            if let Err(err) = handle.await {
+                return Err(Status::internal(format!(
+                    "failed to run blocking task: {}",
+                    err
+                )));
+            }
+        }
+
+        let mut collection = match self.get_collection(&new_metadata.collection).await {
             Ok(store) => store,
             Err(err) => return Err(err.status()),
         };
@@ -414,7 +443,7 @@ where
                     }
                 };
 
-                let metadata = Self::build_meta(&collection_name, meta);
+                let metadata = Self::build_pb_meta(&collection_name, meta);
 
                 tx.send(Ok(FindResponse {
                     id: id,
