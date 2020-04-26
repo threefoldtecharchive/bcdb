@@ -1,6 +1,6 @@
 # Python client
 
-# Running server
+## Running server
 
 You must have a user registered at explorer (main, testnet, or devnet).
 
@@ -34,7 +34,7 @@ You can put it to a file and run bcdb server with it as:
 
 
 
-# Setup
+## Setup
 
 Install requirements
 
@@ -49,6 +49,6 @@ python3 example.py
 ```
 
 
-# Authentication
+## Authentication
 
-TODO
+`auth.py` implements client authentication using a signed header with signature, and it sends it as `authorization` header for each call using a `AuthMetadataPlugin`, To know more about per-call and channel authentication, see https://github.com/grpc/grpc/tree/master/examples/python/auth.
