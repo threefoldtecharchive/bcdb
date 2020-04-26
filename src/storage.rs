@@ -10,7 +10,7 @@ use std::{fmt, io};
 pub type Key = u32;
 
 /// The generic set op instructions that are suported by storage implementations
-pub trait Storage {
+pub trait Storage: Clone {
     /// Set some data, returning a generated key which can later be used to retrieve the data
     /// The caller can optionally provide a previously returned key. If such a key is provided,
     /// the data previously attached to this key will be replaced by the new data.

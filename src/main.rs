@@ -120,24 +120,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let zdb = Zdb::new(matches.value_of("zdb").unwrap().parse()?);
 
-    // use zdb storage implementation (namespace objects)
-    let object_store = EncryptedStorage::new(id.as_sk_bytes(), zdb.collection("objects"));
     // use sqlite meta data factory
     let meta_factory =
         meta::sqlite::SqliteMetaStoreFactory::new(matches.value_of("meta").unwrap())?;
 
-    let bcdb_service = bcdb::BcdbService::new(object_store, meta_factory);
+    // the acl_store
+    let acl_store = acl::ACLStorage::new(EncryptedStorage::new(
+        id.as_sk_bytes(),
+        zdb.collection("acl"),
+    ));
 
-    let acl_store = EncryptedStorage::new(id.as_sk_bytes(), zdb.collection("acl"));
+    //bcdb storage api
+    let bcdb_service = bcdb::BcdbService::new(
+        EncryptedStorage::new(id.as_sk_bytes(), zdb.collection("objects")),
+        meta_factory,
+        acl_store.clone(),
+    );
+
+    //acl api
     let acl_service = bcdb::AclService::new(acl_store);
 
     let addr = matches.value_of("listen").unwrap().parse()?;
-    let a = auth::Authenticator::new(matches.value_of("explorer"), Some(id.public_key()))?;
+    let interceptor =
+        auth::Authenticator::new(matches.value_of("explorer"), Some(id.public_key()))?;
 
     Server::builder()
         .add_service(bcdb::BcdbServer::with_interceptor(
             bcdb_service,
-            move |request| a.authenticate_blocking(request),
+            move |request| interceptor.authenticate_blocking(request),
         ))
         //.add_service(bcdb::BcdbServer::new(bcdb_service))
         .add_service(bcdb::AclServer::new(acl_service))

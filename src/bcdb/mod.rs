@@ -41,18 +41,9 @@ where
 {
     db: S,
     factory: M,
-    stores: Arc<Mutex<HashMap<String, M::Storage>>>,
-}
-
-impl Default for BcdbService<Zdb, SqliteMetaStoreFactory> {
-    fn default() -> Self {
-        BcdbService {
-            db: Zdb::default(),
-            factory: SqliteMetaStoreFactory::new("/tmp/meta")
-                .expect("failed to create default meta store factory"),
-            stores: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
+    collections: Arc<Mutex<HashMap<String, M::Storage>>>,
+    //NOTE: acl storage doesn't have to use the same underlying storage type S
+    acl: ACLStorage<S>,
 }
 
 impl<S, M> BcdbService<S, M>
@@ -60,16 +51,17 @@ where
     S: ObjectStorage,
     M: MetaStorageFactory,
 {
-    pub fn new(db: S, factory: M) -> BcdbService<S, M> {
+    pub fn new(db: S, factory: M, acl: ACLStorage<S>) -> BcdbService<S, M> {
         BcdbService {
             db,
             factory,
-            stores: Arc::new(Mutex::new(HashMap::new())),
+            collections: Arc::new(Mutex::new(HashMap::new())),
+            acl: acl,
         }
     }
 
-    async fn get_store(&self, collection: &str) -> Result<M::Storage, Error> {
-        let mut stores = self.stores.lock().await;
+    async fn get_collection(&self, collection: &str) -> Result<M::Storage, Error> {
+        let mut stores = self.collections.lock().await;
         if let Some(store) = stores.get(collection) {
             return Ok(store.clone());
         }
@@ -78,6 +70,38 @@ where
         stores.insert(collection.into(), store.clone());
 
         Ok(store)
+    }
+
+    fn get_permissions(&self, acl: u64, user: u64) -> Result<Permissions, Error> {
+        // self.acl.g
+        let mut store = self.acl.clone();
+        let acl = match store.get(acl as u32)? {
+            Some(acl) => acl,
+            None => return Ok(Permissions::default()),
+        };
+
+        if acl.users.contains(&user) {
+            return Ok(acl.perm);
+        }
+
+        Ok(Permissions::default())
+    }
+
+    fn is_authorized(&self, acl: u64, user: u64, perm: Permissions) -> Result<(), Status> {
+        let stored = match self.get_permissions(acl, user) {
+            Ok(stored) => stored,
+            Err(err) => {
+                return Err(Status::unauthenticated(format!(
+                    "failed to get assigned permissions: {}",
+                    err
+                )))
+            }
+        };
+        if stored.grants(perm) {
+            return Ok(());
+        }
+
+        return Err(Status::unauthenticated("unauthorized request"));
     }
 
     fn build_meta<C>(collection: C, meta: meta::Meta) -> Metadata
@@ -109,13 +133,13 @@ where
 #[tonic::async_trait]
 impl<S, M> BcdbServiceTrait for BcdbService<S, M>
 where
-    S: ObjectStorage + Clone + Send + Sync + 'static,
+    S: ObjectStorage + Send + Sync + 'static,
     M: MetaStorageFactory,
 {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
-        let meta = request.metadata();
+        let auth = request.metadata();
 
-        if !meta.is_owner() {
+        if !auth.is_owner() {
             return Err(Status::unauthenticated("not authorized"));
         }
 
@@ -169,43 +193,47 @@ where
         // TODO: proper error
         let id = handle.await.expect("failed to run blocking task");
 
-        let mut metastore = match self.get_store(&metadata.collection).await {
+        let mut collection = match self.get_collection(&metadata.collection).await {
             Ok(store) => store,
             Err(err) => return Err(err.status()),
         };
-        match metastore.set(id, m).await {
+        match collection.set(id, m).await {
             Ok(_) => Ok(Response::new(SetResponse { id })),
             Err(err) => Err(err.status()),
         }
     }
 
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
-        let meta = request.metadata();
-
-        if !meta.is_owner() {
-            return Err(Status::unauthenticated("not authorized"));
-        }
-
+        let auth = request.metadata().clone();
         let request = request.into_inner();
         let id = request.id;
 
-        let mut metastore = match self.get_store(&request.collection).await {
+        let mut collection = match self.get_collection(&request.collection).await {
             Ok(store) => store,
             Err(err) => return Err(err.status()),
         };
 
-        let meta = match metastore.get(id).await {
-            Ok(meta) => meta,
+        let info = match collection.get(id).await {
+            Ok(info) => info,
             Err(err) => return Err(err.status()),
         };
 
-        let metadata = Self::build_meta(request.collection, meta);
+        let metadata = Self::build_meta(request.collection, info);
 
-        // TODO: from impl for error
+        if !auth.is_owner() {
+            match metadata.acl {
+                Some(ref acl) => {
+                    self.is_authorized(acl.acl, auth.get_user().unwrap(), "r--".parse().unwrap())?;
+                }
+
+                None => (),
+            };
+        }
+
         let mut db = self.db.clone();
         let handle = spawn_blocking(move || db.get(id).expect("failed to load data"));
         // TODO: proper error handling
-        let data = handle.await.expect("failed threadpool task");
+        let data = handle.await.expect("failed thread pool task");
         if data.is_none() {
             return Err(Status::not_found(format!("Key {} doesn't exist", id)));
         }
@@ -219,9 +247,9 @@ where
         &self,
         request: Request<UpdateRequest>,
     ) -> Result<Response<UpdateResponse>, Status> {
-        let meta = request.metadata();
+        let auth = request.metadata();
 
-        if !meta.is_owner() {
+        if !auth.is_owner() {
             return Err(Status::unauthenticated("not authorized"));
         }
 
@@ -266,12 +294,12 @@ where
             ),
         ));
 
-        let mut metastore = match self.get_store(&metadata.collection).await {
+        let mut collection = match self.get_collection(&metadata.collection).await {
             Ok(store) => store,
             Err(err) => return Err(err.status()),
         };
 
-        match metastore.set(request.id, m).await {
+        match collection.set(request.id, m).await {
             Ok(_) => Ok(Response::new(UpdateResponse {})),
             Err(err) => Err(err.status()),
         }
@@ -283,14 +311,14 @@ where
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::ListStream>, Status> {
-        let meta = request.metadata();
+        let auth = request.metadata();
 
-        if !meta.is_owner() {
+        if !auth.is_owner() {
             return Err(Status::unauthenticated("not authorized"));
         }
 
         let request = request.into_inner();
-        let mut metastore = match self.get_store(&request.collection).await {
+        let mut collection = match self.get_collection(&request.collection).await {
             Ok(store) => store,
             Err(err) => return Err(err.status()),
         };
@@ -305,7 +333,7 @@ where
 
         let (mut tx, rx) = mpsc::channel(10);
         tokio::spawn(async move {
-            let mut rx = match metastore.find(tags).await {
+            let mut rx = match collection.find(tags).await {
                 Ok(rx) => rx,
                 Err(err) => {
                     tx.send(Err(Status::internal(format!("{}", err))))
@@ -335,15 +363,15 @@ where
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::FindStream>, Status> {
-        let meta = request.metadata();
+        let auth = request.metadata();
 
-        if !meta.is_owner() {
+        if !auth.is_owner() {
             return Err(Status::unauthenticated("not authorized"));
         }
 
         let request = request.into_inner();
-        let collection = request.collection;
-        let mut metastore = match self.get_store(&collection).await {
+        let collection_name = request.collection;
+        let mut collection = match self.get_collection(&collection_name).await {
             Ok(store) => store,
             Err(err) => return Err(err.status()),
         };
@@ -358,8 +386,8 @@ where
 
         let (mut tx, rx) = mpsc::channel(10);
         tokio::spawn(async move {
-            let mut getter = metastore.clone();
-            let mut rx = match metastore.find(tags).await {
+            let mut getter = collection.clone();
+            let mut rx = match collection.find(tags).await {
                 Ok(rx) => rx,
                 Err(err) => {
                     tx.send(Err(Status::internal(format!("{}", err))))
@@ -386,7 +414,7 @@ where
                     }
                 };
 
-                let metadata = Self::build_meta(&collection, meta);
+                let metadata = Self::build_meta(&collection_name, meta);
 
                 tx.send(Ok(FindResponse {
                     id: id,
@@ -422,17 +450,15 @@ impl<S> AclService<S>
 where
     S: ObjectStorage,
 {
-    pub fn new(store: S) -> AclService<S> {
-        AclService {
-            store: ACLStorage::new(store),
-        }
+    pub fn new(store: ACLStorage<S>) -> AclService<S> {
+        AclService { store: store }
     }
 }
 
 #[tonic::async_trait]
 impl<S> AclServiceTrait for AclService<S>
 where
-    S: ObjectStorage + Clone + Send + Sync + 'static,
+    S: ObjectStorage + Send + Sync + 'static,
 {
     async fn get(
         &self,

@@ -48,6 +48,10 @@ impl Permissions {
         self.get(DELETE)
     }
 
+    pub fn grants(&self, p: Permissions) -> bool {
+        (self.0 & p.0) == p.0
+    }
+
     fn set(self, bit: u32, t: bool) -> Self {
         let v = match t {
             true => self.0 | bit,
@@ -200,6 +204,17 @@ mod tests {
         assert_eq!(true, p.is_write());
         assert_eq!(false, p.is_delete());
         assert_eq!("rw-", p.to_string());
+    }
+
+    #[test]
+    fn grants() {
+        let p: Permissions = "rw-".parse().unwrap();
+
+        assert_eq!(true, p.grants("r--".parse().unwrap()));
+        assert_eq!(true, p.grants("-w-".parse().unwrap()));
+        assert_eq!(true, p.grants("rw-".parse().unwrap()));
+        assert_eq!(false, p.grants("r-d".parse().unwrap()));
+        assert_eq!(false, p.grants("--d".parse().unwrap()));
     }
 
     #[test]
