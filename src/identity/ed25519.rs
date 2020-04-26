@@ -19,7 +19,7 @@ pub struct Identity {
 
 /// A stand alone public key, which can be used to verify signatures made with the associated
 /// private key.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct PublicKey {
     pk: PubKey,
 }
@@ -124,6 +124,12 @@ impl<'de> Deserialize<'de> for PublicKey {
         } else {
             deserializer.deserialize_bytes(PublicKeyVisitor)
         }
+    }
+}
+
+impl std::fmt::Display for PublicKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", hex::encode(self.pk.as_bytes()))
     }
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+
 	"time"
 
 	"example.com/test/bcdb"
@@ -11,7 +12,17 @@ import (
 )
 
 func main() {
-	client, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+	const (
+		userID   = 6
+		mnemonic = "hawk flush rifle build globe festival process enrich angry okay inmate pilot reunion february best health pigeon actor spare absurd glory ahead situate float"
+	)
+
+	auth, err := bcdb.NewBCDBAuthenticatorFromMnemonic(userID, mnemonic, bcdb.WithExpiresDuration(3*time.Second))
+	if err != nil {
+		panic(err)
+	}
+
+	client, err := grpc.Dial("localhost:50051", grpc.WithInsecure(), grpc.WithPerRPCCredentials(auth))
 	if err != nil {
 		panic(err)
 	}
