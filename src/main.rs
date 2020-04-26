@@ -143,14 +143,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = matches.value_of("listen").unwrap().parse()?;
     let interceptor =
         auth::Authenticator::new(matches.value_of("explorer"), Some(id.public_key()))?;
+    let acl_interceptor = interceptor.clone();
 
     Server::builder()
         .add_service(bcdb::BcdbServer::with_interceptor(
             bcdb_service,
             move |request| interceptor.authenticate_blocking(request),
         ))
-        //.add_service(bcdb::BcdbServer::new(bcdb_service))
-        .add_service(bcdb::AclServer::new(acl_service))
+        .add_service(bcdb::AclServer::with_interceptor(
+            acl_service,
+            move |request| acl_interceptor.authenticate_blocking(request),
+        ))
         .serve(addr)
         .await?;
 

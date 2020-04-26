@@ -12,6 +12,7 @@ use url::Url;
 
 const BASE_URL: &str = "https://explorer.devnet.grid.tf/explorer/";
 
+#[derive(Clone)]
 pub struct Authenticator {
     base_url: Url,
     cache: Arc<Mutex<HashMap<u64, PublicKey>>>,
