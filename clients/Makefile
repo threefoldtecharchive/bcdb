@@ -3,7 +3,7 @@ proto = bcdb.proto
 
 .PHONY: python go
 
-all: python go
+all: python go js
 
 python-deps:
 	pip install --user grpcio-tools
