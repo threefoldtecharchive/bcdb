@@ -28,10 +28,17 @@ impl Authenticator {
     pub fn new(base: Option<&str>, owner: Option<PublicKey>) -> Result<Authenticator, Error> {
         Ok(Authenticator {
             base_url: match base {
-                Some(base) => base,
-                None => BASE_URL,
-            }
-            .parse()?,
+                Some(base) => {
+                    // we need to make sure that the url always end up in /
+                    if base.ends_with('/') {
+                        base.parse()?
+                    } else {
+                        format!("{}/", base).parse()?
+                    }
+                }
+                None => BASE_URL.parse()?,
+            },
+            //.parse()?,
             cache: Arc::new(Mutex::new(HashMap::new())),
             owner: owner.map(|k| format!("{}", k)),
         })
