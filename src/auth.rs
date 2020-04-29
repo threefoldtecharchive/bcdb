@@ -38,7 +38,6 @@ impl Authenticator {
                 }
                 None => BASE_URL.parse()?,
             },
-            //.parse()?,
             cache: Arc::new(Mutex::new(HashMap::new())),
             owner: owner.map(|k| format!("{}", k)),
         })

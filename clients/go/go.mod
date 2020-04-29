@@ -1,4 +1,4 @@
-module example.com/test
+module github.com/threefoldtech/dbreboot/clients/go
 
 go 1.13
 
