@@ -18,6 +18,8 @@ service BCDB {
 
   // Find like list but return full documents
   rpc Find(QueryRequest) returns (stream FindResponse) {}
+
+  rpc Delete(DeleteRequest) returns (DeleteResponse) {}
 }
 
 // Tag is a single entry in an object.
@@ -91,6 +93,13 @@ message FindResponse {
   uint32 id = 1;
   Metadata metadata = 2;
 }
+
+message DeleteRequest {
+  uint32 id = 1;
+  string collection = 2;
+}
+
+message DeleteResponse {}
 
 service Acl {
   rpc Get(ACLGetRequest) returns (ACLGetResponse) {}
