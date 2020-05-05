@@ -351,12 +351,12 @@ where
         }
     }
 
-    type ListStream = mpsc::Receiver<Result<ListResponse, Status>>;
+    type ListStream = super::ListStream;
 
     async fn list(
         &self,
         request: Request<QueryRequest>,
-    ) -> Result<Response<Self::ListStream>, Status> {
+    ) -> Result<Response<super::ListStream>, Status> {
         let auth = request.metadata();
 
         if !auth.is_owner() {
@@ -403,7 +403,7 @@ where
         Ok(Response::new(rx))
     }
 
-    type FindStream = mpsc::Receiver<Result<FindResponse, Status>>;
+    type FindStream = super::FindStream;
 
     async fn find(
         &self,

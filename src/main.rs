@@ -130,12 +130,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         zdb.collection("acl"),
     ));
 
-    //bcdb storage api
-    let bcdb_service = bcdb::BcdbService::new(
+    let localBcdb = bcdb::LocalBcdb::new(
         EncryptedStorage::new(id.as_sk_bytes(), zdb.collection("objects")),
         meta_factory,
         acl_store.clone(),
     );
+
+    //bcdb storage api
+    let bcdb_service = bcdb::BcdbService::new(localBcdb);
 
     //acl api
     let acl_service = bcdb::AclService::new(acl_store);
