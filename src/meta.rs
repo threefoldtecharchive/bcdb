@@ -28,6 +28,7 @@ impl Tag {
     }
 }
 
+#[derive(Default)]
 pub struct Meta {
     pub tags: Vec<Tag>,
 }

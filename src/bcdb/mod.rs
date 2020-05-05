@@ -255,6 +255,41 @@ where
             metadata: Some(metadata),
         }))
     }
+    async fn delete(
+        &self,
+        request: Request<DeleteRequest>,
+    ) -> Result<Response<DeleteResponse>, Status> {
+        let auth = request.metadata().clone();
+
+        let request = request.into_inner();
+        let id = request.id;
+
+        let metadata = self.get_metadata(&request.collection, id).await?;
+
+        if !auth.is_owner() {
+            match metadata.acl {
+                Some(ref acl) => {
+                    self.is_authorized(acl.acl, auth.get_user().unwrap(), "-w-".parse().unwrap())?;
+                }
+
+                None => (),
+            };
+        }
+
+        let mut m = meta::Meta::default();
+
+        m.add(":deleted", "1");
+
+        let mut collection = match self.get_collection(&request.collection).await {
+            Ok(store) => store,
+            Err(err) => return Err(err.status()),
+        };
+
+        match collection.set(request.id, m).await {
+            Ok(_) => Ok(Response::new(DeleteResponse {})),
+            Err(err) => Err(err.status()),
+        }
+    }
 
     async fn update(
         &self,
