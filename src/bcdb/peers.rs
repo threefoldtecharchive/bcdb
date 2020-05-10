@@ -1,13 +1,17 @@
 use super::generated::identity_client::IdentityClient;
 use super::generated::{SignRequest, SignResponse};
-use crate::identity::PublicKey;
+use crate::identity::{PublicKey, Signature};
 use async_trait::async_trait;
 use failure::Error;
+use lru_time_cache::LruCache;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fs::File;
 use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::Mutex;
 use url::Url;
 
 type Result<T> = std::result::Result<T, Error>;
@@ -32,29 +36,41 @@ pub struct Peer {
 }
 
 impl Peer {
-    pub async fn connect(&self) -> Result<IdentityClient<tonic::transport::Channel>> {
-        Ok(IdentityClient::connect(self.host.clone()).await?)
+    pub async fn connect(&self) -> Result<tonic::transport::Channel> {
+        let con = tonic::transport::Endpoint::new(self.host.clone())?
+            .connect()
+            .await?;
+
+        Ok(con)
     }
 
-    async fn veirfy(&self) -> Result<()> {
+    async fn verify(&self) -> Result<()> {
         // this need to make a grpc call to the peer
         // identity grpc service.
         // and validate it indeed owns the sk associated
         // with this pk
 
-        let mut client = self.connect().await?;
-        let req = SignRequest {
-            message: "random message goes here".into(),
-        };
-        let resp = client.sign(req).await?.into_inner();
-        println!("sig: {}", resp.signature);
+        let con = self.connect().await?;
 
-        unimplemented!();
+        use rand::distributions::Standard;
+        use rand::{thread_rng, Rng};
+        let nonce: Vec<u8> = thread_rng().sample_iter(&Standard).take(215).collect();
+
+        let mut client = IdentityClient::new(con);
+        let request = SignRequest {
+            message: nonce.clone(),
+        };
+        let response = client.sign(request).await?.into_inner();
+        let signature = Signature::from_bytes(&response.signature)?;
+
+        self.key.verify(&nonce, &signature)?;
+
+        Ok(())
     }
 }
 
 #[async_trait]
-pub trait PeersList {
+pub trait PeersList: Sync + Send {
     async fn get(&self, id: u32) -> Result<Peer>;
 }
 
@@ -112,6 +128,61 @@ impl Explorer {
 impl PeersList for Explorer {
     async fn get(&self, id: u32) -> Result<Peer> {
         unimplemented!()
+    }
+}
+
+// TODO: Better name?
+/// Tracker tracks peers using PeerList as a source for ip address
+/// and public key. Then it does identity check and cache this identity
+/// for quick access. Tracker is responsible of making sure peer is valid
+/// before it's used by the system
+struct Tracker<L>
+where
+    L: PeersList,
+{
+    list: L,
+    cache: Arc<Mutex<LruCache<u32, Peer>>>,
+}
+
+impl<L> Tracker<L>
+where
+    L: PeersList,
+{
+    fn new(ttl: Duration, cap: usize, list: L) -> Self {
+        let lru = LruCache::with_expiry_duration_and_capacity(ttl, cap);
+
+        Tracker {
+            list,
+            cache: Arc::new(Mutex::new(lru)),
+        }
+    }
+}
+
+#[async_trait]
+impl<L> PeersList for Tracker<L>
+where
+    L: PeersList,
+{
+    async fn get(&self, id: u32) -> Result<Peer> {
+        let mut cache = self.cache.lock().await;
+        if let Some(peer) = cache.get(&id) {
+            return Ok(peer.clone());
+        }
+        // NOTICE:
+        // both `get` and `verify` might take long time
+        // to finish, but we are holding a lock to the cache
+        // which means calls to Tracker.get() will block to
+        // other calls even if it tries to get a peer that is
+        // already in the cache.
+        // if we drop the lock to allow other calls to go through
+        // we might end up doing multiple calls to the possibly expensive
+        // get and verify.
+        let peer = self.list.get(id).await?;
+
+        peer.verify().await?;
+        cache.insert(id, peer.clone());
+
+        Ok(peer)
     }
 }
 

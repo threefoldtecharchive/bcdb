@@ -165,9 +165,9 @@ message InfoRequest {}
 
 message InfoResponse { IdentityInfo identity = 1; }
 
-message SignRequest { string message = 1; }
+message SignRequest { bytes message = 1; }
 
 message SignResponse {
   IdentityInfo identity = 1;
-  string signature = 2;
+  bytes signature = 2;
 }
