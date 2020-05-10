@@ -3,17 +3,13 @@ use failure::Error;
 use generated::acl_server::Acl as AclServiceTrait;
 use generated::bcdb_server::Bcdb as BcdbServiceTrait;
 use generated::*;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::FromIterator;
-use std::sync::Arc;
 use tokio::sync::mpsc;
-use tokio::sync::Mutex;
-use tokio::task::spawn_blocking;
+use tonic::metadata::MetadataMap;
 use tonic::{Code, Request, Response, Status};
 
 use crate::auth::MetadataMapAuth;
-use crate::meta::{self, Storage as MetaStorage, StorageFactory as MetaStorageFactory};
 use crate::storage::{zdb::Collection, zdb::Zdb, Storage as ObjectStorage};
 
 pub use generated::acl_server::AclServer;
@@ -24,6 +20,8 @@ pub mod generated {
 }
 
 mod local;
+mod peers;
+
 pub use local::LocalBcdb;
 
 trait FailureExt {
@@ -39,13 +37,18 @@ impl FailureExt for Error {
 type ListStream = mpsc::Receiver<Result<ListResponse, Status>>;
 type FindStream = mpsc::Receiver<Result<FindResponse, Status>>;
 
-// trait Test: BcdbServiceTrait<ListStream = ListStream, FindStream = FindStream> {}
+enum Route {
+    Local,
+    Proxy(u32),
+}
 
 //TODO: use generics for both object store type and meta factory type.
 pub struct BcdbService<L>
 where
     L: BcdbServiceTrait,
 {
+    /// id is the 3bot id of this bcdb instance
+    id: u32,
     local: L,
 }
 
@@ -53,8 +56,41 @@ impl<L> BcdbService<L>
 where
     L: BcdbServiceTrait,
 {
-    pub fn new(local: L) -> BcdbService<L> {
-        BcdbService { local: local }
+    pub fn new(id: u32, local: L) -> BcdbService<L> {
+        BcdbService {
+            id: id,
+            local: local,
+        }
+    }
+
+    fn route(&self, md: &MetadataMap) -> Result<Route, Status> {
+        let header = match md.get("x-threebot-id") {
+            Some(value) => value,
+            None => return Ok(Route::Local),
+        };
+
+        let id: u32 = match header.to_str() {
+            Ok(s) => match s.parse() {
+                Ok(id) => id,
+                Err(err) => {
+                    return Err(Status::invalid_argument(format!(
+                        "invalid x-threebot-id not a number: {}",
+                        err
+                    )))
+                }
+            },
+            Err(err) => {
+                return Err(Status::invalid_argument(
+                    "invalid x-threebot-id format expecting string",
+                ))
+            }
+        };
+
+        if id == self.id {
+            return Ok(Route::Local);
+        }
+
+        Ok(Route::Proxy(id))
     }
 }
 
@@ -64,30 +100,45 @@ where
     L: BcdbServiceTrait<ListStream = ListStream, FindStream = FindStream>,
 {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
-        self.local.set(request).await
+        match self.route(request.metadata())? {
+            Route::Local => self.local.set(request).await,
+            Route::Proxy(id) => unimplemented!(),
+        }
     }
 
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
-        self.local.get(request).await
+        match self.route(request.metadata())? {
+            Route::Local => self.local.get(request).await,
+            Route::Proxy(id) => unimplemented!(),
+        }
     }
 
     async fn delete(
         &self,
         request: Request<DeleteRequest>,
     ) -> Result<Response<DeleteResponse>, Status> {
-        self.local.delete(request).await
+        match self.route(request.metadata())? {
+            Route::Local => self.local.delete(request).await,
+            Route::Proxy(id) => unimplemented!(),
+        }
     }
 
     async fn update(
         &self,
         request: Request<UpdateRequest>,
     ) -> Result<Response<UpdateResponse>, Status> {
-        self.local.update(request).await
+        match self.route(request.metadata())? {
+            Route::Local => self.local.update(request).await,
+            Route::Proxy(id) => unimplemented!(),
+        }
     }
 
     type ListStream = ListStream;
     async fn list(&self, request: Request<QueryRequest>) -> Result<Response<ListStream>, Status> {
-        self.local.list(request).await
+        match self.route(request.metadata())? {
+            Route::Local => self.local.list(request).await,
+            Route::Proxy(id) => unimplemented!(),
+        }
     }
 
     type FindStream = FindStream;
@@ -95,7 +146,10 @@ where
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::FindStream>, Status> {
-        self.local.find(request).await
+        match self.route(request.metadata())? {
+            Route::Local => self.local.find(request).await,
+            Route::Proxy(id) => unimplemented!(),
+        }
     }
 }
 

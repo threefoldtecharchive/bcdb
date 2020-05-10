@@ -57,8 +57,6 @@ func put(ctx context.Context, cl bcdb.BCDBClient, path string, data []byte) erro
 			return fmt.Errorf("'%s' is not a file", path)
 		}
 
-		// update content here
-		//cl.Update(ctx context.Context, in *UpdateRequest, opts ...grpc.CallOption)
 		_, err := cl.Update(ctx, &bcdb.UpdateRequest{
 			Id: info.id,
 			Metadata: &bcdb.Metadata{

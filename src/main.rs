@@ -1,4 +1,3 @@
-use bip39::{Language, Mnemonic};
 use clap::{App, Arg};
 use log::debug;
 use tonic::transport::Server;
@@ -63,6 +62,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .takes_value(false),
         )
         .arg(
+            Arg::with_name("id")
+                .help("threebot ID for this bcdb instance")
+                .long("threebot-id")
+                .short("id")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("seed")
                 .help("mnemonic of the seed to be used for the identity")
                 .long("seed")
@@ -96,25 +103,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     simple_logger::init_with_level(level).unwrap();
+    let bot_id: u32 = matches.value_of("id").unwrap().parse()?;
 
-    let id;
-    {
-        let mnemonic = if matches.is_present("seed") {
-            Mnemonic::from_phrase(matches.value_of("seed").unwrap(), Language::English)?
-        } else {
-            let mut file = File::open(matches.value_of("seed_file").unwrap())?;
-            let mut content = String::new();
-            file.read_to_string(&mut content)?;
-            Mnemonic::from_phrase(content.trim(), Language::English)?
-        };
-        id = Identity::from_sk_bytes(mnemonic.entropy())?;
-    }
+    let identity = if matches.is_present("seed") {
+        Identity::from_mnemonic(bot_id, matches.value_of("seed").unwrap())?
+    } else {
+        let mut file = File::open(matches.value_of("seed_file").unwrap())?;
+        let mut content = String::new();
+        file.read_to_string(&mut content)?;
+        Identity::from_mnemonic(bot_id, content)?
+    };
 
     // for some reason a byte slice does not implement fmt::LowerHex or fmt::UpperHex so manually
     // show the bytes
     debug!(
         "Starting server with identity, public key {}",
-        id.public_key()
+        identity.public_key()
     );
     debug!("Using identity private key as symmetric encryption key for zdb data");
 
@@ -126,25 +130,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // the acl_store
     let acl_store = acl::ACLStorage::new(EncryptedStorage::new(
-        id.as_sk_bytes(),
+        identity.as_sk_bytes(),
         zdb.collection("acl"),
     ));
 
-    let localBcdb = bcdb::LocalBcdb::new(
-        EncryptedStorage::new(id.as_sk_bytes(), zdb.collection("objects")),
+    let local_bcdb = bcdb::LocalBcdb::new(
+        EncryptedStorage::new(identity.as_sk_bytes(), zdb.collection("objects")),
         meta_factory,
         acl_store.clone(),
     );
 
     //bcdb storage api
-    let bcdb_service = bcdb::BcdbService::new(localBcdb);
+    let bcdb_service = bcdb::BcdbService::new(identity.id(), local_bcdb);
 
     //acl api
     let acl_service = bcdb::AclService::new(acl_store);
 
     let addr = matches.value_of("listen").unwrap().parse()?;
     let interceptor =
-        auth::Authenticator::new(matches.value_of("explorer"), Some(id.public_key()))?;
+        auth::Authenticator::new(matches.value_of("explorer"), Some(identity.public_key()))?;
     let acl_interceptor = interceptor.clone();
 
     Server::builder()
