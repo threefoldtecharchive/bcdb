@@ -1,5 +1,5 @@
 use super::generated::identity_client::IdentityClient;
-use super::generated::{SignRequest, SignResponse};
+use super::generated::SignRequest;
 use crate::identity::{PublicKey, Signature};
 use async_trait::async_trait;
 use failure::Error;
@@ -207,6 +207,6 @@ mod tests {
         let peer = peers_file.get(1).await.unwrap();
         assert_eq!(peer.host, "host1");
 
-        std::fs::remove_file(fname);
+        std::fs::remove_file(fname).unwrap();
     }
 }
