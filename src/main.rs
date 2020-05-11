@@ -94,6 +94,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .takes_value(true)
                 .default_value("https://explorer.devnet.grid.tf/explorer/"),
         )
+        .arg(
+            Arg::with_name("peers-file")
+                .help("path to file with peers list")
+                .long("peers-file")
+                .takes_value(true)
+                .required(true)
+                .env("PEERS_FILE"),
+        )
         .get_matches();
 
     let level = if matches.is_present("debug") {
@@ -143,8 +151,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let interceptor = auth::Authenticator::new(matches.value_of("explorer"), identity.id())?;
     let acl_interceptor = interceptor.clone();
 
+    let peers = bcdb::PeersFile::new(matches.value_of("peers-file").unwrap())?;
+
     //bcdb storage api
-    let bcdb_service = bcdb::BcdbService::new(identity.id(), local_bcdb);
+    let bcdb_service = bcdb::BcdbService::new(identity.id(), local_bcdb, peers);
 
     //acl api
     let acl_service = bcdb::AclService::new(acl_store);

@@ -2,6 +2,7 @@ use crate::acl::*;
 use crate::identity::Identity;
 use failure::Error;
 use generated::acl_server::Acl as AclServiceTrait;
+use generated::bcdb_client::BcdbClient;
 use generated::bcdb_server::Bcdb as BcdbServiceTrait;
 use generated::identity_server::Identity as IdentityTrait;
 use generated::*;
@@ -25,6 +26,7 @@ mod local;
 mod peers;
 
 pub use local::LocalBcdb;
+pub use peers::{Explorer, PeersFile, PeersList, Tracker};
 
 trait FailureExt {
     fn status(&self) -> Status;
@@ -40,43 +42,157 @@ type ListStream = mpsc::Receiver<Result<ListResponse, Status>>;
 type FindStream = mpsc::Receiver<Result<FindResponse, Status>>;
 
 //TODO: use generics for both object store type and meta factory type.
-pub struct BcdbService<L>
+pub struct BcdbService<L, P>
 where
     L: BcdbServiceTrait,
+    P: PeersList,
 {
     /// id is the 3bot id of this bcdb instance
     id: u32,
     local: L,
+    peers: P,
 }
 
-impl<L> BcdbService<L>
+impl<L, P> BcdbService<L, P>
 where
     L: BcdbServiceTrait,
+    P: PeersList,
 {
-    pub fn new(id: u32, local: L) -> BcdbService<L> {
+    pub fn new(id: u32, local: L, peers: P) -> Self {
         BcdbService {
             id: id,
             local: local,
+            peers: peers,
         }
+    }
+
+    async fn get_peer(
+        &self,
+        id: u32,
+    ) -> Result<BcdbClient<tonic::transport::channel::Channel>, Status> {
+        let peer = match self.peers.get(id).await {
+            Ok(peer) => peer,
+            Err(err) => {
+                return Err(Status::unavailable(format!(
+                    "could not find peer '{}': {}",
+                    id, err
+                )))
+            }
+        };
+
+        let con = match peer.connect().await {
+            Ok(con) => con,
+            Err(err) => {
+                return Err(Status::unavailable(format!(
+                    "could not reach peer '{}': {}",
+                    id, err
+                )));
+            }
+        };
+
+        Ok(BcdbClient::new(con))
+    }
+
+    async fn proxy_set(
+        &self,
+        id: u32,
+        request: Request<SetRequest>,
+    ) -> Result<Response<SetResponse>, Status> {
+        let mut client = self.get_peer(id).await?;
+
+        client.set(request).await
+    }
+
+    async fn proxy_get(
+        &self,
+        id: u32,
+        request: Request<GetRequest>,
+    ) -> Result<Response<GetResponse>, Status> {
+        let mut client = self.get_peer(id).await?;
+
+        client.get(request).await
+    }
+
+    async fn proxy_delete(
+        &self,
+        id: u32,
+        request: Request<DeleteRequest>,
+    ) -> Result<Response<DeleteResponse>, Status> {
+        let mut client = self.get_peer(id).await?;
+
+        client.delete(request).await
+    }
+
+    async fn proxy_update(
+        &self,
+        id: u32,
+        request: Request<UpdateRequest>,
+    ) -> Result<Response<UpdateResponse>, Status> {
+        let mut client = self.get_peer(id).await?;
+
+        client.update(request).await
+    }
+
+    async fn proxy_list(
+        &self,
+        id: u32,
+        request: Request<QueryRequest>,
+    ) -> Result<Response<ListStream>, Status> {
+        let mut client = self.get_peer(id).await?;
+
+        let stream = client.list(request).await?;
+        let mut inbound = stream.into_inner();
+
+        let (mut tx, rx) = mpsc::channel(10);
+        tokio::spawn(async move {
+            while let Some(obj) = inbound.message().await.unwrap() {
+                tx.send(Ok(obj)).await.unwrap();
+            }
+        });
+
+        Ok(Response::new(rx))
+    }
+
+    async fn proxy_find(
+        &self,
+        id: u32,
+        request: Request<QueryRequest>,
+    ) -> Result<Response<FindStream>, Status> {
+        let mut client = self.get_peer(id).await?;
+
+        let stream = client.find(request).await?;
+        let mut inbound = stream.into_inner();
+
+        let (mut tx, rx) = mpsc::channel(10);
+        tokio::spawn(async move {
+            while let Some(obj) = inbound.message().await.unwrap() {
+                tx.send(Ok(obj)).await.unwrap();
+            }
+        });
+
+        Ok(Response::new(rx))
     }
 }
 
 #[tonic::async_trait]
-impl<L> BcdbServiceTrait for BcdbService<L>
+impl<L, P> BcdbServiceTrait for BcdbService<L, P>
 where
     L: BcdbServiceTrait<ListStream = ListStream, FindStream = FindStream>,
+    P: PeersList,
 {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
         match request.metadata().route(self.id)? {
-            Route::Local => self.local.set(request).await,
-            Route::Proxy(id) => Err(Status::unimplemented("unimplemented")),
+            Route::Local if request.metadata().is_authenticated() => self.local.set(request).await,
+            Route::Proxy(id) => self.proxy_set(id, request).await,
+            _ => Err(Status::unauthenticated("unauthenticated request")),
         }
     }
 
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
         match request.metadata().route(self.id)? {
-            Route::Local => self.local.get(request).await,
-            Route::Proxy(id) => Err(Status::unimplemented("unimplemented")),
+            Route::Local if request.metadata().is_authenticated() => self.local.get(request).await,
+            Route::Proxy(id) => self.proxy_get(id, request).await,
+            _ => Err(Status::unauthenticated("unauthenticated request")),
         }
     }
 
@@ -85,8 +201,11 @@ where
         request: Request<DeleteRequest>,
     ) -> Result<Response<DeleteResponse>, Status> {
         match request.metadata().route(self.id)? {
-            Route::Local => self.local.delete(request).await,
-            Route::Proxy(id) => Err(Status::unimplemented("unimplemented")),
+            Route::Local if request.metadata().is_authenticated() => {
+                self.local.delete(request).await
+            }
+            Route::Proxy(id) => self.proxy_delete(id, request).await,
+            _ => Err(Status::unauthenticated("unauthenticated request")),
         }
     }
 
@@ -95,27 +214,29 @@ where
         request: Request<UpdateRequest>,
     ) -> Result<Response<UpdateResponse>, Status> {
         match request.metadata().route(self.id)? {
-            Route::Local => self.local.update(request).await,
-            Route::Proxy(id) => Err(Status::unimplemented("unimplemented")),
+            Route::Local if request.metadata().is_authenticated() => {
+                self.local.update(request).await
+            }
+            Route::Proxy(id) => self.proxy_update(id, request).await,
+            _ => Err(Status::unauthenticated("unauthenticated request")),
         }
     }
 
     type ListStream = ListStream;
     async fn list(&self, request: Request<QueryRequest>) -> Result<Response<ListStream>, Status> {
         match request.metadata().route(self.id)? {
-            Route::Local => self.local.list(request).await,
-            Route::Proxy(id) => Err(Status::unimplemented("unimplemented")),
+            Route::Local if request.metadata().is_authenticated() => self.local.list(request).await,
+            Route::Proxy(id) => self.proxy_list(id, request).await,
+            _ => Err(Status::unauthenticated("unauthenticated request")),
         }
     }
 
     type FindStream = FindStream;
-    async fn find(
-        &self,
-        request: Request<QueryRequest>,
-    ) -> Result<Response<Self::FindStream>, Status> {
+    async fn find(&self, request: Request<QueryRequest>) -> Result<Response<FindStream>, Status> {
         match request.metadata().route(self.id)? {
-            Route::Local => self.local.find(request).await,
-            Route::Proxy(id) => Err(Status::unimplemented("unimplemented")),
+            Route::Local if request.metadata().is_authenticated() => self.local.find(request).await,
+            Route::Proxy(id) => self.proxy_find(id, request).await,
+            _ => Err(Status::unauthenticated("unauthenticated request")),
         }
     }
 }

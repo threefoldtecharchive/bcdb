@@ -70,7 +70,7 @@ impl Peer {
 }
 
 #[async_trait]
-pub trait PeersList: Sync + Send {
+pub trait PeersList: Sync + Send + 'static {
     async fn get(&self, id: u32) -> Result<Peer>;
 }
 
@@ -136,7 +136,7 @@ impl PeersList for Explorer {
 /// and public key. Then it does identity check and cache this identity
 /// for quick access. Tracker is responsible of making sure peer is valid
 /// before it's used by the system
-struct Tracker<L>
+pub struct Tracker<L>
 where
     L: PeersList,
 {
@@ -148,7 +148,7 @@ impl<L> Tracker<L>
 where
     L: PeersList,
 {
-    fn new(ttl: Duration, cap: usize, list: L) -> Self {
+    pub fn new(ttl: Duration, cap: usize, list: L) -> Self {
         let lru = LruCache::with_expiry_duration_and_capacity(ttl, cap);
 
         Tracker {
