@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/ed25519"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -30,26 +28,6 @@ func main() {
 		panic(err)
 	}
 
-	identity := bcdb.NewIdentityClient(client)
-	signed, err := identity.Sign(context.Background(), &bcdb.SignRequest{
-		Message: []byte("hello world"),
-	})
-
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(signed.Identity.GetId(), signed.Identity.GetKey())
-	key, err := hex.DecodeString(signed.Identity.GetKey())
-	if err != nil {
-		panic(err)
-	}
-	pk := ed25519.PublicKey(key)
-	fmt.Println("valid:", ed25519.Verify(pk, []byte("hello world"), signed.Signature))
-
-	//signed.Signature
-	os.Exit(0)
-
 	cl := bcdb.NewBCDBClient(client)
 
 	name := fmt.Sprintf("test-file-name-%d", time.Now().Unix())
@@ -75,13 +53,21 @@ func main() {
 		},
 	}
 
-	response, err := cl.Set(context.TODO(), &req)
+	ctx := context.Background()
+
+	// uncomment this line, and set the proper x-threebot-id
+	// to make bcbd forward this call for you to bcdb bot 17
+	// ctx = metadata.AppendToOutgoingContext(ctx, "x-threebot-id", "17")
+
+	response, err := cl.Set(ctx, &req)
 	if err != nil {
 		panic(err)
 	}
 
 	id := response.GetId()
 	fmt.Println("ID:", id)
+
+	os.Exit(0)
 
 	list, err := cl.Find(context.TODO(), &bcdb.QueryRequest{
 		Collection: "files",
