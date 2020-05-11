@@ -1,3 +1,4 @@
+use crate::explorer::Explorer;
 use crate::identity::{Identity, PublicKey, Signature};
 use failure::Error;
 use serde::Deserialize;
@@ -8,13 +9,10 @@ use surf;
 use tokio::sync::Mutex;
 use tonic::metadata::{AsciiMetadataValue, MetadataMap};
 use tonic::{Request, Status};
-use url::Url;
-
-const BASE_URL: &str = "https://explorer.devnet.grid.tf/explorer/";
 
 #[derive(Clone)]
 pub struct Authenticator {
-    base_url: Url,
+    client: Explorer,
     cache: Arc<Mutex<HashMap<u64, PublicKey>>>,
     id: u32,
 }
@@ -27,17 +25,7 @@ struct User {
 impl Authenticator {
     pub fn new(base: Option<&str>, id: u32) -> Result<Authenticator, Error> {
         Ok(Authenticator {
-            base_url: match base {
-                Some(base) => {
-                    // we need to make sure that the url always end up in /
-                    if base.ends_with('/') {
-                        base.parse()?
-                    } else {
-                        format!("{}/", base).parse()?
-                    }
-                }
-                None => BASE_URL.parse()?,
-            },
+            client: Explorer::new(base)?,
             cache: Arc::new(Mutex::new(HashMap::new())),
             id: id,
         })
@@ -49,17 +37,12 @@ impl Authenticator {
             return Ok(key.clone());
         }
 
-        let url = self.base_url.join(&format!("users/{}", id))?;
-        debug!("getting user info at: {}", url);
-        let resp: User = match surf::get(url).recv_json().await {
-            Ok(u) => u,
-            Err(err) => bail!("failed to get user: {}", err),
-        };
+        let resp = self.client.get(id as u32).await?;
 
         debug!("user key retrieved");
-        cache.insert(id, resp.pubkey.clone());
+        cache.insert(id, resp.key.clone());
 
-        Ok(resp.pubkey)
+        Ok(resp.key)
     }
 
     pub fn authenticate_blocking<T>(&self, request: Request<T>) -> Result<Request<T>, Status> {

@@ -1,10 +1,6 @@
-use super::generated::identity_client::IdentityClient;
-use super::generated::SignRequest;
-use crate::identity::{PublicKey, Signature};
 use async_trait::async_trait;
 use failure::Error;
 use lru_time_cache::LruCache;
-use serde::Deserialize;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fs::File;
@@ -12,62 +8,10 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use url::Url;
 
 type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Deserialize, Clone)]
-pub struct Peer {
-    id: u32,
-
-    #[serde(default)]
-    name: String,
-
-    #[serde(default)]
-    email: String,
-
-    #[serde(rename = "pubkey")]
-    key: PublicKey,
-
-    host: String,
-
-    #[serde(default)]
-    description: String,
-}
-
-impl Peer {
-    pub async fn connect(&self) -> Result<tonic::transport::Channel> {
-        let con = tonic::transport::Endpoint::new(self.host.clone())?
-            .connect()
-            .await?;
-
-        Ok(con)
-    }
-
-    async fn verify(&self) -> Result<()> {
-        // this need to make a grpc call to the peer
-        // identity grpc service.
-        // and validate it indeed owns the sk associated
-        // with this pk
-
-        let con = self.connect().await?;
-
-        use rand::distributions::Standard;
-        use rand::{thread_rng, Rng};
-        let nonce: Vec<u8> = thread_rng().sample_iter(&Standard).take(215).collect();
-
-        let mut client = IdentityClient::new(con);
-        let request = SignRequest {
-            message: nonce.clone(),
-        };
-        let response = client.sign(request).await?.into_inner();
-        let signature = Signature::from_bytes(&response.signature)?;
-
-        self.key.verify(&nonce, &signature)?;
-
-        Ok(())
-    }
-}
+pub use crate::explorer::{Explorer, Peer};
 
 #[async_trait]
 pub trait PeersList: Sync + Send + 'static {
@@ -114,20 +58,10 @@ impl PeersList for PeersFile {
     }
 }
 
-pub struct Explorer {
-    base: Url,
-}
-
-impl Explorer {
-    pub fn new<U: Into<Url>>(base: U) -> Explorer {
-        Explorer { base: base.into() }
-    }
-}
-
 #[async_trait]
 impl PeersList for Explorer {
     async fn get(&self, id: u32) -> Result<Peer> {
-        unimplemented!()
+        Explorer::get(self, id).await
     }
 }
 
@@ -179,10 +113,34 @@ where
         // get and verify.
         let peer = self.list.get(id).await?;
 
-        peer.verify().await?;
+        // TODO:
+        // implement peer.verify().await?;
         cache.insert(id, peer.clone());
 
         Ok(peer)
+    }
+}
+
+pub enum Either<A, B>
+where
+    A: PeersList,
+    B: PeersList,
+{
+    A(A),
+    B(B),
+}
+
+#[async_trait]
+impl<A, B> PeersList for Either<A, B>
+where
+    A: PeersList,
+    B: PeersList,
+{
+    async fn get(&self, id: u32) -> Result<Peer> {
+        match self {
+            Either::A(ref a) => a.get(id).await,
+            Either::B(ref b) => b.get(id).await,
+        }
     }
 }
 

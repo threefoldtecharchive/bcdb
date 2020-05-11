@@ -26,7 +26,7 @@ mod local;
 mod peers;
 
 pub use local::LocalBcdb;
-pub use peers::{Explorer, PeersFile, PeersList, Tracker};
+pub use peers::{Either, Explorer, PeersFile, PeersList, Tracker};
 
 trait FailureExt {
     fn status(&self) -> Status;

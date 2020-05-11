@@ -16,6 +16,7 @@ extern crate log;
 mod acl;
 mod auth;
 mod bcdb;
+mod explorer;
 mod identity;
 mod meta;
 mod storage;
@@ -96,10 +97,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .arg(
             Arg::with_name("peers-file")
-                .help("path to file with peers list")
+                .help("path to file with peers list, otherwise use explorer")
                 .long("peers-file")
                 .takes_value(true)
-                .required(true)
+                .required(false)
                 .env("PEERS_FILE"),
         )
         .get_matches();
@@ -151,10 +152,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let interceptor = auth::Authenticator::new(matches.value_of("explorer"), identity.id())?;
     let acl_interceptor = interceptor.clone();
 
-    let peers = bcdb::PeersFile::new(matches.value_of("peers-file").unwrap())?;
+    let peers = if matches.is_present("peers-file") {
+        bcdb::Either::A(bcdb::PeersFile::new(
+            matches.value_of("peers-file").unwrap(),
+        )?)
+    } else {
+        bcdb::Either::B(bcdb::Explorer::new(matches.value_of("explorer"))?)
+    };
+
+    // tracker cache peers from the given source, and validate their identity
+    let tracker = bcdb::Tracker::new(std::time::Duration::from_secs(20 * 60), 1000, peers);
 
     //bcdb storage api
-    let bcdb_service = bcdb::BcdbService::new(identity.id(), local_bcdb, peers);
+    let bcdb_service = bcdb::BcdbService::new(identity.id(), local_bcdb, tracker);
 
     //acl api
     let acl_service = bcdb::AclService::new(acl_store);
