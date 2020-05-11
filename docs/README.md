@@ -23,7 +23,8 @@ Note the following:
 Start 2 bcdb instances
 ```
 ./dbreboot -d --explorer 'https://explorer.devnet.grid.tf/explorer' \
-    --listen 0.0.0.0:50051
+    --listen 0.0.0.0:50051 \
+    --meta $HOME/.bcdb-meta-1 \
     --seed-file=$HOME/user-1.seed \
     --peers-file peers.json
 ```
@@ -31,7 +32,8 @@ Start 2 bcdb instances
 And on another terminal do
 ```
 ./dbreboot -d --explorer 'https://explorer.devnet.grid.tf/explorer' \
-    --listen 0.0.0.0:50052
+    --listen 0.0.0.0:50052 \
+    --meta $HOME/.bcdb-meta-2 \
     --seed-file=$HOME/user-2.seed \
     --peers-file peers.json
 ```
