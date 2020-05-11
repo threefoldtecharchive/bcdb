@@ -457,6 +457,86 @@ proto.bcdb.BCDBPromiseClient.prototype.find =
 
 
 /**
+ * @const
+ * @type {!grpc.web.MethodDescriptor<
+ *   !proto.bcdb.DeleteRequest,
+ *   !proto.bcdb.DeleteResponse>}
+ */
+const methodDescriptor_BCDB_Delete = new grpc.web.MethodDescriptor(
+  '/bcdb.BCDB/Delete',
+  grpc.web.MethodType.UNARY,
+  proto.bcdb.DeleteRequest,
+  proto.bcdb.DeleteResponse,
+  /**
+   * @param {!proto.bcdb.DeleteRequest} request
+   * @return {!Uint8Array}
+   */
+  function(request) {
+    return request.serializeBinary();
+  },
+  proto.bcdb.DeleteResponse.deserializeBinary
+);
+
+
+/**
+ * @const
+ * @type {!grpc.web.AbstractClientBase.MethodInfo<
+ *   !proto.bcdb.DeleteRequest,
+ *   !proto.bcdb.DeleteResponse>}
+ */
+const methodInfo_BCDB_Delete = new grpc.web.AbstractClientBase.MethodInfo(
+  proto.bcdb.DeleteResponse,
+  /**
+   * @param {!proto.bcdb.DeleteRequest} request
+   * @return {!Uint8Array}
+   */
+  function(request) {
+    return request.serializeBinary();
+  },
+  proto.bcdb.DeleteResponse.deserializeBinary
+);
+
+
+/**
+ * @param {!proto.bcdb.DeleteRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
+ *     call metadata
+ * @param {function(?grpc.web.Error, ?proto.bcdb.DeleteResponse)}
+ *     callback The callback function(error, response)
+ * @return {!grpc.web.ClientReadableStream<!proto.bcdb.DeleteResponse>|undefined}
+ *     The XHR Node Readable Stream
+ */
+proto.bcdb.BCDBClient.prototype.delete =
+    function(request, metadata, callback) {
+  return this.client_.rpcCall(this.hostname_ +
+      '/bcdb.BCDB/Delete',
+      request,
+      metadata || {},
+      methodDescriptor_BCDB_Delete,
+      callback);
+};
+
+
+/**
+ * @param {!proto.bcdb.DeleteRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
+ *     call metadata
+ * @return {!Promise<!proto.bcdb.DeleteResponse>}
+ *     A native promise that resolves to the response
+ */
+proto.bcdb.BCDBPromiseClient.prototype.delete =
+    function(request, metadata) {
+  return this.client_.unaryCall(this.hostname_ +
+      '/bcdb.BCDB/Delete',
+      request,
+      metadata || {},
+      methodDescriptor_BCDB_Delete);
+};
+
+
+/**
  * @param {string} hostname
  * @param {?Object} credentials
  * @param {?Object} options
@@ -980,6 +1060,218 @@ proto.bcdb.AclPromiseClient.prototype.revoke =
       request,
       metadata || {},
       methodDescriptor_Acl_Revoke);
+};
+
+
+/**
+ * @param {string} hostname
+ * @param {?Object} credentials
+ * @param {?Object} options
+ * @constructor
+ * @struct
+ * @final
+ */
+proto.bcdb.IdentityClient =
+    function(hostname, credentials, options) {
+  if (!options) options = {};
+  options['format'] = 'text';
+
+  /**
+   * @private @const {!grpc.web.GrpcWebClientBase} The client
+   */
+  this.client_ = new grpc.web.GrpcWebClientBase(options);
+
+  /**
+   * @private @const {string} The hostname
+   */
+  this.hostname_ = hostname;
+
+};
+
+
+/**
+ * @param {string} hostname
+ * @param {?Object} credentials
+ * @param {?Object} options
+ * @constructor
+ * @struct
+ * @final
+ */
+proto.bcdb.IdentityPromiseClient =
+    function(hostname, credentials, options) {
+  if (!options) options = {};
+  options['format'] = 'text';
+
+  /**
+   * @private @const {!grpc.web.GrpcWebClientBase} The client
+   */
+  this.client_ = new grpc.web.GrpcWebClientBase(options);
+
+  /**
+   * @private @const {string} The hostname
+   */
+  this.hostname_ = hostname;
+
+};
+
+
+/**
+ * @const
+ * @type {!grpc.web.MethodDescriptor<
+ *   !proto.bcdb.InfoRequest,
+ *   !proto.bcdb.InfoResponse>}
+ */
+const methodDescriptor_Identity_Info = new grpc.web.MethodDescriptor(
+  '/bcdb.Identity/Info',
+  grpc.web.MethodType.UNARY,
+  proto.bcdb.InfoRequest,
+  proto.bcdb.InfoResponse,
+  /**
+   * @param {!proto.bcdb.InfoRequest} request
+   * @return {!Uint8Array}
+   */
+  function(request) {
+    return request.serializeBinary();
+  },
+  proto.bcdb.InfoResponse.deserializeBinary
+);
+
+
+/**
+ * @const
+ * @type {!grpc.web.AbstractClientBase.MethodInfo<
+ *   !proto.bcdb.InfoRequest,
+ *   !proto.bcdb.InfoResponse>}
+ */
+const methodInfo_Identity_Info = new grpc.web.AbstractClientBase.MethodInfo(
+  proto.bcdb.InfoResponse,
+  /**
+   * @param {!proto.bcdb.InfoRequest} request
+   * @return {!Uint8Array}
+   */
+  function(request) {
+    return request.serializeBinary();
+  },
+  proto.bcdb.InfoResponse.deserializeBinary
+);
+
+
+/**
+ * @param {!proto.bcdb.InfoRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
+ *     call metadata
+ * @param {function(?grpc.web.Error, ?proto.bcdb.InfoResponse)}
+ *     callback The callback function(error, response)
+ * @return {!grpc.web.ClientReadableStream<!proto.bcdb.InfoResponse>|undefined}
+ *     The XHR Node Readable Stream
+ */
+proto.bcdb.IdentityClient.prototype.info =
+    function(request, metadata, callback) {
+  return this.client_.rpcCall(this.hostname_ +
+      '/bcdb.Identity/Info',
+      request,
+      metadata || {},
+      methodDescriptor_Identity_Info,
+      callback);
+};
+
+
+/**
+ * @param {!proto.bcdb.InfoRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
+ *     call metadata
+ * @return {!Promise<!proto.bcdb.InfoResponse>}
+ *     A native promise that resolves to the response
+ */
+proto.bcdb.IdentityPromiseClient.prototype.info =
+    function(request, metadata) {
+  return this.client_.unaryCall(this.hostname_ +
+      '/bcdb.Identity/Info',
+      request,
+      metadata || {},
+      methodDescriptor_Identity_Info);
+};
+
+
+/**
+ * @const
+ * @type {!grpc.web.MethodDescriptor<
+ *   !proto.bcdb.SignRequest,
+ *   !proto.bcdb.SignResponse>}
+ */
+const methodDescriptor_Identity_Sign = new grpc.web.MethodDescriptor(
+  '/bcdb.Identity/Sign',
+  grpc.web.MethodType.UNARY,
+  proto.bcdb.SignRequest,
+  proto.bcdb.SignResponse,
+  /**
+   * @param {!proto.bcdb.SignRequest} request
+   * @return {!Uint8Array}
+   */
+  function(request) {
+    return request.serializeBinary();
+  },
+  proto.bcdb.SignResponse.deserializeBinary
+);
+
+
+/**
+ * @const
+ * @type {!grpc.web.AbstractClientBase.MethodInfo<
+ *   !proto.bcdb.SignRequest,
+ *   !proto.bcdb.SignResponse>}
+ */
+const methodInfo_Identity_Sign = new grpc.web.AbstractClientBase.MethodInfo(
+  proto.bcdb.SignResponse,
+  /**
+   * @param {!proto.bcdb.SignRequest} request
+   * @return {!Uint8Array}
+   */
+  function(request) {
+    return request.serializeBinary();
+  },
+  proto.bcdb.SignResponse.deserializeBinary
+);
+
+
+/**
+ * @param {!proto.bcdb.SignRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
+ *     call metadata
+ * @param {function(?grpc.web.Error, ?proto.bcdb.SignResponse)}
+ *     callback The callback function(error, response)
+ * @return {!grpc.web.ClientReadableStream<!proto.bcdb.SignResponse>|undefined}
+ *     The XHR Node Readable Stream
+ */
+proto.bcdb.IdentityClient.prototype.sign =
+    function(request, metadata, callback) {
+  return this.client_.rpcCall(this.hostname_ +
+      '/bcdb.Identity/Sign',
+      request,
+      metadata || {},
+      methodDescriptor_Identity_Sign,
+      callback);
+};
+
+
+/**
+ * @param {!proto.bcdb.SignRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
+ *     call metadata
+ * @return {!Promise<!proto.bcdb.SignResponse>}
+ *     A native promise that resolves to the response
+ */
+proto.bcdb.IdentityPromiseClient.prototype.sign =
+    function(request, metadata) {
+  return this.client_.unaryCall(this.hostname_ +
+      '/bcdb.Identity/Sign',
+      request,
+      metadata || {},
+      methodDescriptor_Identity_Sign);
 };
 
 

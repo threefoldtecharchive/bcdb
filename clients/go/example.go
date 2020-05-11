@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"os"
 
 	"time"
 
@@ -26,6 +29,26 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	identity := bcdb.NewIdentityClient(client)
+	signed, err := identity.Sign(context.Background(), &bcdb.SignRequest{
+		Message: []byte("hello world"),
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(signed.Identity.GetId(), signed.Identity.GetKey())
+	key, err := hex.DecodeString(signed.Identity.GetKey())
+	if err != nil {
+		panic(err)
+	}
+	pk := ed25519.PublicKey(key)
+	fmt.Println("valid:", ed25519.Verify(pk, []byte("hello world"), signed.Signature))
+
+	//signed.Signature
+	os.Exit(0)
 
 	cl := bcdb.NewBCDBClient(client)
 

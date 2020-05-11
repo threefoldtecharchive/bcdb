@@ -623,6 +623,84 @@ func (m *FindResponse) GetMetadata() *Metadata {
 	return nil
 }
 
+type DeleteRequest struct {
+	Id                   uint32   `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Collection           string   `protobuf:"bytes,2,opt,name=collection,proto3" json:"collection,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *DeleteRequest) Reset()         { *m = DeleteRequest{} }
+func (m *DeleteRequest) String() string { return proto.CompactTextString(m) }
+func (*DeleteRequest) ProtoMessage()    {}
+func (*DeleteRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{12}
+}
+
+func (m *DeleteRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeleteRequest.Unmarshal(m, b)
+}
+func (m *DeleteRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeleteRequest.Marshal(b, m, deterministic)
+}
+func (m *DeleteRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteRequest.Merge(m, src)
+}
+func (m *DeleteRequest) XXX_Size() int {
+	return xxx_messageInfo_DeleteRequest.Size(m)
+}
+func (m *DeleteRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteRequest proto.InternalMessageInfo
+
+func (m *DeleteRequest) GetId() uint32 {
+	if m != nil {
+		return m.Id
+	}
+	return 0
+}
+
+func (m *DeleteRequest) GetCollection() string {
+	if m != nil {
+		return m.Collection
+	}
+	return ""
+}
+
+type DeleteResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *DeleteResponse) Reset()         { *m = DeleteResponse{} }
+func (m *DeleteResponse) String() string { return proto.CompactTextString(m) }
+func (*DeleteResponse) ProtoMessage()    {}
+func (*DeleteResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{13}
+}
+
+func (m *DeleteResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeleteResponse.Unmarshal(m, b)
+}
+func (m *DeleteResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeleteResponse.Marshal(b, m, deterministic)
+}
+func (m *DeleteResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteResponse.Merge(m, src)
+}
+func (m *DeleteResponse) XXX_Size() int {
+	return xxx_messageInfo_DeleteResponse.Size(m)
+}
+func (m *DeleteResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteResponse proto.InternalMessageInfo
+
 type ACL struct {
 	Perm                 string   `protobuf:"bytes,1,opt,name=perm,proto3" json:"perm,omitempty"`
 	Users                []uint64 `protobuf:"varint,2,rep,packed,name=users,proto3" json:"users,omitempty"`
@@ -635,7 +713,7 @@ func (m *ACL) Reset()         { *m = ACL{} }
 func (m *ACL) String() string { return proto.CompactTextString(m) }
 func (*ACL) ProtoMessage()    {}
 func (*ACL) Descriptor() ([]byte, []int) {
-	return fileDescriptor_41b705b2a83eae7f, []int{12}
+	return fileDescriptor_41b705b2a83eae7f, []int{14}
 }
 
 func (m *ACL) XXX_Unmarshal(b []byte) error {
@@ -681,7 +759,7 @@ func (m *ACLGetRequest) Reset()         { *m = ACLGetRequest{} }
 func (m *ACLGetRequest) String() string { return proto.CompactTextString(m) }
 func (*ACLGetRequest) ProtoMessage()    {}
 func (*ACLGetRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_41b705b2a83eae7f, []int{13}
+	return fileDescriptor_41b705b2a83eae7f, []int{15}
 }
 
 func (m *ACLGetRequest) XXX_Unmarshal(b []byte) error {
@@ -720,7 +798,7 @@ func (m *ACLGetResponse) Reset()         { *m = ACLGetResponse{} }
 func (m *ACLGetResponse) String() string { return proto.CompactTextString(m) }
 func (*ACLGetResponse) ProtoMessage()    {}
 func (*ACLGetResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_41b705b2a83eae7f, []int{14}
+	return fileDescriptor_41b705b2a83eae7f, []int{16}
 }
 
 func (m *ACLGetResponse) XXX_Unmarshal(b []byte) error {
@@ -759,7 +837,7 @@ func (m *ACLCreateRequest) Reset()         { *m = ACLCreateRequest{} }
 func (m *ACLCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*ACLCreateRequest) ProtoMessage()    {}
 func (*ACLCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_41b705b2a83eae7f, []int{15}
+	return fileDescriptor_41b705b2a83eae7f, []int{17}
 }
 
 func (m *ACLCreateRequest) XXX_Unmarshal(b []byte) error {
@@ -798,7 +876,7 @@ func (m *ACLCreateResponse) Reset()         { *m = ACLCreateResponse{} }
 func (m *ACLCreateResponse) String() string { return proto.CompactTextString(m) }
 func (*ACLCreateResponse) ProtoMessage()    {}
 func (*ACLCreateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_41b705b2a83eae7f, []int{16}
+	return fileDescriptor_41b705b2a83eae7f, []int{18}
 }
 
 func (m *ACLCreateResponse) XXX_Unmarshal(b []byte) error {
@@ -836,7 +914,7 @@ func (m *ACLListRequest) Reset()         { *m = ACLListRequest{} }
 func (m *ACLListRequest) String() string { return proto.CompactTextString(m) }
 func (*ACLListRequest) ProtoMessage()    {}
 func (*ACLListRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_41b705b2a83eae7f, []int{17}
+	return fileDescriptor_41b705b2a83eae7f, []int{19}
 }
 
 func (m *ACLListRequest) XXX_Unmarshal(b []byte) error {
@@ -869,7 +947,7 @@ func (m *ACLListResponse) Reset()         { *m = ACLListResponse{} }
 func (m *ACLListResponse) String() string { return proto.CompactTextString(m) }
 func (*ACLListResponse) ProtoMessage()    {}
 func (*ACLListResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_41b705b2a83eae7f, []int{18}
+	return fileDescriptor_41b705b2a83eae7f, []int{20}
 }
 
 func (m *ACLListResponse) XXX_Unmarshal(b []byte) error {
@@ -916,7 +994,7 @@ func (m *ACLSetRequest) Reset()         { *m = ACLSetRequest{} }
 func (m *ACLSetRequest) String() string { return proto.CompactTextString(m) }
 func (*ACLSetRequest) ProtoMessage()    {}
 func (*ACLSetRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_41b705b2a83eae7f, []int{19}
+	return fileDescriptor_41b705b2a83eae7f, []int{21}
 }
 
 func (m *ACLSetRequest) XXX_Unmarshal(b []byte) error {
@@ -961,7 +1039,7 @@ func (m *ACLSetResponse) Reset()         { *m = ACLSetResponse{} }
 func (m *ACLSetResponse) String() string { return proto.CompactTextString(m) }
 func (*ACLSetResponse) ProtoMessage()    {}
 func (*ACLSetResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_41b705b2a83eae7f, []int{20}
+	return fileDescriptor_41b705b2a83eae7f, []int{22}
 }
 
 func (m *ACLSetResponse) XXX_Unmarshal(b []byte) error {
@@ -994,7 +1072,7 @@ func (m *ACLUsersRequest) Reset()         { *m = ACLUsersRequest{} }
 func (m *ACLUsersRequest) String() string { return proto.CompactTextString(m) }
 func (*ACLUsersRequest) ProtoMessage()    {}
 func (*ACLUsersRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_41b705b2a83eae7f, []int{21}
+	return fileDescriptor_41b705b2a83eae7f, []int{23}
 }
 
 func (m *ACLUsersRequest) XXX_Unmarshal(b []byte) error {
@@ -1040,7 +1118,7 @@ func (m *ACLUsersResponse) Reset()         { *m = ACLUsersResponse{} }
 func (m *ACLUsersResponse) String() string { return proto.CompactTextString(m) }
 func (*ACLUsersResponse) ProtoMessage()    {}
 func (*ACLUsersResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_41b705b2a83eae7f, []int{22}
+	return fileDescriptor_41b705b2a83eae7f, []int{24}
 }
 
 func (m *ACLUsersResponse) XXX_Unmarshal(b []byte) error {
@@ -1068,6 +1146,211 @@ func (m *ACLUsersResponse) GetUpdated() uint64 {
 	return 0
 }
 
+type IdentityInfo struct {
+	// id is 3bot id for this server
+	Id uint32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// key is the public key of this server
+	Key                  string   `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *IdentityInfo) Reset()         { *m = IdentityInfo{} }
+func (m *IdentityInfo) String() string { return proto.CompactTextString(m) }
+func (*IdentityInfo) ProtoMessage()    {}
+func (*IdentityInfo) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{25}
+}
+
+func (m *IdentityInfo) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_IdentityInfo.Unmarshal(m, b)
+}
+func (m *IdentityInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_IdentityInfo.Marshal(b, m, deterministic)
+}
+func (m *IdentityInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_IdentityInfo.Merge(m, src)
+}
+func (m *IdentityInfo) XXX_Size() int {
+	return xxx_messageInfo_IdentityInfo.Size(m)
+}
+func (m *IdentityInfo) XXX_DiscardUnknown() {
+	xxx_messageInfo_IdentityInfo.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_IdentityInfo proto.InternalMessageInfo
+
+func (m *IdentityInfo) GetId() uint32 {
+	if m != nil {
+		return m.Id
+	}
+	return 0
+}
+
+func (m *IdentityInfo) GetKey() string {
+	if m != nil {
+		return m.Key
+	}
+	return ""
+}
+
+type InfoRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *InfoRequest) Reset()         { *m = InfoRequest{} }
+func (m *InfoRequest) String() string { return proto.CompactTextString(m) }
+func (*InfoRequest) ProtoMessage()    {}
+func (*InfoRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{26}
+}
+
+func (m *InfoRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_InfoRequest.Unmarshal(m, b)
+}
+func (m *InfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_InfoRequest.Marshal(b, m, deterministic)
+}
+func (m *InfoRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InfoRequest.Merge(m, src)
+}
+func (m *InfoRequest) XXX_Size() int {
+	return xxx_messageInfo_InfoRequest.Size(m)
+}
+func (m *InfoRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_InfoRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_InfoRequest proto.InternalMessageInfo
+
+type InfoResponse struct {
+	Identity             *IdentityInfo `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
+}
+
+func (m *InfoResponse) Reset()         { *m = InfoResponse{} }
+func (m *InfoResponse) String() string { return proto.CompactTextString(m) }
+func (*InfoResponse) ProtoMessage()    {}
+func (*InfoResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{27}
+}
+
+func (m *InfoResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_InfoResponse.Unmarshal(m, b)
+}
+func (m *InfoResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_InfoResponse.Marshal(b, m, deterministic)
+}
+func (m *InfoResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InfoResponse.Merge(m, src)
+}
+func (m *InfoResponse) XXX_Size() int {
+	return xxx_messageInfo_InfoResponse.Size(m)
+}
+func (m *InfoResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_InfoResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_InfoResponse proto.InternalMessageInfo
+
+func (m *InfoResponse) GetIdentity() *IdentityInfo {
+	if m != nil {
+		return m.Identity
+	}
+	return nil
+}
+
+type SignRequest struct {
+	Message              []byte   `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *SignRequest) Reset()         { *m = SignRequest{} }
+func (m *SignRequest) String() string { return proto.CompactTextString(m) }
+func (*SignRequest) ProtoMessage()    {}
+func (*SignRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{28}
+}
+
+func (m *SignRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SignRequest.Unmarshal(m, b)
+}
+func (m *SignRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SignRequest.Marshal(b, m, deterministic)
+}
+func (m *SignRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SignRequest.Merge(m, src)
+}
+func (m *SignRequest) XXX_Size() int {
+	return xxx_messageInfo_SignRequest.Size(m)
+}
+func (m *SignRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SignRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SignRequest proto.InternalMessageInfo
+
+func (m *SignRequest) GetMessage() []byte {
+	if m != nil {
+		return m.Message
+	}
+	return nil
+}
+
+type SignResponse struct {
+	Identity             *IdentityInfo `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	Signature            []byte        `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
+}
+
+func (m *SignResponse) Reset()         { *m = SignResponse{} }
+func (m *SignResponse) String() string { return proto.CompactTextString(m) }
+func (*SignResponse) ProtoMessage()    {}
+func (*SignResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_41b705b2a83eae7f, []int{29}
+}
+
+func (m *SignResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SignResponse.Unmarshal(m, b)
+}
+func (m *SignResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SignResponse.Marshal(b, m, deterministic)
+}
+func (m *SignResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SignResponse.Merge(m, src)
+}
+func (m *SignResponse) XXX_Size() int {
+	return xxx_messageInfo_SignResponse.Size(m)
+}
+func (m *SignResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SignResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SignResponse proto.InternalMessageInfo
+
+func (m *SignResponse) GetIdentity() *IdentityInfo {
+	if m != nil {
+		return m.Identity
+	}
+	return nil
+}
+
+func (m *SignResponse) GetSignature() []byte {
+	if m != nil {
+		return m.Signature
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*Tag)(nil), "bcdb.Tag")
 	proto.RegisterType((*AclRef)(nil), "bcdb.AclRef")
@@ -1082,6 +1365,8 @@ func init() {
 	proto.RegisterType((*QueryRequest)(nil), "bcdb.QueryRequest")
 	proto.RegisterType((*ListResponse)(nil), "bcdb.ListResponse")
 	proto.RegisterType((*FindResponse)(nil), "bcdb.FindResponse")
+	proto.RegisterType((*DeleteRequest)(nil), "bcdb.DeleteRequest")
+	proto.RegisterType((*DeleteResponse)(nil), "bcdb.DeleteResponse")
 	proto.RegisterType((*ACL)(nil), "bcdb.ACL")
 	proto.RegisterType((*ACLGetRequest)(nil), "bcdb.ACLGetRequest")
 	proto.RegisterType((*ACLGetResponse)(nil), "bcdb.ACLGetResponse")
@@ -1093,6 +1378,11 @@ func init() {
 	proto.RegisterType((*ACLSetResponse)(nil), "bcdb.ACLSetResponse")
 	proto.RegisterType((*ACLUsersRequest)(nil), "bcdb.ACLUsersRequest")
 	proto.RegisterType((*ACLUsersResponse)(nil), "bcdb.ACLUsersResponse")
+	proto.RegisterType((*IdentityInfo)(nil), "bcdb.IdentityInfo")
+	proto.RegisterType((*InfoRequest)(nil), "bcdb.InfoRequest")
+	proto.RegisterType((*InfoResponse)(nil), "bcdb.InfoResponse")
+	proto.RegisterType((*SignRequest)(nil), "bcdb.SignRequest")
+	proto.RegisterType((*SignResponse)(nil), "bcdb.SignResponse")
 }
 
 func init() {
@@ -1100,49 +1390,58 @@ func init() {
 }
 
 var fileDescriptor_41b705b2a83eae7f = []byte{
-	// 658 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x55, 0xd9, 0x6a, 0xdb, 0x4c,
-	0x14, 0x8e, 0x96, 0xf8, 0x4f, 0x8e, 0x97, 0xdf, 0x99, 0xa4, 0xa9, 0x51, 0x89, 0x71, 0x07, 0x0a,
-	0xa1, 0x64, 0x29, 0x2a, 0xa1, 0x0d, 0xed, 0x45, 0x15, 0x85, 0x0a, 0x8a, 0x7c, 0x51, 0x39, 0x79,
-	0x00, 0x59, 0x9a, 0x1a, 0x11, 0xc5, 0x72, 0x25, 0x39, 0x90, 0xcb, 0x3e, 0x4a, 0xdf, 0xaa, 0x8f,
-	0x53, 0x66, 0x91, 0x34, 0xf2, 0x16, 0x42, 0xef, 0x66, 0xce, 0x9c, 0xef, 0x9c, 0xef, 0x3b, 0x8b,
-	0x04, 0x30, 0x0e, 0xc2, 0xf1, 0xd9, 0x2c, 0x4d, 0xf2, 0x04, 0xe9, 0xf4, 0x8c, 0x4f, 0x41, 0xbb,
-	0xf1, 0x27, 0xa8, 0x0b, 0xda, 0x1d, 0x79, 0xec, 0x29, 0x03, 0xe5, 0x78, 0xd7, 0xa3, 0x47, 0x74,
-	0x00, 0xdb, 0x0f, 0x7e, 0x3c, 0x27, 0x3d, 0x95, 0xd9, 0xf8, 0x05, 0x1b, 0xd0, 0xb0, 0x82, 0xd8,
-	0x23, 0x3f, 0x28, 0xc2, 0x0f, 0x62, 0x86, 0xd0, 0x3d, 0x7a, 0xc4, 0x11, 0xec, 0x0c, 0x49, 0xee,
-	0x87, 0x7e, 0xee, 0xa3, 0x23, 0xd0, 0x73, 0x7f, 0x92, 0xf5, 0x94, 0x81, 0x76, 0xdc, 0x34, 0x77,
-	0xcf, 0x58, 0xde, 0x1b, 0x7f, 0xe2, 0x31, 0x33, 0xea, 0x03, 0x04, 0x49, 0x1c, 0x93, 0x20, 0x8f,
-	0x92, 0xa9, 0xc8, 0x20, 0x59, 0x50, 0x9f, 0x07, 0xd7, 0x06, 0xca, 0x71, 0xd3, 0x6c, 0x71, 0x34,
-	0xcf, 0xcb, 0x53, 0xb9, 0x00, 0x23, 0x92, 0x7b, 0xe4, 0xe7, 0x9c, 0x64, 0x39, 0x7a, 0x0b, 0x3b,
-	0xf7, 0x22, 0x31, 0xe3, 0xd3, 0x34, 0x3b, 0x1c, 0x52, 0xd0, 0xf1, 0xca, 0x77, 0x84, 0x40, 0x67,
-	0x7e, 0x34, 0x67, 0xcb, 0x63, 0x67, 0x7c, 0x04, 0x4d, 0x16, 0x2d, 0x9b, 0x25, 0xd3, 0x8c, 0xa0,
-	0x0e, 0xa8, 0x51, 0xc8, 0x02, 0xb5, 0x3d, 0x35, 0x0a, 0xf1, 0x67, 0x00, 0xa7, 0x4a, 0xb6, 0xf0,
-	0xfa, 0x94, 0x14, 0x3c, 0x84, 0xa6, 0x23, 0x05, 0xff, 0x57, 0xae, 0xbf, 0x15, 0x68, 0xdf, 0xce,
-	0x42, 0x3f, 0x27, 0xeb, 0x08, 0xc9, 0x19, 0xd4, 0x27, 0x32, 0x98, 0x22, 0x03, 0x2f, 0x74, 0x9f,
-	0xfb, 0xd5, 0xc2, 0x8b, 0xdb, 0x35, 0xc5, 0x31, 0x5f, 0x63, 0x00, 0x50, 0xd9, 0x4a, 0x8e, 0x8a,
-	0xc4, 0xb1, 0x0b, 0x9d, 0x22, 0x06, 0x57, 0x8d, 0x87, 0xd0, 0xfa, 0x3e, 0x27, 0xe9, 0x63, 0xc1,
-	0xb9, 0x5e, 0x34, 0x65, 0xa9, 0xff, 0xc5, 0xf8, 0xa8, 0x2b, 0xc7, 0x07, 0xf7, 0xa1, 0xe5, 0x46,
-	0xd9, 0xfa, 0x8e, 0x7d, 0x83, 0xd6, 0xd7, 0x68, 0x1a, 0xae, 0x7b, 0x7f, 0x4e, 0x89, 0xf0, 0x39,
-	0x68, 0x96, 0xed, 0x52, 0x9d, 0x33, 0x92, 0xde, 0x0b, 0xae, 0xec, 0x4c, 0x57, 0x64, 0x9e, 0x91,
-	0x94, 0xd3, 0xd4, 0x3d, 0x7e, 0xc1, 0xaf, 0xa1, 0x6d, 0xd9, 0xae, 0x34, 0x31, 0xd2, 0x6e, 0xb5,
-	0xd9, 0x6e, 0xe1, 0x53, 0xe8, 0x14, 0x2e, 0x82, 0xe1, 0xab, 0x6a, 0x9b, 0x4a, 0xbd, 0x96, 0xed,
-	0xf2, 0x69, 0x3f, 0x87, 0xae, 0x65, 0xbb, 0x76, 0x4a, 0xa4, 0xae, 0x6f, 0x04, 0xbc, 0x81, 0x3d,
-	0x09, 0x20, 0x52, 0x2c, 0xd3, 0xe8, 0x32, 0x1a, 0xbc, 0x92, 0x2c, 0x2a, 0xfe, 0x02, 0xff, 0x97,
-	0x96, 0x75, 0xb0, 0x22, 0xb5, 0xba, 0x32, 0xf5, 0x05, 0x53, 0x3f, 0xda, 0xa0, 0xbe, 0x2c, 0xa5,
-	0x5a, 0x95, 0x52, 0x50, 0x91, 0xb6, 0x10, 0x5f, 0x32, 0x2a, 0xb7, 0xb4, 0xa4, 0xeb, 0x43, 0xad,
-	0xee, 0xc0, 0x09, 0xab, 0x97, 0x80, 0x0a, 0x19, 0x3d, 0xf8, 0x6f, 0xce, 0x66, 0x32, 0x14, 0x9f,
-	0xac, 0xe2, 0x6a, 0xfe, 0x52, 0x41, 0xbf, 0xb2, 0xaf, 0xaf, 0xd0, 0x09, 0x68, 0x23, 0x92, 0xa3,
-	0x2e, 0x57, 0x54, 0x49, 0x30, 0xf6, 0x24, 0x8b, 0x60, 0xb7, 0x45, 0xbd, 0x9d, 0xca, 0xdb, 0x59,
-	0xf2, 0x76, 0x6a, 0xde, 0x17, 0xd0, 0xe0, 0x2b, 0x81, 0xf6, 0x57, 0x2c, 0x99, 0x71, 0x50, 0x37,
-	0x96, 0x30, 0x13, 0x74, 0xda, 0x0c, 0x84, 0xf8, 0xbb, 0xbc, 0x43, 0x86, 0xb0, 0xc9, 0xcd, 0xc2,
-	0x5b, 0xef, 0x14, 0x8a, 0xa1, 0xc3, 0xbf, 0x09, 0x23, 0x2f, 0x07, 0xc5, 0x98, 0x7f, 0x54, 0xd0,
-	0xac, 0x20, 0x46, 0x26, 0x17, 0xb5, 0x5f, 0x36, 0x55, 0xd2, 0x75, 0x50, 0x37, 0x96, 0x1c, 0x3f,
-	0x41, 0x83, 0x4f, 0x1a, 0x3a, 0x2c, 0x3d, 0x6a, 0xb3, 0x6a, 0xbc, 0x5c, 0xb2, 0x97, 0xe0, 0x0f,
-	0x42, 0x60, 0x15, 0x5c, 0x1a, 0x47, 0xe3, 0xc5, 0x82, 0xb5, 0xa6, 0x92, 0x35, 0xab, 0x62, 0x3a,
-	0x5a, 0xc5, 0xb4, 0xde, 0xb2, 0x8f, 0xb0, 0xed, 0xa4, 0xfe, 0x34, 0x47, 0x55, 0x5c, 0x79, 0xbe,
-	0x8c, 0xc3, 0x45, 0x73, 0x89, 0xbc, 0x84, 0x86, 0x47, 0x1e, 0x92, 0x3b, 0xf2, 0x6c, 0xe8, 0xb8,
-	0xc1, 0xfe, 0xb6, 0xef, 0xff, 0x06, 0x00, 0x00, 0xff, 0xff, 0x8e, 0x57, 0xcb, 0x16, 0x7b, 0x07,
-	0x00, 0x00,
+	// 816 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x56, 0xdb, 0x4e, 0xdb, 0x5a,
+	0x10, 0x8d, 0x1d, 0x13, 0xc2, 0xc4, 0xc9, 0x09, 0x1b, 0x0e, 0x27, 0xf2, 0x29, 0x51, 0xba, 0xa5,
+	0xaa, 0xa8, 0xe2, 0x26, 0x57, 0xa8, 0x45, 0xad, 0xda, 0x86, 0xa0, 0x46, 0x54, 0xe1, 0xa1, 0x0e,
+	0xbc, 0xf5, 0xc5, 0xc4, 0x9b, 0xc8, 0xc2, 0xd8, 0xa9, 0xed, 0x20, 0xf1, 0x39, 0xfd, 0x8b, 0x7e,
+	0x4a, 0x3f, 0xa7, 0xda, 0x37, 0x7b, 0x3b, 0x17, 0x10, 0xed, 0x9b, 0xf7, 0x64, 0xd6, 0x5c, 0xd6,
+	0xcc, 0x1a, 0x05, 0xe0, 0x6a, 0xe4, 0x5d, 0xed, 0x4f, 0xe2, 0x28, 0x8d, 0x90, 0x41, 0xbf, 0xf1,
+	0x1e, 0x94, 0x2f, 0xdc, 0x31, 0x6a, 0x42, 0xf9, 0x86, 0xdc, 0xb7, 0xb4, 0x8e, 0xb6, 0xb3, 0xe6,
+	0xd0, 0x4f, 0xb4, 0x09, 0x2b, 0x77, 0x6e, 0x30, 0x25, 0x2d, 0x9d, 0xd9, 0xf8, 0x03, 0x5b, 0x50,
+	0xe9, 0x8e, 0x02, 0x87, 0x5c, 0x53, 0x84, 0x3b, 0x0a, 0x18, 0xc2, 0x70, 0xe8, 0x27, 0xf6, 0xa1,
+	0x7a, 0x4e, 0x52, 0xd7, 0x73, 0x53, 0x17, 0x6d, 0x83, 0x91, 0xba, 0xe3, 0xa4, 0xa5, 0x75, 0xca,
+	0x3b, 0x35, 0x7b, 0x6d, 0x9f, 0xe5, 0xbd, 0x70, 0xc7, 0x0e, 0x33, 0xa3, 0x36, 0xc0, 0x28, 0x0a,
+	0x02, 0x32, 0x4a, 0xfd, 0x28, 0x14, 0x19, 0x14, 0x0b, 0x6a, 0xf3, 0xe0, 0xe5, 0x8e, 0xb6, 0x53,
+	0xb3, 0x4d, 0x8e, 0xe6, 0x79, 0x79, 0xaa, 0x01, 0xc0, 0x90, 0xa4, 0x0e, 0xf9, 0x3e, 0x25, 0x49,
+	0x8a, 0x5e, 0x41, 0xf5, 0x56, 0x24, 0x66, 0xf5, 0xd4, 0xec, 0x06, 0x87, 0xc8, 0x72, 0x9c, 0xec,
+	0x77, 0x84, 0xc0, 0x60, 0x7e, 0x34, 0xa7, 0xe9, 0xb0, 0x6f, 0xbc, 0x0d, 0x35, 0x16, 0x2d, 0x99,
+	0x44, 0x61, 0x42, 0x50, 0x03, 0x74, 0xdf, 0x63, 0x81, 0xea, 0x8e, 0xee, 0x7b, 0xf8, 0x3d, 0x40,
+	0x3f, 0x4f, 0x36, 0xf3, 0xeb, 0x63, 0xad, 0xe0, 0x73, 0xa8, 0xf5, 0x95, 0xe0, 0x7f, 0x5b, 0xeb,
+	0x0f, 0x0d, 0xea, 0x97, 0x13, 0xcf, 0x4d, 0xc9, 0xb2, 0x82, 0xd4, 0x0c, 0xfa, 0x23, 0x19, 0x6c,
+	0x91, 0x81, 0x13, 0xdd, 0xe6, 0x7e, 0x85, 0xf0, 0xe2, 0x75, 0x4a, 0x71, 0xcc, 0xd7, 0xea, 0x00,
+	0xe4, 0xb6, 0xac, 0x46, 0x4d, 0xa9, 0xb1, 0x09, 0x0d, 0x19, 0x83, 0x77, 0x8d, 0xcf, 0xc1, 0xfc,
+	0x3a, 0x25, 0xf1, 0xbd, 0xac, 0xb9, 0x48, 0x9a, 0x36, 0x37, 0x7f, 0xb9, 0x3e, 0xfa, 0xc2, 0xf5,
+	0xc1, 0x6d, 0x30, 0x07, 0x7e, 0xb2, 0x7c, 0x62, 0x5f, 0xc0, 0xfc, 0xec, 0x87, 0xde, 0xb2, 0xdf,
+	0x9f, 0x42, 0x11, 0xfe, 0x08, 0xf5, 0x53, 0x12, 0x90, 0xe5, 0x7c, 0x3f, 0xb6, 0x00, 0x4d, 0x68,
+	0xc8, 0x00, 0x82, 0x8d, 0x03, 0x28, 0x77, 0x7b, 0x03, 0x4a, 0xdd, 0x84, 0xc4, 0xb7, 0xa2, 0x7d,
+	0xf6, 0x4d, 0x55, 0x37, 0x4d, 0x48, 0xcc, 0x3b, 0x37, 0x1c, 0xfe, 0xc0, 0xcf, 0xa1, 0xde, 0xed,
+	0x0d, 0x94, 0x25, 0x54, 0xe4, 0x5a, 0x67, 0x72, 0xc5, 0x7b, 0xd0, 0x90, 0x2e, 0xa2, 0xe9, 0xff,
+	0x73, 0x81, 0x66, 0x14, 0x76, 0x7b, 0x03, 0x2e, 0xa0, 0x03, 0x68, 0x76, 0x7b, 0x83, 0x5e, 0x4c,
+	0x94, 0x45, 0x7a, 0x10, 0xf0, 0x02, 0xd6, 0x15, 0x80, 0x48, 0x31, 0x5f, 0x46, 0x93, 0x95, 0xc1,
+	0x87, 0xc3, 0xa2, 0xe2, 0x4f, 0xf0, 0x4f, 0x66, 0x59, 0x06, 0x93, 0xa9, 0xf5, 0x85, 0xa9, 0x8f,
+	0x58, 0xf7, 0xc3, 0x07, 0xba, 0xcf, 0xa8, 0xd4, 0x73, 0x2a, 0x45, 0x29, 0x8a, 0xb0, 0xf1, 0x31,
+	0x2b, 0xe5, 0x92, 0x52, 0xba, 0x3c, 0xd4, 0xe2, 0x09, 0xec, 0x32, 0xbe, 0x04, 0x54, 0xb4, 0xd1,
+	0x82, 0xd5, 0x29, 0x5b, 0x73, 0x4f, 0x5c, 0x41, 0xf9, 0xc4, 0x87, 0x60, 0x9e, 0x79, 0x24, 0x4c,
+	0xfd, 0xf4, 0xfe, 0x2c, 0xbc, 0x8e, 0xe6, 0x56, 0x46, 0x64, 0xd5, 0xb3, 0x6b, 0x8b, 0xeb, 0x50,
+	0xa3, 0x9e, 0x92, 0xb4, 0x0f, 0x60, 0xf2, 0xa7, 0x48, 0xb5, 0x0f, 0x55, 0x5f, 0x04, 0x14, 0xf3,
+	0x41, 0x9c, 0x24, 0x35, 0x8d, 0x93, 0xf9, 0xe0, 0x97, 0x50, 0x1b, 0xfa, 0xe3, 0x50, 0x76, 0xd9,
+	0x82, 0xd5, 0x5b, 0x92, 0x24, 0xee, 0x98, 0x08, 0x9d, 0xca, 0x27, 0xfe, 0x06, 0x26, 0x77, 0xfc,
+	0xb3, 0x44, 0xe8, 0x19, 0xac, 0x25, 0xfe, 0x38, 0x74, 0xd3, 0x69, 0x4c, 0xc4, 0x9d, 0xca, 0x0d,
+	0xf6, 0x4f, 0x1d, 0x8c, 0x93, 0xde, 0xe9, 0x09, 0xda, 0x85, 0xf2, 0x90, 0xa4, 0xa8, 0xc9, 0x63,
+	0xe5, 0xa3, 0xb4, 0xd6, 0x15, 0x8b, 0x98, 0x52, 0x89, 0x7a, 0xf7, 0x73, 0xef, 0xfe, 0x9c, 0x77,
+	0xbf, 0xe0, 0x7d, 0x04, 0x15, 0x7e, 0x6d, 0xd0, 0xc6, 0x82, 0xfb, 0x65, 0x6d, 0x16, 0x8d, 0x19,
+	0xcc, 0x06, 0x83, 0x2e, 0x25, 0x12, 0xfd, 0xa9, 0xe7, 0xc9, 0x12, 0x36, 0x75, 0x69, 0x71, 0xe9,
+	0x50, 0xa3, 0x18, 0x7a, 0x57, 0x1e, 0xc2, 0xa8, 0x77, 0x87, 0x61, 0x8e, 0xa0, 0xc2, 0xe5, 0x2f,
+	0xcb, 0x2b, 0x5c, 0x13, 0x59, 0xde, 0xcc, 0x85, 0x28, 0xd9, 0xbf, 0x74, 0x28, 0x77, 0x47, 0x01,
+	0xb2, 0x39, 0x17, 0x1b, 0x99, 0x26, 0x14, 0x3a, 0x36, 0x8b, 0xc6, 0xac, 0xb5, 0x77, 0x50, 0xe1,
+	0x42, 0x45, 0x5b, 0x99, 0x47, 0x41, 0xea, 0xd6, 0x7f, 0x73, 0xf6, 0x0c, 0xfc, 0x46, 0xf0, 0x92,
+	0x07, 0x57, 0xd4, 0x6c, 0xfd, 0x3b, 0x63, 0x2d, 0x90, 0xc3, 0x66, 0x9c, 0x57, 0x3a, 0x5c, 0x54,
+	0x69, 0x71, 0xd2, 0x6f, 0x61, 0xa5, 0x1f, 0xbb, 0x61, 0x8a, 0xf2, 0xb8, 0xaa, 0x3c, 0xad, 0xad,
+	0x59, 0x73, 0x86, 0x3c, 0x86, 0x8a, 0x43, 0xee, 0xa2, 0x1b, 0xf2, 0x64, 0xa8, 0x1d, 0x40, 0x55,
+	0x6e, 0x33, 0x3a, 0x00, 0x83, 0x29, 0x54, 0x6c, 0x96, 0xa2, 0x41, 0x39, 0x50, 0x55, 0x87, 0xb8,
+	0x44, 0x01, 0x54, 0x30, 0x12, 0xa0, 0xa8, 0x4c, 0x02, 0x54, 0x3d, 0xe1, 0xd2, 0x55, 0x85, 0xfd,
+	0xdb, 0x7a, 0xfd, 0x3b, 0x00, 0x00, 0xff, 0xff, 0x12, 0x48, 0x5a, 0xd5, 0x7b, 0x09, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1167,6 +1466,7 @@ type BCDBClient interface {
 	List(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (BCDB_ListClient, error)
 	// Find like list but return full documents
 	Find(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (BCDB_FindClient, error)
+	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
 }
 
 type bCDBClient struct {
@@ -1268,6 +1568,15 @@ func (x *bCDBFindClient) Recv() (*FindResponse, error) {
 	return m, nil
 }
 
+func (c *bCDBClient) Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error) {
+	out := new(DeleteResponse)
+	err := c.cc.Invoke(ctx, "/bcdb.BCDB/Delete", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BCDBServer is the server API for BCDB service.
 type BCDBServer interface {
 	// Set stores a document and return a header
@@ -1280,6 +1589,7 @@ type BCDBServer interface {
 	List(*QueryRequest, BCDB_ListServer) error
 	// Find like list but return full documents
 	Find(*QueryRequest, BCDB_FindServer) error
+	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
 }
 
 // UnimplementedBCDBServer can be embedded to have forward compatible implementations.
@@ -1300,6 +1610,9 @@ func (*UnimplementedBCDBServer) List(req *QueryRequest, srv BCDB_ListServer) err
 }
 func (*UnimplementedBCDBServer) Find(req *QueryRequest, srv BCDB_FindServer) error {
 	return status.Errorf(codes.Unimplemented, "method Find not implemented")
+}
+func (*UnimplementedBCDBServer) Delete(ctx context.Context, req *DeleteRequest) (*DeleteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
 }
 
 func RegisterBCDBServer(s *grpc.Server, srv BCDBServer) {
@@ -1402,6 +1715,24 @@ func (x *bCDBFindServer) Send(m *FindResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _BCDB_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BCDBServer).Delete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/bcdb.BCDB/Delete",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BCDBServer).Delete(ctx, req.(*DeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _BCDB_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "bcdb.BCDB",
 	HandlerType: (*BCDBServer)(nil),
@@ -1417,6 +1748,10 @@ var _BCDB_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Update",
 			Handler:    _BCDB_Update_Handler,
+		},
+		{
+			MethodName: "Delete",
+			Handler:    _BCDB_Delete_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
@@ -1711,5 +2046,113 @@ var _Acl_serviceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
+	Metadata: "bcdb.proto",
+}
+
+// IdentityClient is the client API for Identity service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type IdentityClient interface {
+	Info(ctx context.Context, in *InfoRequest, opts ...grpc.CallOption) (*InfoResponse, error)
+	Sign(ctx context.Context, in *SignRequest, opts ...grpc.CallOption) (*SignResponse, error)
+}
+
+type identityClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewIdentityClient(cc grpc.ClientConnInterface) IdentityClient {
+	return &identityClient{cc}
+}
+
+func (c *identityClient) Info(ctx context.Context, in *InfoRequest, opts ...grpc.CallOption) (*InfoResponse, error) {
+	out := new(InfoResponse)
+	err := c.cc.Invoke(ctx, "/bcdb.Identity/Info", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) Sign(ctx context.Context, in *SignRequest, opts ...grpc.CallOption) (*SignResponse, error) {
+	out := new(SignResponse)
+	err := c.cc.Invoke(ctx, "/bcdb.Identity/Sign", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// IdentityServer is the server API for Identity service.
+type IdentityServer interface {
+	Info(context.Context, *InfoRequest) (*InfoResponse, error)
+	Sign(context.Context, *SignRequest) (*SignResponse, error)
+}
+
+// UnimplementedIdentityServer can be embedded to have forward compatible implementations.
+type UnimplementedIdentityServer struct {
+}
+
+func (*UnimplementedIdentityServer) Info(ctx context.Context, req *InfoRequest) (*InfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Info not implemented")
+}
+func (*UnimplementedIdentityServer) Sign(ctx context.Context, req *SignRequest) (*SignResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Sign not implemented")
+}
+
+func RegisterIdentityServer(s *grpc.Server, srv IdentityServer) {
+	s.RegisterService(&_Identity_serviceDesc, srv)
+}
+
+func _Identity_Info_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).Info(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/bcdb.Identity/Info",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).Info(ctx, req.(*InfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_Sign_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SignRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).Sign(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/bcdb.Identity/Sign",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).Sign(ctx, req.(*SignRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _Identity_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "bcdb.Identity",
+	HandlerType: (*IdentityServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Info",
+			Handler:    _Identity_Info_Handler,
+		},
+		{
+			MethodName: "Sign",
+			Handler:    _Identity_Sign_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "bcdb.proto",
 }

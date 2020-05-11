@@ -140,16 +140,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         acl_store.clone(),
     );
 
+    let interceptor =
+        auth::Authenticator::new(matches.value_of("explorer"), Some(identity.public_key()))?;
+    let acl_interceptor = interceptor.clone();
+
     //bcdb storage api
     let bcdb_service = bcdb::BcdbService::new(identity.id(), local_bcdb);
 
     //acl api
     let acl_service = bcdb::AclService::new(acl_store);
 
+    //identity api
+    let identity_service = bcdb::IdentityService::new(identity);
+
     let addr = matches.value_of("listen").unwrap().parse()?;
-    let interceptor =
-        auth::Authenticator::new(matches.value_of("explorer"), Some(identity.public_key()))?;
-    let acl_interceptor = interceptor.clone();
 
     Server::builder()
         .add_service(bcdb::BcdbServer::with_interceptor(
@@ -160,6 +164,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             acl_service,
             move |request| acl_interceptor.authenticate_blocking(request),
         ))
+        .add_service(bcdb::IdentityServer::new(identity_service))
         .serve(addr)
         .await?;
 

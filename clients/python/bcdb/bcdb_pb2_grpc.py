@@ -39,6 +39,11 @@ class BCDBStub(object):
         request_serializer=bcdb__pb2.QueryRequest.SerializeToString,
         response_deserializer=bcdb__pb2.FindResponse.FromString,
         )
+    self.Delete = channel.unary_unary(
+        '/bcdb.BCDB/Delete',
+        request_serializer=bcdb__pb2.DeleteRequest.SerializeToString,
+        response_deserializer=bcdb__pb2.DeleteResponse.FromString,
+        )
 
 
 class BCDBServicer(object):
@@ -80,6 +85,13 @@ class BCDBServicer(object):
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
+  def Delete(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
 
 def add_BCDBServicer_to_server(servicer, server):
   rpc_method_handlers = {
@@ -107,6 +119,11 @@ def add_BCDBServicer_to_server(servicer, server):
           servicer.Find,
           request_deserializer=bcdb__pb2.QueryRequest.FromString,
           response_serializer=bcdb__pb2.FindResponse.SerializeToString,
+      ),
+      'Delete': grpc.unary_unary_rpc_method_handler(
+          servicer.Delete,
+          request_deserializer=bcdb__pb2.DeleteRequest.FromString,
+          response_serializer=bcdb__pb2.DeleteResponse.SerializeToString,
       ),
   }
   generic_handler = grpc.method_handlers_generic_handler(
@@ -238,4 +255,63 @@ def add_AclServicer_to_server(servicer, server):
   }
   generic_handler = grpc.method_handlers_generic_handler(
       'bcdb.Acl', rpc_method_handlers)
+  server.add_generic_rpc_handlers((generic_handler,))
+
+
+class IdentityStub(object):
+  # missing associated documentation comment in .proto file
+  pass
+
+  def __init__(self, channel):
+    """Constructor.
+
+    Args:
+      channel: A grpc.Channel.
+    """
+    self.Info = channel.unary_unary(
+        '/bcdb.Identity/Info',
+        request_serializer=bcdb__pb2.InfoRequest.SerializeToString,
+        response_deserializer=bcdb__pb2.InfoResponse.FromString,
+        )
+    self.Sign = channel.unary_unary(
+        '/bcdb.Identity/Sign',
+        request_serializer=bcdb__pb2.SignRequest.SerializeToString,
+        response_deserializer=bcdb__pb2.SignResponse.FromString,
+        )
+
+
+class IdentityServicer(object):
+  # missing associated documentation comment in .proto file
+  pass
+
+  def Info(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def Sign(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+
+def add_IdentityServicer_to_server(servicer, server):
+  rpc_method_handlers = {
+      'Info': grpc.unary_unary_rpc_method_handler(
+          servicer.Info,
+          request_deserializer=bcdb__pb2.InfoRequest.FromString,
+          response_serializer=bcdb__pb2.InfoResponse.SerializeToString,
+      ),
+      'Sign': grpc.unary_unary_rpc_method_handler(
+          servicer.Sign,
+          request_deserializer=bcdb__pb2.SignRequest.FromString,
+          response_serializer=bcdb__pb2.SignResponse.SerializeToString,
+      ),
+  }
+  generic_handler = grpc.method_handlers_generic_handler(
+      'bcdb.Identity', rpc_method_handlers)
   server.add_generic_rpc_handlers((generic_handler,))

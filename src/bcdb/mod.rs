@@ -1,7 +1,9 @@
 use crate::acl::*;
+use crate::identity::Identity;
 use failure::Error;
 use generated::acl_server::Acl as AclServiceTrait;
 use generated::bcdb_server::Bcdb as BcdbServiceTrait;
+use generated::identity_server::Identity as IdentityTrait;
 use generated::*;
 use std::collections::HashSet;
 use std::iter::FromIterator;
@@ -14,6 +16,7 @@ use crate::storage::{zdb::Collection, zdb::Zdb, Storage as ObjectStorage};
 
 pub use generated::acl_server::AclServer;
 pub use generated::bcdb_server::BcdbServer;
+pub use generated::identity_server::IdentityServer;
 
 pub mod generated {
     tonic::include_proto!("bcdb"); // The string specified here must match the proto package name
@@ -412,5 +415,41 @@ where
         } else {
             Ok(Response::new(AclUsersResponse { updated: 0 }))
         }
+    }
+}
+
+pub struct IdentityService {
+    id: Identity,
+}
+
+impl IdentityService {
+    pub fn new(id: Identity) -> IdentityService {
+        IdentityService { id }
+    }
+
+    fn identity_info(&self) -> IdentityInfo {
+        IdentityInfo {
+            id: self.id.id(),
+            key: hex::encode(self.id.public_key().as_bytes()),
+        }
+    }
+}
+
+#[tonic::async_trait]
+impl IdentityTrait for IdentityService {
+    async fn info(&self, _request: Request<InfoRequest>) -> Result<Response<InfoResponse>, Status> {
+        Ok(Response::new(InfoResponse {
+            identity: Some(self.identity_info()),
+        }))
+    }
+
+    async fn sign(&self, request: Request<SignRequest>) -> Result<Response<SignResponse>, Status> {
+        let request = request.into_inner();
+        let signature = self.id.sign(&request.message);
+
+        Ok(Response::new(SignResponse {
+            identity: Some(self.identity_info()),
+            signature: signature.to_bytes().to_vec(),
+        }))
     }
 }

@@ -69,17 +69,19 @@ impl Authenticator {
     pub async fn authenticate<T>(&self, request: Request<T>) -> Result<Request<T>, Status> {
         let meta = request.metadata();
 
-        let header: AuthHeader = match meta.get("authorization") {
+        let header_str: String = match meta.get("authorization") {
             None => return Err(Status::unauthenticated("missing authorization header")),
-            Some(v) => match v.to_str().unwrap().parse() {
-                Ok(header) => header,
-                Err(err) => {
-                    return Err(Status::unauthenticated(format!(
-                        "invalid auth header: {}",
-                        err
-                    )))
-                }
-            },
+            Some(v) => v.to_str().unwrap().into(),
+        };
+
+        let header: AuthHeader = match header_str.parse() {
+            Ok(header) => header,
+            Err(err) => {
+                return Err(Status::unauthenticated(format!(
+                    "invalid auth header: {}",
+                    err
+                )))
+            }
         };
 
         let sig_str = match header.signature_str() {
@@ -136,6 +138,11 @@ impl Authenticator {
 
         let mut request = Request::new(request.into_inner());
         let meta = request.metadata_mut();
+
+        meta.insert(
+            "authorization",
+            AsciiMetadataValue::from_str(&header_str).unwrap(),
+        );
 
         meta.insert(
             "key-id",
