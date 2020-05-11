@@ -10,7 +10,7 @@ use std::iter::FromIterator;
 use tokio::sync::mpsc;
 use tonic::{Code, Request, Response, Status};
 
-use crate::auth::{MetadataMapAuth, Route};
+use crate::auth::{MetadataMapExt, Route};
 use crate::storage::{zdb::Collection, zdb::Zdb, Storage as ObjectStorage};
 
 pub use generated::acl_server::AclServer;

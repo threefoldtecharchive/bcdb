@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use tokio::task::spawn_blocking;
 use tonic::{Request, Response, Status};
 
-use crate::auth::MetadataMapAuth;
+use crate::auth::MetadataMapExt;
 use crate::meta::{self, Storage as MetaStorage, StorageFactory as MetaStorageFactory};
 use crate::storage::Storage as ObjectStorage;
 

@@ -325,14 +325,14 @@ pub enum Route {
     Proxy(u32),
 }
 
-pub trait MetadataMapAuth {
+pub trait MetadataMapExt {
     fn is_authenticated(&self) -> bool;
     fn is_owner(&self) -> bool;
     fn get_user(&self) -> Option<u64>;
     fn route(&self, current: u32) -> Result<Route, Status>;
 }
 
-impl MetadataMapAuth for MetadataMap {
+impl MetadataMapExt for MetadataMap {
     fn is_authenticated(&self) -> bool {
         match self.get("key-id") {
             Some(_) => true,
