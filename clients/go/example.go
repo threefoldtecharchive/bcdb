@@ -54,7 +54,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-
+	// NOTE:
 	// uncomment this line, and set the proper x-threebot-id
 	// to make bcbd forward this call for you to bcdb bot 17
 	// ctx = metadata.AppendToOutgoingContext(ctx, "x-threebot-id", "17")
