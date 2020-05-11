@@ -16,7 +16,7 @@ The `peers-file` must be formatted as separate peers objects (not a json list) f
 Once this list is provided, bcdb will **ONLY** use it for peer ids look up.
 
 Note the following:
-- When bcdb detect that the request must be forwarded, no authentication is applied, and the request (and its authentication data) are forwarded as is. Hence the remote peer might still return `unauthorized` if you couldn't provide proper identity, or have access to that peer (according to its ACLs)
+- When bcdb detect that the request must be forwarded, no authentication is applied, and the request (and its authentication data) are forwarded as is. Hence the remote peer might still return `unauthorized` if you couldn't provide proper identity, or have NO access to that peer (according to its ACLs)
 - Currently, peer validation is not implemented, hence if you are provided improper `peers-file` you might end up on a peer that is impersonating someone's else identity, hence might receive sensitive information from you. This will change in the future.
 
 # Example Usage
