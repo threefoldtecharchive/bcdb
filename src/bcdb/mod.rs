@@ -8,10 +8,9 @@ use generated::*;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use tokio::sync::mpsc;
-use tonic::metadata::MetadataMap;
 use tonic::{Code, Request, Response, Status};
 
-use crate::auth::MetadataMapAuth;
+use crate::auth::{MetadataMapAuth, Route};
 use crate::storage::{zdb::Collection, zdb::Zdb, Storage as ObjectStorage};
 
 pub use generated::acl_server::AclServer;
@@ -40,11 +39,6 @@ impl FailureExt for Error {
 type ListStream = mpsc::Receiver<Result<ListResponse, Status>>;
 type FindStream = mpsc::Receiver<Result<FindResponse, Status>>;
 
-enum Route {
-    Local,
-    Proxy(u32),
-}
-
 //TODO: use generics for both object store type and meta factory type.
 pub struct BcdbService<L>
 where
@@ -65,36 +59,6 @@ where
             local: local,
         }
     }
-
-    fn route(&self, md: &MetadataMap) -> Result<Route, Status> {
-        let header = match md.get("x-threebot-id") {
-            Some(value) => value,
-            None => return Ok(Route::Local),
-        };
-
-        let id: u32 = match header.to_str() {
-            Ok(s) => match s.parse() {
-                Ok(id) => id,
-                Err(err) => {
-                    return Err(Status::invalid_argument(format!(
-                        "invalid x-threebot-id not a number: {}",
-                        err
-                    )))
-                }
-            },
-            Err(err) => {
-                return Err(Status::invalid_argument(
-                    "invalid x-threebot-id format expecting string",
-                ))
-            }
-        };
-
-        if id == self.id {
-            return Ok(Route::Local);
-        }
-
-        Ok(Route::Proxy(id))
-    }
 }
 
 #[tonic::async_trait]
@@ -103,16 +67,16 @@ where
     L: BcdbServiceTrait<ListStream = ListStream, FindStream = FindStream>,
 {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
-        match self.route(request.metadata())? {
+        match request.metadata().route(self.id)? {
             Route::Local => self.local.set(request).await,
-            Route::Proxy(id) => unimplemented!(),
+            Route::Proxy(id) => Err(Status::unimplemented("unimplemented")),
         }
     }
 
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
-        match self.route(request.metadata())? {
+        match request.metadata().route(self.id)? {
             Route::Local => self.local.get(request).await,
-            Route::Proxy(id) => unimplemented!(),
+            Route::Proxy(id) => Err(Status::unimplemented("unimplemented")),
         }
     }
 
@@ -120,9 +84,9 @@ where
         &self,
         request: Request<DeleteRequest>,
     ) -> Result<Response<DeleteResponse>, Status> {
-        match self.route(request.metadata())? {
+        match request.metadata().route(self.id)? {
             Route::Local => self.local.delete(request).await,
-            Route::Proxy(id) => unimplemented!(),
+            Route::Proxy(id) => Err(Status::unimplemented("unimplemented")),
         }
     }
 
@@ -130,17 +94,17 @@ where
         &self,
         request: Request<UpdateRequest>,
     ) -> Result<Response<UpdateResponse>, Status> {
-        match self.route(request.metadata())? {
+        match request.metadata().route(self.id)? {
             Route::Local => self.local.update(request).await,
-            Route::Proxy(id) => unimplemented!(),
+            Route::Proxy(id) => Err(Status::unimplemented("unimplemented")),
         }
     }
 
     type ListStream = ListStream;
     async fn list(&self, request: Request<QueryRequest>) -> Result<Response<ListStream>, Status> {
-        match self.route(request.metadata())? {
+        match request.metadata().route(self.id)? {
             Route::Local => self.local.list(request).await,
-            Route::Proxy(id) => unimplemented!(),
+            Route::Proxy(id) => Err(Status::unimplemented("unimplemented")),
         }
     }
 
@@ -149,9 +113,9 @@ where
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::FindStream>, Status> {
-        match self.route(request.metadata())? {
+        match request.metadata().route(self.id)? {
             Route::Local => self.local.find(request).await,
-            Route::Proxy(id) => unimplemented!(),
+            Route::Proxy(id) => Err(Status::unimplemented("unimplemented")),
         }
     }
 }
