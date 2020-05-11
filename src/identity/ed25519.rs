@@ -6,6 +6,7 @@ use ed25519_dalek::{
 use serde::de::{Error as SerdeError, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
+use std::path::Path;
 
 use super::Error;
 
@@ -49,6 +50,47 @@ impl Identity {
     pub fn from_mnemonic<S: Into<String>>(id: u32, mnemonic: S) -> Result<Identity, Error> {
         let phrase = Mnemonic::from_phrase(mnemonic, Language::English)?;
         Self::from_sk_bytes(id, phrase.entropy())
+    }
+
+    pub fn from_identity_file<P: AsRef<Path>>(path: P) -> Result<Identity, failure::Error> {
+        let f = std::fs::File::open(path)?;
+        use serde_json::{Deserializer, Value};
+        let mut stream = Deserializer::from_reader(f).into_iter::<Value>();
+        let version = match stream.next() {
+            Some(version) => match version {
+                Ok(version) => version,
+                Err(err) => bail!("failed to parse version from identity file: {}", err),
+            },
+            None => bail!("invalid identity file"),
+        };
+
+        let version: String = serde_json::from_value(version)?;
+        if version != "1.1.0" {
+            bail!("invalid identity file version");
+        }
+
+        #[derive(Deserialize)]
+        struct IdFile {
+            threebotid: u32,
+            mnemonic: String,
+        };
+
+        let info = match stream.next() {
+            Some(info) => match info {
+                Ok(info) => info,
+                Err(err) => bail!(
+                    "failed to parse identity information from identity file: {}",
+                    err
+                ),
+            },
+            None => bail!("invalid identity file, no identity object"),
+        };
+
+        let info: IdFile = serde_json::from_value(info)?;
+
+        let id = Self::from_mnemonic(info.threebotid, info.mnemonic)?;
+
+        Ok(id)
     }
 
     pub fn id(&self) -> u32 {

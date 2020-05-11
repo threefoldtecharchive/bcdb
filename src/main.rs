@@ -67,7 +67,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .help("threebot ID for this bcdb instance")
                 .long("threebot-id")
                 .short("id")
-                .required(true)
+                .required_unless("seed-file")
+                .conflicts_with("seed-file")
                 .takes_value(true),
         )
         .arg(
@@ -77,16 +78,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .short("s")
                 .takes_value(true)
                 .env("SEED")
-                .conflicts_with("seed_file")
-                .required_unless("seed_file"),
+                .conflicts_with("seed-file")
+                .required_unless("seed-file"),
         )
         .arg(
-            Arg::with_name("seed_file")
+            Arg::with_name("seed-file")
                 .help("path to the file containing the mnemonic")
                 .long("seed-file")
                 .takes_value(true)
                 .required_unless("seed")
-                .env("SEED_FILE"),
+                .env("seed-file"),
         )
         .arg(
             Arg::with_name("explorer")
@@ -112,23 +113,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     simple_logger::init_with_level(level).unwrap();
-    let bot_id: u32 = matches.value_of("id").unwrap().parse()?;
 
     let identity = if matches.is_present("seed") {
+        let bot_id: u32 = matches.value_of("id").unwrap().parse()?;
         Identity::from_mnemonic(bot_id, matches.value_of("seed").unwrap())?
     } else {
-        let mut file = File::open(matches.value_of("seed_file").unwrap())?;
-        let mut content = String::new();
-        file.read_to_string(&mut content)?;
-        Identity::from_mnemonic(bot_id, content)?
+        Identity::from_identity_file(matches.value_of("seed-file").unwrap())?
     };
 
     // for some reason a byte slice does not implement fmt::LowerHex or fmt::UpperHex so manually
     // show the bytes
-    debug!(
-        "Starting server with identity, public key {}",
+    info!(
+        "Starting server with identity, id: {}, and public-key: {}",
+        identity.id(),
         identity.public_key()
     );
+
     debug!("Using identity private key as symmetric encryption key for zdb data");
 
     let zdb = Zdb::new(matches.value_of("zdb").unwrap().parse()?);
