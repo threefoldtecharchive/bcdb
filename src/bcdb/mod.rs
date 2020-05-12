@@ -529,6 +529,8 @@ impl IdentityTrait for IdentityService {
     }
 
     async fn sign(&self, request: Request<SignRequest>) -> Result<Response<SignResponse>, Status> {
+        return Err(Status::unimplemented("disabled for security reasons"));
+
         let request = request.into_inner();
         let signature = self.id.sign(&request.message);
 
