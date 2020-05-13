@@ -4,7 +4,7 @@ if __name__ == "__main__":
     identity = Identity.from_seed("user.seed")
     client = Client("127.0.0.1:50051", identity, ssl=False)
 
-    example = client.bcdb("example")
+    example = client.collection("example")
 
     key = example.set(b'hello world', {"example": "value", "tag2": "v2"})
     obj = example.get(key)

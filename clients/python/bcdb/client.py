@@ -261,7 +261,7 @@ class Client:
     def acl(self):
         return self.__acl
 
-    def bcdb(self, collection: str, threebot_id: int = None) -> BcdbClient:
+    def collection(self, collection: str, threebot_id: int = None) -> BcdbClient:
         """
         Return a bcdb client
 
