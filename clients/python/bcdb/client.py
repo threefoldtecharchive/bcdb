@@ -25,13 +25,22 @@ class AclClient:
         return self.__stub.Create(request).key
 
     def list(self):
+        """
+        lists all acl objects
+        """
         return self.__stub.List(types.ACLListRequest())
 
     def get(self, key: int):
+        """
+        gets an acl object given key
+        """
         request = types.ACLGetRequest(key=key)
         return self.__stub.Get(request).acl
 
     def set(self, key: int, perm: str):
+        """
+        update an acl permissions string
+        """
         request = types.ACLSetRequest(
             key=key,
             perm=perm,
@@ -40,6 +49,9 @@ class AclClient:
         self.__stub.Set(request)
 
     def grant(self, key: int, users: list):
+        """
+        grant new users to the acl group
+        """
         request = types.ACLUsersRequest(
             key=key,
             users=users,
@@ -48,6 +60,9 @@ class AclClient:
         self.__stub.Grant(request)
 
     def revoke(self, key: int, users: list):
+        """
+        removes users from an acl group
+        """
         request = types.ACLUsersRequest(
             key=key,
             users=users,
@@ -88,16 +103,24 @@ class BcdbClient:
     def collection(self):
         return self.__collection
 
+    def __tags_from_meta(self, metadata):
+        tags = dict()
+        for tag in metadata.tags:
+            tags[tag.key] = tag.value
+
+        return tags
+
     def get(self, id: int) -> Object:
+        """
+        gets an object given object id
+        """
         request = types.GetRequest(
             collection=self.collection,
             id=id,
         )
 
         response = self.__stub.Get(request)
-        tags = dict()
-        for tag in response.metadata.tags:
-            tags[tag.key] = tag.value
+        tags = self.__tags_from_meta(response.metadata)
 
         return Object(
             id=id,
@@ -106,6 +129,14 @@ class BcdbClient:
         )
 
     def set(self, data: bytes, tags: dict = None, acl: int = None):
+        """
+        set creates a new object given data and tags, and optional acl key.
+
+        :param data: data to set
+        :param tags: optional tags associated with the object. useful for find operations
+        :param acl: optional acl key
+        :returns: new object id
+        """
         _tags = list()
         for k, v in tags.items():
             _tags.append(
@@ -124,6 +155,15 @@ class BcdbClient:
         return self.__stub.Set(request).id
 
     def update(self, id: int, data: bytes = None, tags: dict = None, acl: int = None):
+        """
+        Update object given object id.
+
+        :param data: optional update object data
+        :param tags: optional update tags. new tags will override older tag values that has
+                     the same tag name, new tags will be appended.
+        :param acl: optional override object acl. note that only owner can set this field
+                    even if the caller has a write permission on the object
+        """
         _tags = list()
         for k, v in tags.items():
             _tags.append(
@@ -142,6 +182,60 @@ class BcdbClient:
         )
 
         self.__stub.Update(request)
+
+    def delete(self, id: int):
+        """
+        Mark the object as deleted
+        """
+        request = types.DeleteRequest(
+            id=id,
+            collection=self.collection,
+        )
+
+        self.__stub.Delete(request)
+
+    def list(self, **matches):
+        """
+        List all object ids that matches given tags
+        """
+        tags = list()
+        for k, v in matches.items():
+            tags.append(
+                types.Tag(key=k, value=v)
+            )
+
+        request = types.QueryRequest(
+            collection=self.collection,
+            tags=tags,
+        )
+
+        for result in self.__stub.List(request):
+            yield result.id
+
+    def find(self, **matches):
+        """
+        Find all objects that matches given tags
+
+        Note: returned objects from fiend does not include data. so object.data will always be None
+              to get the object data you will have to do a separate call to .get(id)
+        """
+        tags = list()
+        for k, v in matches.items():
+            tags.append(
+                types.Tag(key=k, value=v)
+            )
+
+        request = types.QueryRequest(
+            collection=self.collection,
+            tags=tags,
+        )
+
+        for result in self.__stub.Find(request):
+            yield Object(
+                id=result.id,
+                data=None,
+                tags=self.__tags_from_meta(result.metadata),
+            )
 
 
 class Client:
