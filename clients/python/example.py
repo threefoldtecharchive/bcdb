@@ -1,11 +1,24 @@
-from . import Identity
-from .client import Client
+from bcdb import Identity, Client
 
 if __name__ == "__main__":
     identity = Identity.from_seed("/home/azmy/tmp/tfuser/dev.user.seed")
-    client = Client("localhost:50051", identity, ssl=False)
+    client = Client("127.0.0.1:50051", identity, ssl=False)
+
+    key = client.acl.create(users=[1, 2])
     for acl in client.acl.list():
-        print("acl", acl)
+        print("in list")
+        print(acl)
+
+    got = client.acl.get(key)
+    print("got")
+    print(got)
+
+    client.acl.set(key, 'rw-')
+    client.acl.grant(key, [5, 6])
+    got = client.acl.get(key)
+    print("after update")
+    print(got)
+
     # import grpc
     # from .auth import auth_plugin_from_words
 

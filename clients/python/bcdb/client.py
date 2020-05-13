@@ -13,11 +13,11 @@ class Client:
         call_cred = grpc.metadata_call_credentials(
             auth_gateway, name="bcdb-auth-gateway")
 
-        channel_cred = None
-        if ssl:
-            channel_cred = grpc.ssl_channel_credentials()
-        else:
-            channel_cred = grpc.local_channel_credentials()
+        # channel_cred = None
+        # if ssl:
+        #     channel_cred = grpc.ssl_channel_credentials()
+        # else:
+        channel_cred = grpc.local_channel_credentials()
 
         credentials = grpc.composite_channel_credentials(
             channel_cred, call_cred)
@@ -35,9 +35,45 @@ class AclClient:
     def __init__(self, channel):
         self.__stub = AclStub(channel)
 
+    def create(self, perm: str = 'r--', users: list = None):
+        """
+        :param perm: string in format `rwd`, set the missing permission to `-`
+        """
+        request = types.ACLCreateRequest(
+            acl=types.ACL(
+                perm=perm,
+                users=users
+            )
+        )
+        return self.__stub.Create(request).key
+
     def list(self):
         return self.__stub.List(types.ACLListRequest())
 
     def get(self, key: int):
         request = types.ACLGetRequest(key=key)
         return self.__stub.Get(request).acl
+
+    def set(self, key: int, perm: str):
+        request = types.ACLSetRequest(
+            key=key,
+            perm=perm,
+        )
+
+        self.__stub.Set(request)
+
+    def grant(self, key: int, users: list):
+        request = types.ACLUsersRequest(
+            key=key,
+            users=users,
+        )
+
+        self.__stub.Grant(request)
+
+    def revoke(self, key: int, users: list):
+        request = types.ACLUsersRequest(
+            key=key,
+            users=users,
+        )
+
+        self.__stub.Revoke(request)

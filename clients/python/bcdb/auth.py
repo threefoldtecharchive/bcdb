@@ -48,7 +48,7 @@ class Identity:
         """
         sign message, return the signature in base64 encoding
         """
-        return base64.standard_b64encode(self.sign(message))
+        return base64.standard_b64encode(self.sign(message)).decode()
 
 
 # from https://github.com/grpc/grpc/tree/master/examples/python/auth
