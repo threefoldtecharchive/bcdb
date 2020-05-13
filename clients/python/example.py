@@ -4,20 +4,30 @@ if __name__ == "__main__":
     identity = Identity.from_seed("/home/azmy/tmp/tfuser/dev.user.seed")
     client = Client("127.0.0.1:50051", identity, ssl=False)
 
-    key = client.acl.create(users=[1, 2])
-    for acl in client.acl.list():
-        print("in list")
-        print(acl)
+    # key = client.acl.create(users=[1, 2])
+    # for acl in client.acl.list():
+    #     print("in list")
+    #     print(acl)
 
-    got = client.acl.get(key)
-    print("got")
-    print(got)
+    # got = client.acl.get(key)
+    # print("got")
+    # print(got)
 
-    client.acl.set(key, 'rw-')
-    client.acl.grant(key, [5, 6])
-    got = client.acl.get(key)
-    print("after update")
-    print(got)
+    # client.acl.set(key, 'rw-')
+    # client.acl.grant(key, [5, 6])
+    # got = client.acl.get(key)
+    # print("after update")
+    # print(got)
+
+    example = client.bcdb("example")
+
+    key = example.set(b'hello world', {"example": "value", "tag2": "v2"})
+    obj = example.get(key)
+    print(obj)
+
+    example.update(key, b'updated string', {"example": "updated"}, acl=10)
+    obj = example.get(key)
+    print(obj)
 
     # import grpc
     # from .auth import auth_plugin_from_words

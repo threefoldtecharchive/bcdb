@@ -296,13 +296,17 @@ where
                     self.is_authorized(acl.acl, auth.get_user().unwrap(), "-w-".parse().unwrap())?;
                 }
 
-                None => (),
+                None => {
+                    return Err(Status::unauthenticated(
+                        "no acl set on object, only owner can access it",
+                    ));
+                }
             };
         }
 
         let mut m = self.build_meta(&new_metadata)?;
 
-        match metadata.acl {
+        match new_metadata.acl {
             Some(ref acl) => {
                 if auth.is_owner() {
                     m.add(":acl", &format!("{}", acl.acl));
