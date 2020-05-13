@@ -94,8 +94,10 @@ class Object(NamedTuple):
 
 
 class BcdbClient:
-    def __init__(self, channel, collection, threebot_id=None):
-        self.__threebot_id = threebot_id
+    def __init__(self, channel, collection, threebot_id: int = None):
+        self.__metadata = None if threebot_id is None else (
+            ("x-threebot-id", str(threebot_id)),)
+
         self.__stub = BCDBStub(channel)
         self.__collection = collection
 
@@ -119,7 +121,7 @@ class BcdbClient:
             id=id,
         )
 
-        response = self.__stub.Get(request)
+        response = self.__stub.Get(request, metadata=self.__metadata)
         tags = self.__tags_from_meta(response.metadata)
 
         return Object(
@@ -152,7 +154,7 @@ class BcdbClient:
             )
         )
 
-        return self.__stub.Set(request).id
+        return self.__stub.Set(request, metadata=self.__metadata).id
 
     def update(self, id: int, data: bytes = None, tags: dict = None, acl: int = None):
         """
@@ -181,7 +183,7 @@ class BcdbClient:
             )
         )
 
-        self.__stub.Update(request)
+        self.__stub.Update(request, metadata=self.__metadata)
 
     def delete(self, id: int):
         """
@@ -192,7 +194,7 @@ class BcdbClient:
             collection=self.collection,
         )
 
-        self.__stub.Delete(request)
+        self.__stub.Delete(request, metadata=self.__metadata)
 
     def list(self, **matches):
         """
@@ -209,7 +211,7 @@ class BcdbClient:
             tags=tags,
         )
 
-        for result in self.__stub.List(request):
+        for result in self.__stub.List(request, metadata=self.__metadata):
             yield result.id
 
     def find(self, **matches):
@@ -230,7 +232,7 @@ class BcdbClient:
             tags=tags,
         )
 
-        for result in self.__stub.Find(request):
+        for result in self.__stub.Find(request, metadata=self.__metadata):
             yield Object(
                 id=result.id,
                 data=None,
