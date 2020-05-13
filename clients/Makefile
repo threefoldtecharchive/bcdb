@@ -13,10 +13,10 @@ python: python-deps
 	python -m grpc_tools.protoc -I$(include) --python_out=python/bcdb --grpc_python_out=python/bcdb $(proto)
 
 go-deps:
-	mkdir -p go/bcdb
+	mkdir -p go/bcdb/bcdb_proto
 
 go: go-deps
-	protoc -I$(include) $(proto) --go_out=plugins=grpc:go/bcdb
+	protoc -I$(include) $(proto) --go_out=plugins=grpc:go/bcdb/bcdb_proto
 
 js-deps:
 	mkdir -p js/bcdb

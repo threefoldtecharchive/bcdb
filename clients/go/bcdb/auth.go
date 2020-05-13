@@ -2,10 +2,10 @@ package bcdb
 
 import (
 	"bytes"
-	context "context"
+	"context"
 	"crypto/ed25519"
 	"encoding/base64"
-	fmt "fmt"
+	"fmt"
 	"time"
 
 	"github.com/tyler-smith/go-bip39"
