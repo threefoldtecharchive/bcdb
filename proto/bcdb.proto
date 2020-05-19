@@ -148,3 +148,26 @@ message ACLUsersRequest {
 }
 
 message ACLUsersResponse { uint64 updated = 1; }
+
+service Identity {
+  rpc Info(InfoRequest) returns (InfoResponse) {}
+  rpc Sign(SignRequest) returns (SignResponse) {}
+}
+
+message IdentityInfo {
+  // id is 3bot id for this server
+  uint32 id = 1;
+  // key is the public key of this server
+  string key = 2;
+}
+
+message InfoRequest {}
+
+message InfoResponse { IdentityInfo identity = 1; }
+
+message SignRequest { bytes message = 1; }
+
+message SignResponse {
+  IdentityInfo identity = 1;
+  bytes signature = 2;
+}

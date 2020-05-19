@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 
 	"time"
 
@@ -52,13 +53,21 @@ func main() {
 		},
 	}
 
-	response, err := cl.Set(context.TODO(), &req)
+	ctx := context.Background()
+	// NOTE:
+	// uncomment this line, and set the proper x-threebot-id
+	// to make bcbd forward this call for you to bcdb bot 17
+	// ctx = metadata.AppendToOutgoingContext(ctx, "x-threebot-id", "17")
+
+	response, err := cl.Set(ctx, &req)
 	if err != nil {
 		panic(err)
 	}
 
 	id := response.GetId()
 	fmt.Println("ID:", id)
+
+	os.Exit(0)
 
 	list, err := cl.Find(context.TODO(), &bcdb.QueryRequest{
 		Collection: "files",

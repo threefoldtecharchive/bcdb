@@ -1,4 +1,3 @@
-use bip39::{Language, Mnemonic};
 use clap::{App, Arg};
 use log::debug;
 use tonic::transport::Server;
@@ -17,6 +16,7 @@ extern crate log;
 mod acl;
 mod auth;
 mod bcdb;
+mod explorer;
 mod identity;
 mod meta;
 mod storage;
@@ -63,22 +63,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .takes_value(false),
         )
         .arg(
+            Arg::with_name("id")
+                .help("threebot ID for this bcdb instance")
+                .long("threebot-id")
+                .short("id")
+                .required_unless("seed-file")
+                .conflicts_with("seed-file")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("seed")
                 .help("mnemonic of the seed to be used for the identity")
                 .long("seed")
                 .short("s")
                 .takes_value(true)
                 .env("SEED")
-                .conflicts_with("seed_file")
-                .required_unless("seed_file"),
+                .conflicts_with("seed-file")
+                .required_unless("seed-file"),
         )
         .arg(
-            Arg::with_name("seed_file")
+            Arg::with_name("seed-file")
                 .help("path to the file containing the mnemonic")
                 .long("seed-file")
                 .takes_value(true)
                 .required_unless("seed")
-                .env("SEED_FILE"),
+                .env("seed-file"),
         )
         .arg(
             Arg::with_name("explorer")
@@ -86,6 +95,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("explorer")
                 .takes_value(true)
                 .default_value("https://explorer.devnet.grid.tf/explorer/"),
+        )
+        .arg(
+            Arg::with_name("peers-file")
+                .help("path to file with peers list, otherwise use explorer")
+                .long("peers-file")
+                .takes_value(true)
+                .required(false)
+                .env("PEERS_FILE"),
         )
         .get_matches();
 
@@ -97,25 +114,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     simple_logger::init_with_level(level).unwrap();
 
-    let id;
-    {
-        let mnemonic = if matches.is_present("seed") {
-            Mnemonic::from_phrase(matches.value_of("seed").unwrap(), Language::English)?
-        } else {
-            let mut file = File::open(matches.value_of("seed_file").unwrap())?;
-            let mut content = String::new();
-            file.read_to_string(&mut content)?;
-            Mnemonic::from_phrase(content.trim(), Language::English)?
-        };
-        id = Identity::from_sk_bytes(mnemonic.entropy())?;
-    }
+    let identity = if matches.is_present("seed") {
+        let bot_id: u32 = matches.value_of("id").unwrap().parse()?;
+        Identity::from_mnemonic(bot_id, matches.value_of("seed").unwrap())?
+    } else {
+        Identity::from_identity_file(matches.value_of("seed-file").unwrap())?
+    };
 
     // for some reason a byte slice does not implement fmt::LowerHex or fmt::UpperHex so manually
     // show the bytes
-    debug!(
-        "Starting server with identity, public key {}",
-        id.public_key()
+    info!(
+        "Starting server with identity, id: {}, and public-key: {}",
+        identity.id(),
+        identity.public_key()
     );
+
     debug!("Using identity private key as symmetric encryption key for zdb data");
 
     let zdb = Zdb::new(matches.value_of("zdb").unwrap().parse()?);
@@ -126,24 +139,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // the acl_store
     let acl_store = acl::ACLStorage::new(EncryptedStorage::new(
-        id.as_sk_bytes(),
+        identity.as_sk_bytes(),
         zdb.collection("acl"),
     ));
 
-    //bcdb storage api
-    let bcdb_service = bcdb::BcdbService::new(
-        EncryptedStorage::new(id.as_sk_bytes(), zdb.collection("objects")),
+    let local_bcdb = bcdb::LocalBcdb::new(
+        EncryptedStorage::new(identity.as_sk_bytes(), zdb.collection("objects")),
         meta_factory,
         acl_store.clone(),
     );
 
+    let interceptor = auth::Authenticator::new(matches.value_of("explorer"), identity.id())?;
+    let acl_interceptor = interceptor.clone();
+
+    let peers = if matches.is_present("peers-file") {
+        bcdb::Either::A(bcdb::PeersFile::new(
+            matches.value_of("peers-file").unwrap(),
+        )?)
+    } else {
+        bcdb::Either::B(bcdb::Explorer::new(matches.value_of("explorer"))?)
+    };
+
+    // tracker cache peers from the given source, and validate their identity
+    let tracker = bcdb::Tracker::new(std::time::Duration::from_secs(20 * 60), 1000, peers);
+
+    //bcdb storage api
+    let bcdb_service = bcdb::BcdbService::new(identity.id(), local_bcdb, tracker);
+
     //acl api
     let acl_service = bcdb::AclService::new(acl_store);
 
+    //identity api
+    let identity_service = bcdb::IdentityService::new(identity);
+
     let addr = matches.value_of("listen").unwrap().parse()?;
-    let interceptor =
-        auth::Authenticator::new(matches.value_of("explorer"), Some(id.public_key()))?;
-    let acl_interceptor = interceptor.clone();
 
     Server::builder()
         .add_service(bcdb::BcdbServer::with_interceptor(
@@ -154,6 +183,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             acl_service,
             move |request| acl_interceptor.authenticate_blocking(request),
         ))
+        .add_service(bcdb::IdentityServer::new(identity_service))
         .serve(addr)
         .await?;
 

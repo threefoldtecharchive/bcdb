@@ -1,4 +1,5 @@
-use crate::identity::{PublicKey, Signature};
+use crate::explorer::Explorer;
+use crate::identity::{Identity, PublicKey, Signature};
 use failure::Error;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -8,15 +9,12 @@ use surf;
 use tokio::sync::Mutex;
 use tonic::metadata::{AsciiMetadataValue, MetadataMap};
 use tonic::{Request, Status};
-use url::Url;
-
-const BASE_URL: &str = "https://explorer.devnet.grid.tf/explorer/";
 
 #[derive(Clone)]
 pub struct Authenticator {
-    base_url: Url,
+    client: Explorer,
     cache: Arc<Mutex<HashMap<u64, PublicKey>>>,
-    owner: Option<String>,
+    id: u32,
 }
 
 #[derive(Deserialize)]
@@ -25,21 +23,11 @@ struct User {
 }
 
 impl Authenticator {
-    pub fn new(base: Option<&str>, owner: Option<PublicKey>) -> Result<Authenticator, Error> {
+    pub fn new(base: Option<&str>, id: u32) -> Result<Authenticator, Error> {
         Ok(Authenticator {
-            base_url: match base {
-                Some(base) => {
-                    // we need to make sure that the url always end up in /
-                    if base.ends_with('/') {
-                        base.parse()?
-                    } else {
-                        format!("{}/", base).parse()?
-                    }
-                }
-                None => BASE_URL.parse()?,
-            },
+            client: Explorer::new(base)?,
             cache: Arc::new(Mutex::new(HashMap::new())),
-            owner: owner.map(|k| format!("{}", k)),
+            id: id,
         })
     }
 
@@ -49,17 +37,12 @@ impl Authenticator {
             return Ok(key.clone());
         }
 
-        let url = self.base_url.join(&format!("users/{}", id))?;
-        debug!("getting user info at: {}", url);
-        let resp: User = match surf::get(url).recv_json().await {
-            Ok(u) => u,
-            Err(err) => bail!("failed to get user: {}", err),
-        };
+        let resp = self.client.get(id as u32).await?;
 
         debug!("user key retrieved");
-        cache.insert(id, resp.pubkey.clone());
+        cache.insert(id, resp.key.clone());
 
-        Ok(resp.pubkey)
+        Ok(resp.key)
     }
 
     pub fn authenticate_blocking<T>(&self, request: Request<T>) -> Result<Request<T>, Status> {
@@ -69,17 +52,24 @@ impl Authenticator {
     pub async fn authenticate<T>(&self, request: Request<T>) -> Result<Request<T>, Status> {
         let meta = request.metadata();
 
-        let header: AuthHeader = match meta.get("authorization") {
+        if let Route::Proxy(_) = meta.route(self.id)? {
+            // this is a proxy call, no authentication is needed
+            return Ok(request);
+        }
+
+        let header_str: String = match meta.get("authorization") {
             None => return Err(Status::unauthenticated("missing authorization header")),
-            Some(v) => match v.to_str().unwrap().parse() {
-                Ok(header) => header,
-                Err(err) => {
-                    return Err(Status::unauthenticated(format!(
-                        "invalid auth header: {}",
-                        err
-                    )))
-                }
-            },
+            Some(v) => v.to_str().unwrap().into(),
+        };
+
+        let header: AuthHeader = match header_str.parse() {
+            Ok(header) => header,
+            Err(err) => {
+                return Err(Status::unauthenticated(format!(
+                    "invalid auth header: {}",
+                    err
+                )))
+            }
         };
 
         let sig_str = match header.signature_str() {
@@ -138,14 +128,17 @@ impl Authenticator {
         let meta = request.metadata_mut();
 
         meta.insert(
+            "authorization",
+            AsciiMetadataValue::from_str(&header_str).unwrap(),
+        );
+
+        meta.insert(
             "key-id",
             AsciiMetadataValue::from_str(&format!("{}", header.key_id)).unwrap(),
         );
 
-        if let Some(ref owner) = self.owner {
-            if format!("{}", key).as_str() == owner.as_str() {
-                meta.insert("owner", AsciiMetadataValue::from_str("true").unwrap());
-            }
+        if self.id as u64 == header.key_id {
+            meta.insert("owner", AsciiMetadataValue::from_str("true").unwrap());
         }
 
         Ok(request)
@@ -310,13 +303,19 @@ impl FromStr for AuthHeader {
     }
 }
 
-pub trait MetadataMapAuth {
+pub enum Route {
+    Local,
+    Proxy(u32),
+}
+
+pub trait MetadataMapExt {
     fn is_authenticated(&self) -> bool;
     fn is_owner(&self) -> bool;
     fn get_user(&self) -> Option<u64>;
+    fn route(&self, current: u32) -> Result<Route, Status>;
 }
 
-impl MetadataMapAuth for MetadataMap {
+impl MetadataMapExt for MetadataMap {
     fn is_authenticated(&self) -> bool {
         match self.get("key-id") {
             Some(_) => true,
@@ -337,6 +336,36 @@ impl MetadataMapAuth for MetadataMap {
             None => None,
         }
     }
+
+    fn route(&self, current: u32) -> Result<Route, Status> {
+        let header = match self.get("x-threebot-id") {
+            Some(value) => value,
+            None => return Ok(Route::Local),
+        };
+
+        let id: u32 = match header.to_str() {
+            Ok(s) => match s.parse() {
+                Ok(id) => id,
+                Err(err) => {
+                    return Err(Status::invalid_argument(format!(
+                        "invalid x-threebot-id not a number: {}",
+                        err
+                    )))
+                }
+            },
+            Err(err) => {
+                return Err(Status::invalid_argument(
+                    "invalid x-threebot-id format expecting string",
+                ))
+            }
+        };
+
+        if id == current {
+            return Ok(Route::Local);
+        }
+
+        Ok(Route::Proxy(id))
+    }
 }
 
 #[cfg(test)]
@@ -345,7 +374,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_user_key() {
-        let auth = Authenticator::new(None, None).unwrap();
+        let auth = Authenticator::new(None, 0).unwrap();
         match auth.get_key(1).await {
             Ok(key) => println!("pubkey: {:?}", key),
             Err(err) => panic!(err), //assert_eq!(true, false, "failed to get user id: {}", err),
@@ -356,7 +385,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_user_blocking() {
-        let auth = Authenticator::new(None, None).unwrap();
+        let auth = Authenticator::new(None, 0).unwrap();
         match futures::executor::block_on(auth.get_key(1)) {
             Ok(key) => println!("pubkey: {:?}", key),
             Err(err) => panic!(err), //assert_eq!(true, false, "failed to get user id: {}", err),

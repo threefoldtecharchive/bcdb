@@ -1,11 +1,12 @@
+use bip39::{Language, Mnemonic};
 use ed25519_dalek::{
     Keypair, PublicKey as PubKey, SecretKey, Signature as Sig, KEYPAIR_LENGTH, PUBLIC_KEY_LENGTH,
     SECRET_KEY_LENGTH, SIGNATURE_LENGTH,
 };
 use serde::de::{Error as SerdeError, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
 use std::fmt;
+use std::path::Path;
 
 use super::Error;
 
@@ -14,6 +15,7 @@ use super::Error;
 /// to allow others to verify messages signed with this identity.
 #[derive(Debug)]
 pub struct Identity {
+    id: u32,
     kp: Keypair,
 }
 
@@ -29,7 +31,7 @@ pub struct PublicKey {
 pub struct Signature(Sig);
 
 impl Identity {
-    pub fn from_sk_bytes(sk_bytes: &[u8]) -> Result<Identity, Error> {
+    pub fn from_sk_bytes(id: u32, sk_bytes: &[u8]) -> Result<Identity, Error> {
         // The used lib only allows us to use an existing keypair by loading it from bytes, but we
         // also need the public key bytes, which we usually don't have, so load the private key,
         // use that to generate the public key, copy them to a new array, and use that to load an
@@ -42,7 +44,57 @@ impl Identity {
         // we already verified the private key above, and generated the correct public key using
         // the lib, so this can't fail unless the lib is faulty in itself
         let kp = Keypair::from_bytes(&kp_bytes).unwrap();
-        Ok(Identity { kp })
+        Ok(Identity { id: id, kp: kp })
+    }
+
+    pub fn from_mnemonic<S: Into<String>>(id: u32, mnemonic: S) -> Result<Identity, Error> {
+        let phrase = Mnemonic::from_phrase(mnemonic, Language::English)?;
+        Self::from_sk_bytes(id, phrase.entropy())
+    }
+
+    pub fn from_identity_file<P: AsRef<Path>>(path: P) -> Result<Identity, failure::Error> {
+        let f = std::fs::File::open(path)?;
+        use serde_json::{Deserializer, Value};
+        let mut stream = Deserializer::from_reader(f).into_iter::<Value>();
+        let version = match stream.next() {
+            Some(version) => match version {
+                Ok(version) => version,
+                Err(err) => bail!("failed to parse version from identity file: {}", err),
+            },
+            None => bail!("invalid identity file"),
+        };
+
+        let version: String = serde_json::from_value(version)?;
+        if version != "1.1.0" {
+            bail!("invalid identity file version");
+        }
+
+        #[derive(Deserialize)]
+        struct IdFile {
+            threebotid: u32,
+            mnemonic: String,
+        };
+
+        let info = match stream.next() {
+            Some(info) => match info {
+                Ok(info) => info,
+                Err(err) => bail!(
+                    "failed to parse identity information from identity file: {}",
+                    err
+                ),
+            },
+            None => bail!("invalid identity file, no identity object"),
+        };
+
+        let info: IdFile = serde_json::from_value(info)?;
+
+        let id = Self::from_mnemonic(info.threebotid, info.mnemonic)?;
+
+        Ok(id)
+    }
+
+    pub fn id(&self) -> u32 {
+        self.id
     }
 
     /// Get a view into the byte representation of the private key part of the keypair
@@ -177,27 +229,27 @@ mod tests {
     #[test]
     fn load_private_key() {
         let key = vec![0; 8];
-        Identity::from_sk_bytes(&key).unwrap_err();
+        Identity::from_sk_bytes(0, &key).unwrap_err();
         let key = vec![0; 16];
-        Identity::from_sk_bytes(&key).unwrap_err();
+        Identity::from_sk_bytes(0, &key).unwrap_err();
         let key = vec![0; 24];
-        Identity::from_sk_bytes(&key).unwrap_err();
+        Identity::from_sk_bytes(0, &key).unwrap_err();
         let key = vec![0; 31];
-        Identity::from_sk_bytes(&key).unwrap_err();
+        Identity::from_sk_bytes(0, &key).unwrap_err();
         let key = vec![0; 32];
-        Identity::from_sk_bytes(&key).unwrap();
+        Identity::from_sk_bytes(0, &key).unwrap();
         let key = vec![0; 33];
-        Identity::from_sk_bytes(&key).unwrap_err();
+        Identity::from_sk_bytes(0, &key).unwrap_err();
         let key = vec![0; 48];
-        Identity::from_sk_bytes(&key).unwrap_err();
+        Identity::from_sk_bytes(0, &key).unwrap_err();
         let key = vec![0; 64];
-        Identity::from_sk_bytes(&key).unwrap_err();
+        Identity::from_sk_bytes(0, &key).unwrap_err();
     }
 
     #[test]
     fn sign_message() {
         let sk = vec![0; 32];
-        let id = Identity::from_sk_bytes(&sk).unwrap();
+        let id = Identity::from_sk_bytes(0, &sk).unwrap();
 
         let message = b"the message to sign";
         let sig = id.sign(message);
