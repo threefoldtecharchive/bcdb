@@ -33,6 +33,7 @@ async fn handle_set(
     auth: String,
     acl: Option<u32>,
     _tags: Option<String>,
+    data: bytes::Bytes,
 ) -> Result<impl warp::Reply, Infallible> {
     let mut cl = cl.clone();
 
@@ -42,7 +43,7 @@ async fn handle_set(
             tags: Vec::new(),
             acl: acl.map(|val| AclRef { acl: val as u64 }),
         }),
-        data: Vec::new(),
+        data: Vec::from(data.as_ref()),
     };
 
     let mut request = tonic::Request::new(request);
@@ -80,8 +81,8 @@ pub fn router(
         .and(warp::header::header::<String>("authorization"))
         .and(warp::header::optional::<u32>("x-acl"))
         .and(warp::header::optional::<String>("x-tags"))
-        // .and(warp::body::content_length_limit(4096))
-        // .and(warp::body::bytes())
+        .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
+        .and(warp::body::bytes())
         .and_then(handle_set);
     //return set;
     // .map(|collection, acl, _tags, _data| {
