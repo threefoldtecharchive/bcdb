@@ -8,6 +8,25 @@ use warp::Filter;
 
 type Client = BcdbClient<tonic::transport::Channel>;
 
+fn status_to_reply(status: tonic::Status) -> warp::reply::WithStatus<String> {
+    use tonic::Code::*;
+    let code = match status.code() {
+        Ok => StatusCode::OK,
+        InvalidArgument => StatusCode::BAD_REQUEST,
+        DeadlineExceeded => StatusCode::REQUEST_TIMEOUT,
+        NotFound => StatusCode::NOT_FOUND,
+        AlreadyExists => StatusCode::CONFLICT,
+        PermissionDenied => StatusCode::UNAUTHORIZED,
+        Unauthenticated => StatusCode::UNAUTHORIZED,
+        FailedPrecondition => StatusCode::PRECONDITION_FAILED,
+        Unimplemented => StatusCode::NOT_IMPLEMENTED,
+        Unavailable => StatusCode::SERVICE_UNAVAILABLE,
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
+    };
+
+    warp::reply::with_status(String::from(status.message()), code)
+}
+
 async fn handle_set(
     cl: Client,
     collection: String,
@@ -35,10 +54,7 @@ async fn handle_set(
     let response = match cl.set(request).await {
         Ok(response) => response,
         Err(err) => {
-            return Ok(warp::reply::with_status(
-                format!("{}", err),
-                StatusCode::INTERNAL_SERVER_ERROR, // use valid code from tonic status
-            ));
+            return Ok(status_to_reply(err));
         }
     };
 
