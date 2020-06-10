@@ -19,6 +19,7 @@ mod bcdb;
 mod explorer;
 mod identity;
 mod meta;
+mod rest;
 mod storage;
 
 const MEAT_DIR: &str = ".bcdb-meta";
@@ -45,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("listen")
                 .short("l")
                 .takes_value(true)
-                .default_value("[::1]:50051"),
+                .default_value("0.0.0.0:50051"),
         )
         .arg(
             Arg::with_name("meta")
@@ -173,6 +174,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let identity_service = bcdb::IdentityService::new(identity);
 
     let addr = matches.value_of("listen").unwrap().parse()?;
+
+    tokio::spawn(async { rest::run().await });
 
     Server::builder()
         .add_service(bcdb::BcdbServer::with_interceptor(
