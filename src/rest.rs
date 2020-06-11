@@ -16,6 +16,7 @@ mod bcdb;
 #[derive(Debug)]
 enum BcdbRejection {
     Status(tonic::Status),
+    InvalidTagsString,
 }
 
 impl Reject for BcdbRejection {}
@@ -60,6 +61,9 @@ async fn handle_rejections(err: Rejection) -> Result<impl warp::Reply, Infallibl
     } else if let Some(BcdbRejection::Status(status)) = err.find() {
         code = status_to_code(status);
         message = status.message();
+    } else if let Some(BcdbRejection::InvalidTagsString) = err.find() {
+        code = StatusCode::BAD_REQUEST;
+        message = "Invalid tags header";
     } else if let Some(_) = err.find::<warp::reject::MethodNotAllowed>() {
         code = StatusCode::METHOD_NOT_ALLOWED;
         message = "Method not allowed";

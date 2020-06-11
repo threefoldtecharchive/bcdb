@@ -3,20 +3,23 @@ use crate::bcdb::generated::*;
 use failure::Error;
 use std::collections::HashMap;
 use warp::http::StatusCode;
-use warp::reject::{Reject, Rejection};
+use warp::reject::Rejection;
 use warp::Filter;
+
+const HEADER_ACL: &str = "x-acl";
+const HEADER_TAGS: &str = "x-tags";
 
 type Client = BcdbClient<tonic::transport::Channel>;
 
-#[derive(Debug)]
-enum BcdbRejection {
-    Status(tonic::Status),
-}
-
-impl Reject for BcdbRejection {}
-
-fn tags_from_str(s: &str) -> Result<Vec<Tag>, Error> {
-    let map: HashMap<String, String> = serde_json::from_str(s)?;
+fn tags_from_str(s: &str) -> Result<Vec<Tag>, Rejection> {
+    let map: HashMap<String, String> = match serde_json::from_str(s) {
+        Ok(map) => map,
+        Err(_) => {
+            return Err(warp::reject::custom(
+                super::BcdbRejection::InvalidTagsString,
+            ))
+        }
+    };
     let mut tags = Vec::new();
 
     for (k, v) in map {
@@ -40,15 +43,20 @@ async fn handle_set(
     collection: String,
     auth: String,
     acl: Option<u32>,
-    _tags: Option<String>,
+    tags: Option<String>,
     data: bytes::Bytes,
 ) -> Result<impl warp::Reply, Rejection> {
     let mut cl = cl.clone();
 
+    let tags = match tags {
+        Some(t) => tags_from_str(t.as_ref())?,
+        None => Vec::new(),
+    };
+
     let request = SetRequest {
         metadata: Some(Metadata {
             collection: collection,
-            tags: Vec::new(),
+            tags: tags,
             acl: acl.map(|val| AclRef { acl: val as u64 }),
         }),
         data: Vec::from(data.as_ref()),
@@ -66,10 +74,7 @@ async fn handle_set(
     };
 
     let response = response.into_inner();
-    Ok(warp::reply::with_status(
-        format!("{}", response.id),
-        StatusCode::CREATED,
-    ))
+    Ok(warp::reply::json(&response.id))
 }
 
 async fn handle_get(
@@ -100,16 +105,10 @@ async fn handle_get(
 
     if let Some(meta) = response.metadata {
         if let Some(acl) = meta.acl {
-            builder = builder.header("x-acl", acl.acl)
+            builder = builder.header(HEADER_ACL, acl.acl)
         }
 
-        let mut tags = std::collections::HashMap::new();
-        for tag in meta.tags {
-            tags.insert(tag.key, tag.value);
-        }
-
-        let value = serde_json::to_string(&tags).unwrap();
-        builder = builder.header("x-tags", value);
+        builder = builder.header(HEADER_TAGS, tags_to_str(meta.tags).unwrap());
     }
 
     Ok(builder.body(response.data))
@@ -130,8 +129,8 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
     let set = base
         .clone()
         .and(warp::post())
-        .and(warp::header::optional::<u32>("x-acl"))
-        .and(warp::header::optional::<String>("x-tags"))
+        .and(warp::header::optional::<u32>(HEADER_ACL))
+        .and(warp::header::optional::<String>(HEADER_TAGS))
         .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
         .and(warp::body::bytes())
         .and_then(handle_set);
