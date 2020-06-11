@@ -1,7 +1,7 @@
 use crate::bcdb::generated::bcdb_client::BcdbClient;
 use crate::bcdb::generated::*;
-use serde::Serialize;
-use std::convert::Infallible;
+use failure::Error;
+use std::collections::HashMap;
 use warp::http::StatusCode;
 use warp::reject::{Reject, Rejection};
 use warp::Filter;
@@ -14,6 +14,26 @@ enum BcdbRejection {
 }
 
 impl Reject for BcdbRejection {}
+
+fn tags_from_str(s: &str) -> Result<Vec<Tag>, Error> {
+    let map: HashMap<String, String> = serde_json::from_str(s)?;
+    let mut tags = Vec::new();
+
+    for (k, v) in map {
+        tags.push(Tag { key: k, value: v });
+    }
+
+    Ok(tags)
+}
+
+fn tags_to_str(tags: Vec<Tag>) -> Result<String, Error> {
+    let mut map = HashMap::new();
+    for tag in tags {
+        map.insert(tag.key, tag.value);
+    }
+
+    Ok(serde_json::to_string(&map)?)
+}
 
 async fn handle_set(
     cl: Client,
@@ -42,7 +62,7 @@ async fn handle_set(
 
     let response = match cl.set(request).await {
         Ok(response) => response,
-        Err(status) => return Err(status_to_rejection(status)),
+        Err(status) => return Err(super::status_to_rejection(status)),
     };
 
     let response = response.into_inner();
@@ -73,11 +93,26 @@ async fn handle_get(
 
     let response = match cl.get(request).await {
         Ok(response) => response,
-        Err(status) => return Err(status_to_rejection(status)),
+        Err(status) => return Err(super::status_to_rejection(status)),
     };
     let response = response.into_inner();
+    let mut builder = http::response::Builder::new().status(StatusCode::OK);
 
-    Ok(warp::reply::with_status(response.data, StatusCode::OK))
+    if let Some(meta) = response.metadata {
+        if let Some(acl) = meta.acl {
+            builder = builder.header("x-acl", acl.acl)
+        }
+
+        let mut tags = std::collections::HashMap::new();
+        for tag in meta.tags {
+            tags.insert(tag.key, tag.value);
+        }
+
+        let value = serde_json::to_string(&tags).unwrap();
+        builder = builder.header("x-tags", value);
+    }
+
+    Ok(builder.body(response.data))
 }
 
 fn with_client(
@@ -86,7 +121,7 @@ fn with_client(
     warp::any().map(move || cl.clone())
 }
 
-pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Infallible> + Clone {
+pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let base = warp::any()
         .and(with_client(cl.clone()))
         .and(warp::path::param::<String>()) // collection
@@ -108,62 +143,5 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Inf
         .and_then(handle_get);
     //.map(|cl, collection, auth, key| format!("collection (get): {}\n", collection));
 
-    warp::path("db").and(set.or(get)).recover(handle_rejections)
-}
-
-fn status_to_code(status: &tonic::Status) -> StatusCode {
-    use tonic::Code::*;
-    let code = match status.code() {
-        Ok => StatusCode::OK,
-        InvalidArgument => StatusCode::BAD_REQUEST,
-        DeadlineExceeded => StatusCode::REQUEST_TIMEOUT,
-        NotFound => StatusCode::NOT_FOUND,
-        AlreadyExists => StatusCode::CONFLICT,
-        PermissionDenied => StatusCode::UNAUTHORIZED,
-        Unauthenticated => StatusCode::UNAUTHORIZED,
-        FailedPrecondition => StatusCode::PRECONDITION_FAILED,
-        Unimplemented => StatusCode::NOT_IMPLEMENTED,
-        Unavailable => StatusCode::SERVICE_UNAVAILABLE,
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
-    };
-
-    code
-}
-
-fn status_to_rejection(status: tonic::Status) -> Rejection {
-    return warp::reject::custom(BcdbRejection::Status(status));
-}
-
-/// An API error serializable to JSON.
-#[derive(Serialize)]
-struct ErrorMessage {
-    code: u16,
-    message: String,
-}
-
-async fn handle_rejections(err: Rejection) -> Result<impl warp::Reply, Infallible> {
-    let code;
-    let message;
-
-    if err.is_not_found() {
-        code = StatusCode::NOT_FOUND;
-        message = "Not Found";
-    } else if let Some(BcdbRejection::Status(status)) = err.find() {
-        code = status_to_code(status);
-        message = status.message();
-    } else if let Some(_) = err.find::<warp::reject::MethodNotAllowed>() {
-        code = StatusCode::METHOD_NOT_ALLOWED;
-        message = "Method not allowed";
-    } else {
-        // We should have expected this... Just log and say its a 500
-        code = StatusCode::INTERNAL_SERVER_ERROR;
-        message = "Unknown error";
-    }
-
-    let json = warp::reply::json(&ErrorMessage {
-        code: code.as_u16(),
-        message: message.into(),
-    });
-
-    Ok(warp::reply::with_status(json, code))
+    warp::path("db").and(set.or(get))
 }
