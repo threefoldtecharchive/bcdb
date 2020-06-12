@@ -1,18 +1,13 @@
 use crate::bcdb::generated::acl_client::AclClient;
 use crate::bcdb::generated::*;
 use failure::Error;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use warp::http::StatusCode;
 use warp::reject::{Reject, Rejection};
 use warp::Filter;
-use serde::{Serialize, Deserialize};
 
 type Client = AclClient<tonic::transport::Channel>;
-
-#[derive(Debug)]
-enum AclRejection {
-    Status(tonic::Status),
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ACLGetResponse {
@@ -26,8 +21,6 @@ struct ACLSetRequest {
     perm: String,
 }
 
-impl Reject for AclRejection {}
-
 async fn handle_set(
     cl: Client,
     collection: String,
@@ -38,7 +31,7 @@ async fn handle_set(
 
     let request = AclSetRequest {
         key: body.key,
-        perm: body.perm
+        perm: body.perm,
     };
 
     let mut request = tonic::Request::new(request);
@@ -63,9 +56,7 @@ async fn handle_get(
 ) -> Result<impl warp::Reply, Rejection> {
     let mut cl = cl.clone();
 
-    let request = AclGetRequest {
-        key: key,
-    };
+    let request = AclGetRequest { key: key };
 
     let mut request = tonic::Request::new(request);
     request.metadata_mut().append(
@@ -80,13 +71,15 @@ async fn handle_get(
             if let Some(acl) = response.acl {
                 let act_get_response = ACLGetResponse {
                     perm: acl.perm,
-                    users: acl.users
+                    users: acl.users,
                 };
-                return Ok(warp::reply::json(&act_get_response))
+                return Ok(warp::reply::json(&act_get_response));
             } else {
-                return Err(super::status_to_rejection(tonic::Status::not_found("acl not found")))
+                return Err(super::status_to_rejection(tonic::Status::not_found(
+                    "acl not found",
+                )));
             }
-        },
+        }
         Err(status) => return Err(super::status_to_rejection(status)),
     };
 }
