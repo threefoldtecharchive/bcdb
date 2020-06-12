@@ -307,7 +307,55 @@ class HTTPAclClient:
     def __init__(self, client):
         self.client = client
 
-    # add your method here similar to HTTPBcdbClient
+    def headers(self, **kwargs):
+        return self.client.headers(**kwargs)
+
+    def url(self, *parts):
+        url = self.client.url("acl", *parts)
+        print("url:", url)
+        return url
+
+    def create(self, perm, users):
+        """
+        create creates an acl with a permission and users
+
+        :param perm: permission to set
+        :param users: list of users to set permission on
+        :returns: newly created key
+        """
+
+        data = {
+            "perm": perm,
+            'users': users
+        }
+        print(data)
+
+        return requests.post(self.url(), json=data, headers=self.headers())
+
+    def set(self, key, perm):
+        """
+        set sets a permission to an acl key
+
+        :param key: acl key
+        :param perm: permission to set
+        :returns: new object id
+        """
+
+        data = {
+            'perm': perm
+        }
+
+        return requests.put(self.url(key), json=data, headers=self.headers())
+
+    def get(self, key):
+        """
+        get retrieves an acl by key
+
+        :param key: acl key
+        :returns: acl object
+        """
+
+        return requests.get(self.url(key), headers=self.headers())
 
 
 class HTTPBcdbClient:

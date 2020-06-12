@@ -15,19 +15,56 @@ struct ACLGetResponse {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ACLSetRequest {
-    key: u32,
     perm: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ACLCreateRequest {
+    perm: String,
+    users: Vec<u64>
+}
+
+async fn handle_create(
+    cl: Client,
+    auth: String,
+    body: ACLCreateRequest,
+) -> Result<impl warp::Reply, Rejection> {
+    let mut cl = cl.clone();
+
+    let request = AclCreateRequest {
+        acl: Some(Acl{
+            perm: body.perm,
+            users: body.users
+        })
+    };
+
+    info!("request: {:?}", request);
+
+    let mut request = tonic::Request::new(request);
+    request.metadata_mut().append(
+        "authorization",
+        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
+    );
+
+    let response = match cl.create(request).await {
+        Ok(response) => response,
+        Err(status) => return Err(super::status_to_rejection(status)),
+    };
+
+    let response = response.into_inner();
+    Ok(warp::reply::json(&response.key))
 }
 
 async fn handle_set(
     cl: Client,
     auth: String,
+    key: u32,
     body: ACLSetRequest,
 ) -> Result<impl warp::Reply, Rejection> {
     let mut cl = cl.clone();
 
     let request = AclSetRequest {
-        key: body.key,
+        key: key,
         perm: body.perm,
     };
 
@@ -91,18 +128,27 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
         .and(with_client(cl.clone()))
         .and(warp::header::header::<String>("authorization"));
 
-    let set = base
+    let create = base
         .clone()
         .and(warp::post())
-        .and(warp::body::json())
         .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
-        .and_then(handle_set);
-
+        .and(warp::body::json())
+        .and_then(handle_create);
+    
+        
     let get = base
         .clone()
-        .and(warp::get())
         .and(warp::path::param::<u32>()) // key
+        .and(warp::get())
         .and_then(handle_get);
+        
+    let set = base
+        .clone()
+        .and(warp::path::param::<u32>()) // key
+        .and(warp::put())
+        .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
+        .and(warp::body::json())
+        .and_then(handle_set);
 
-    warp::path("acl").and(set.or(get))
+    warp::path("acl").and(create.or(get).or(set))
 }

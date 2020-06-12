@@ -5,6 +5,7 @@ and forward all calls from the HTTP interface to the official grpc interface.
 This might change in the future to directly access the data layer
 */
 use crate::bcdb::generated::bcdb_client::BcdbClient;
+use crate::bcdb::generated::acl_client::AclClient;
 use serde::Serialize;
 use std::convert::Infallible;
 use warp::http::StatusCode;
@@ -55,6 +56,7 @@ struct ErrorMessage {
 async fn handle_rejections(err: Rejection) -> Result<impl warp::Reply, Infallible> {
     let code;
     let message;
+    let formatted_error = format!("{:?}", err);
 
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
@@ -71,7 +73,7 @@ async fn handle_rejections(err: Rejection) -> Result<impl warp::Reply, Infallibl
     } else {
         // We should have expected this... Just log and say its a 500
         code = StatusCode::INTERNAL_SERVER_ERROR;
-        message = "Unknown error";
+        message = &formatted_error;
     }
 
     let json = warp::reply::json(&ErrorMessage {
@@ -83,7 +85,12 @@ async fn handle_rejections(err: Rejection) -> Result<impl warp::Reply, Infallibl
 }
 
 pub async fn run() {
-    let cl = BcdbClient::connect("http://127.0.0.1:50051").await.unwrap();
-    let api = bcdb::router(cl).recover(handle_rejections);
+    let bcdb_cli = BcdbClient::connect("http://127.0.0.1:50051").await.unwrap();
+    let bcdb_api = bcdb::router(bcdb_cli);
+    
+    let acl_cli = AclClient::connect("http://127.0.0.1:50051").await.unwrap();
+    let acl_api = acl::router(acl_cli);
+
+    let api = bcdb_api.or(acl_api).recover(handle_rejections);
     warp::serve(api).run(([127, 0, 0, 1], 3030)).await;
 }
