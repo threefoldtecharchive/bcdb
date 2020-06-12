@@ -357,6 +357,35 @@ class HTTPAclClient:
 
         return requests.get(self.url(key), headers=self.headers())
 
+    def grant(self, key, users):
+        """
+        grants to users
+
+        :param key: acl key
+        :param users: users to grant
+        :returns: updated id
+        """
+
+        data = {
+            'users': users
+        }
+
+        return requests.post(self.url(f"{key}/grant"), json=data, headers=self.headers())
+
+    def revoke(self, key, users):
+        """
+        revoke from users
+
+        :param key: acl key
+        :param users: users to revoke
+        :returns: updated id
+        """
+
+        data = {
+            'users': users
+        }
+
+        return requests.post(self.url(f"{key}/revoke"), json=data, headers=self.headers())
 
 class HTTPBcdbClient:
     def __init__(self, client, collection):

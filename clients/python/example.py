@@ -48,3 +48,9 @@ if __name__ == "__main__":
     print(response)
     print(response.headers)
     print(response.text)
+
+    response = acl.grant("0", [1])
+
+    print(response)
+    print(response.headers)
+    print(response.text)
