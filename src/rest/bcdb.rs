@@ -187,8 +187,8 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
 
     let update = base
         .clone()
-        .and(warp::put())
         .and(warp::path::param::<u32>()) // key
+        .and(warp::put())
         .and(warp::header::optional::<u32>(HEADER_ACL))
         .and(warp::header::optional::<String>(HEADER_TAGS))
         .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB

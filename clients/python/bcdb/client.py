@@ -6,6 +6,8 @@ from .generated.bcdb_pb2_grpc import BCDBStub, AclStub
 import base64
 import grpc
 from typing import NamedTuple
+import requests
+from os import path
 
 
 class AclClient:
@@ -271,3 +273,80 @@ class Client:
                       one directly connected to by this client
         """
         return BcdbClient(self.__channel, collection, threebot_id)
+
+
+class HTTPClient:
+    def __init__(self, url, identity):
+        auth_gateway = AuthGateway(identity, 3)
+        self.__auth = auth_gateway
+        if not url.endswith('/'):
+            url = url + '/'
+        self.__url = url
+
+    def headers(self, **args):
+        output = {}
+        for k, v in args.items():
+            k = k.replace('_', '-').lower()
+            output[k] = v
+
+        args.update([self.__auth.get_auth_header()])
+        return args
+
+    def url(self, *parts):
+        return "%s%s" % (self.__url, path.join(*parts))
+
+    def collection(self, collection):
+        return HTTPBcdbClient(self, collection)
+
+
+class HTTPBcdbClient:
+    def __init__(self, client, collection):
+        self.client = client
+        self.collection = collection
+
+    def url(self, *parts):
+        url = self.client.url("db", self.collection, *parts)
+        print("url:", url)
+        return url
+
+    def headers(self, **kwargs):
+        return self.client.headers(**kwargs)
+
+    def set(self, data, tags: dict = None, acl: int = None):
+        """
+        set creates a new object given data and tags, and optional acl key.
+
+        :param data: data to set
+        :param tags: optional tags associated with the object. useful for find operations
+        :param acl: optional acl key
+        :returns: new object id
+        """
+
+        headers = {}
+        if acl:
+            headers['x-acl'] = acl
+        if tags:
+            headers['x-tags'] = json.dumps(tags)
+
+        return requests.post(self.url(), data=data, headers=self.headers(**headers))
+
+    def get(self, key):
+        """
+        set creates a new object given data and tags, and optional acl key.
+
+        :param data: data to set
+        :param tags: optional tags associated with the object. useful for find operations
+        :param acl: optional acl key
+        :returns: new object id
+        """
+
+        return requests.get(self.url(key), headers=self.headers())
+
+    def update(self, key, data: bytes = None, tags: dict = None, acl: int = None):
+        headers = {}
+        if acl is not None:
+            headers['x-acl'] = acl
+        if tags is not None:
+            headers['x-tags'] = json.dumps(tags)
+
+        return requests.put(self.url(str(key)), data=data, headers=self.headers(**headers))
