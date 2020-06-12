@@ -298,6 +298,17 @@ class HTTPClient:
     def collection(self, collection):
         return HTTPBcdbClient(self, collection)
 
+    @property
+    def acl(self):
+        return HTTPAclClient(self)
+
+
+class HTTPAclClient:
+    def __init__(self, client):
+        self.client = client
+
+    # add your method here similar to HTTPBcdbClient
+
 
 class HTTPBcdbClient:
     def __init__(self, client, collection):
