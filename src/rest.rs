@@ -12,6 +12,7 @@ use warp::reject::{Reject, Rejection};
 use warp::Filter;
 
 mod bcdb;
+mod acl;
 
 #[derive(Debug)]
 enum BcdbRejection {
