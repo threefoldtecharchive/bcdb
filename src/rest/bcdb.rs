@@ -114,6 +114,50 @@ async fn handle_get(
     Ok(builder.body(response.data))
 }
 
+async fn handle_update(
+    cl: Client,
+    collection: String,
+    auth: String,
+    key: u32,
+    acl: Option<u32>,
+    tags: Option<String>,
+    data: bytes::Bytes,
+) -> Result<impl warp::Reply, Rejection> {
+    let mut cl = cl.clone();
+
+    let tags = match tags {
+        Some(t) => tags_from_str(t.as_ref())?,
+        None => Vec::new(),
+    };
+
+    let request = UpdateRequest {
+        id: key,
+        metadata: Some(Metadata {
+            collection: collection,
+            tags: tags,
+            acl: acl.map(|val| AclRef { acl: val as u64 }),
+        }),
+        data: if data.len() > 0 {
+            Some(update_request::UpdateData {
+                data: Vec::from(data.as_ref()),
+            })
+        } else {
+            None
+        },
+    };
+
+    let mut request = tonic::Request::new(request);
+    request.metadata_mut().append(
+        "authorization",
+        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
+    );
+
+    match cl.update(request).await {
+        Ok(_) => Ok(warp::reply::reply()),
+        Err(status) => Err(super::status_to_rejection(status)),
+    }
+}
+
 fn with_client(
     cl: Client,
 ) -> impl Filter<Extract = (Client,), Error = std::convert::Infallible> + Clone {
@@ -140,7 +184,17 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
         .and(warp::get())
         .and(warp::path::param::<u32>()) // key
         .and_then(handle_get);
+
+    let update = base
+        .clone()
+        .and(warp::put())
+        .and(warp::path::param::<u32>()) // key
+        .and(warp::header::optional::<u32>(HEADER_ACL))
+        .and(warp::header::optional::<String>(HEADER_TAGS))
+        .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
+        .and(warp::body::bytes())
+        .and_then(handle_update);
     //.map(|cl, collection, auth, key| format!("collection (get): {}\n", collection));
 
-    warp::path("db").and(set.or(get))
+    warp::path("db").and(set.or(get).or(update))
 }
