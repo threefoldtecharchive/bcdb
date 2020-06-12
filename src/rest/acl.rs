@@ -1,10 +1,8 @@
 use crate::bcdb::generated::acl_client::AclClient;
 use crate::bcdb::generated::*;
-use failure::Error;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use warp::http::StatusCode;
-use warp::reject::{Reject, Rejection};
+use warp::reject::{Rejection};
 use warp::Filter;
 
 type Client = AclClient<tonic::transport::Channel>;
@@ -23,7 +21,6 @@ struct ACLSetRequest {
 
 async fn handle_set(
     cl: Client,
-    collection: String,
     auth: String,
     body: ACLSetRequest,
 ) -> Result<impl warp::Reply, Rejection> {
@@ -50,7 +47,6 @@ async fn handle_set(
 
 async fn handle_get(
     cl: Client,
-    collection: String,
     auth: String,
     key: u32,
 ) -> Result<impl warp::Reply, Rejection> {
@@ -93,7 +89,6 @@ fn with_client(
 pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let base = warp::any()
         .and(with_client(cl.clone()))
-        .and(warp::path::param::<String>()) // collection
         .and(warp::header::header::<String>("authorization"));
 
     let set = base
@@ -108,7 +103,6 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
         .and(warp::get())
         .and(warp::path::param::<u32>()) // key
         .and_then(handle_get);
-    //.map(|cl, collection, auth, key| format!("collection (get): {}\n", collection));
 
     warp::path("acl").and(set.or(get))
 }
