@@ -360,4 +360,21 @@ class HTTPBcdbClient:
         if tags is not None:
             headers['x-tags'] = json.dumps(tags)
 
-        return requests.put(self.url(str(key)), data=data, headers=self.headers(**headers))
+        return requests.put(self.url(str(key)), data=data, headers=self.headers(**headers)).json()
+
+    def find(self, **kwargs):
+        if kwargs is None or len(kwargs) == 0:
+            # due to a bug in the warp router (server side)
+            # this call does not match if no queries are supplied
+            # hence we add a dummy query that is ignred by the server
+            kwargs = {'_': ''}
+
+        response = requests.get(
+            self.url(), params=kwargs, headers=self.headers())
+
+        content = response.text
+        dec = json.JSONDecoder()
+        while content:
+            obj, idx = dec.raw_decode(content)
+            yield obj
+            content = content[idx:]
