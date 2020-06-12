@@ -1,10 +1,8 @@
 use crate::bcdb::generated::acl_client::AclClient;
 use crate::bcdb::generated::*;
-use failure::Error;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use warp::http::StatusCode;
-use warp::reject::{Reject, Rejection};
+use warp::reject::{Rejection};
 use warp::Filter;
 
 type Client = AclClient<tonic::transport::Channel>;
@@ -17,20 +15,59 @@ struct ACLGetResponse {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ACLSetRequest {
-    key: u32,
     perm: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ACLCreateRequest {
+    perm: String,
+    users: Vec<u64>
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ACLUsersRequest {
+    users: Vec<u64>
+}
+
+async fn handle_create(
+    cl: Client,
+    auth: String,
+    body: ACLCreateRequest,
+) -> Result<impl warp::Reply, Rejection> {
+    let mut cl = cl.clone();
+
+    let request = AclCreateRequest {
+        acl: Some(Acl{
+            perm: body.perm,
+            users: body.users
+        })
+    };
+
+    let mut request = tonic::Request::new(request);
+    request.metadata_mut().append(
+        "authorization",
+        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
+    );
+
+    let response = match cl.create(request).await {
+        Ok(response) => response,
+        Err(status) => return Err(super::status_to_rejection(status)),
+    };
+
+    let response = response.into_inner();
+    Ok(warp::reply::json(&response.key))
 }
 
 async fn handle_set(
     cl: Client,
-    collection: String,
     auth: String,
+    key: u32,
     body: ACLSetRequest,
 ) -> Result<impl warp::Reply, Rejection> {
     let mut cl = cl.clone();
 
     let request = AclSetRequest {
-        key: body.key,
+        key: key,
         perm: body.perm,
     };
 
@@ -50,7 +87,6 @@ async fn handle_set(
 
 async fn handle_get(
     cl: Client,
-    collection: String,
     auth: String,
     key: u32,
 ) -> Result<impl warp::Reply, Rejection> {
@@ -84,6 +120,64 @@ async fn handle_get(
     };
 }
 
+async fn handle_grant(
+    cl: Client,
+    auth: String,
+    key: u32,
+    body: ACLUsersRequest,
+) -> Result<impl warp::Reply, Rejection> {
+    let mut cl = cl.clone();
+
+    let request = AclUsersRequest {
+        key: key,
+        users: body.users,
+    };
+
+    info!("request: {:?}", request);
+
+    let mut request = tonic::Request::new(request);
+    request.metadata_mut().append(
+        "authorization",
+        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
+    );
+
+    let response = match cl.grant(request).await {
+        Ok(response) => response,
+        Err(status) => return Err(super::status_to_rejection(status)),
+    };
+
+    let response = response.into_inner();
+    Ok(warp::reply::json(&response.updated))
+}
+
+async fn handle_revoke(
+    cl: Client,
+    auth: String,
+    key: u32,
+    body: ACLUsersRequest,
+) -> Result<impl warp::Reply, Rejection> {
+    let mut cl = cl.clone();
+
+    let request = AclUsersRequest {
+        key: key,
+        users: body.users,
+    };
+
+    let mut request = tonic::Request::new(request);
+    request.metadata_mut().append(
+        "authorization",
+        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
+    );
+
+    let response = match cl.revoke(request).await {
+        Ok(response) => response,
+        Err(status) => return Err(super::status_to_rejection(status)),
+    };
+
+    let response = response.into_inner();
+    Ok(warp::reply::json(&response.updated))
+}
+
 fn with_client(
     cl: Client,
 ) -> impl Filter<Extract = (Client,), Error = std::convert::Infallible> + Clone {
@@ -93,22 +187,47 @@ fn with_client(
 pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let base = warp::any()
         .and(with_client(cl.clone()))
-        .and(warp::path::param::<String>()) // collection
         .and(warp::header::header::<String>("authorization"));
 
-    let set = base
+    let create = base
         .clone()
         .and(warp::post())
-        .and(warp::body::json())
         .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
-        .and_then(handle_set);
-
+        .and(warp::body::json())
+        .and_then(handle_create);
+    
     let get = base
         .clone()
-        .and(warp::get())
         .and(warp::path::param::<u32>()) // key
+        .and(warp::get())
         .and_then(handle_get);
-    //.map(|cl, collection, auth, key| format!("collection (get): {}\n", collection));
+        
+    let set = base
+        .clone()
+        .and(warp::path::param::<u32>()) // key
+        .and(warp::put())
+        .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
+        .and(warp::body::json())
+        .and_then(handle_set);
 
-    warp::path("acl").and(set.or(get))
+    let grant = base
+        .clone()
+        .and(warp::path::param::<u32>()) // key
+        .and(warp::path("grant"))
+        .and(warp::post())
+        .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
+        .and(warp::body::json())
+        .and_then(handle_grant);
+
+    let revoke = base
+        .clone()
+        .and(warp::path::param::<u32>()) // key
+        .and(warp::path("revoke"))
+        .and(warp::post())
+        .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
+        .and(warp::body::json())
+        .and_then(handle_revoke);
+
+    warp::path("acl")
+        .and(create.or(get).or(set).or(grant).or(revoke))
 }

@@ -28,3 +28,29 @@ if __name__ == "__main__":
     print(response)
     print(response.headers)
     print(response.text)
+
+    acl = client.acl
+
+    response = acl.create("r--", [1])
+
+    print(response)
+    print(response.headers)
+    print(response.text)
+
+    response = acl.get("0")
+
+    print(response)
+    print(response.headers)
+    print(response.text)
+
+    response = acl.set("0", "rwd")
+
+    print(response)
+    print(response.headers)
+    print(response.text)
+
+    response = acl.grant("0", [1])
+
+    print(response)
+    print(response.headers)
+    print(response.text)
