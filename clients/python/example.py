@@ -34,13 +34,11 @@ def rest_client_example():
 
     key = example.set(b'hello world', {"example": "value", "tag2": "v2"})
     obj = example.get(key)
-    print(obj.headers)
-    print(obj.text)
+    print(obj)
 
     example.update(key, b'updated string', {"example": "updated"}, acl=10)
     obj = example.get(key)
-    print(obj.headers)
-    print(obj.text)
+    print(obj)
 
     for o in example.find(example="updated"):
         print(o)
@@ -48,8 +46,6 @@ def rest_client_example():
     example.delete(key)
     obj = example.get(key)
     print(obj)
-    print(obj.headers)
-    print(obj.text)
 
 
 if __name__ == '__main__':

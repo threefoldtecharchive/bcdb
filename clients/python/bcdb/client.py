@@ -447,7 +447,15 @@ class HTTPBcdbClient:
         :returns: new object id
         """
 
-        return requests.get(self.url(key), headers=self.headers())
+        response = requests.get(self.url(key), headers=self.headers())
+
+        return Object(
+            id=key,
+            data=response.content,
+            tags=json.loads(
+                response.headers.get('x-tags', 'null')
+            ),
+        )
 
     def delete(self, key):
         """
@@ -486,5 +494,10 @@ class HTTPBcdbClient:
         dec = json.JSONDecoder()
         while content:
             obj, idx = dec.raw_decode(content)
-            yield obj
+            yield Object(
+                id=obj['id'],
+                tags=obj['tags'],
+                data=None,
+            )
+
             content = content[idx:]
