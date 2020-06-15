@@ -5,11 +5,12 @@ if __name__ == "__main__":
     client = HTTPClient("http://localhost:50061", identity)
     collection = client.collection("http", 17)
 
-    id = collection.set(
+    response = collection.set(
         "Some data goes here", {"name": "test", "parent": "some parent with\nnewlines"}, acl='10')
 
-    print(id)
+    print(response.text)
 
+    id = response.text
     response = collection.get(id)
 
     print(response)
