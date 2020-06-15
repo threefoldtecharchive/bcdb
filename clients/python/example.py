@@ -60,3 +60,9 @@ if __name__ == "__main__":
     print(response)
     print(response.headers)
     print(response.text)
+
+    response = acl.list()
+
+    print(response)
+    print(response.headers)
+    print(response.text)

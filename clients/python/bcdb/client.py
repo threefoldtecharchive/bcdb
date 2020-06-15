@@ -387,6 +387,14 @@ class HTTPAclClient:
 
         return requests.post(self.url(f"{key}/revoke"), json=data, headers=self.headers())
 
+    def list(self):
+        """
+        list all acl's
+
+        :returns: acl list
+        """
+        return requests.get(self.url("list"), headers=self.headers())
+
 class HTTPBcdbClient:
     def __init__(self, client, collection):
         self.client = client
