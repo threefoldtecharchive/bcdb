@@ -117,6 +117,31 @@ async fn handle_get(
     Ok(builder.body(response.data))
 }
 
+async fn handle_delete(
+    cl: Client,
+    collection: String,
+    auth: String,
+    key: u32,
+) -> Result<impl warp::Reply, Rejection> {
+    let mut cl = cl.clone();
+
+    let request = DeleteRequest {
+        id: key,
+        collection: collection,
+    };
+
+    let mut request = tonic::Request::new(request);
+    request.metadata_mut().append(
+        "authorization",
+        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
+    );
+
+    match cl.delete(request).await {
+        Ok(_) => Ok(warp::reply()),
+        Err(status) => Err(super::status_to_rejection(status)),
+    }
+}
+
 async fn handle_update(
     cl: Client,
     collection: String,
@@ -189,8 +214,6 @@ async fn handle_find(
         });
     }
 
-    info!("test: {:?}", tags);
-
     let request = QueryRequest {
         collection: collection,
         tags: tags,
@@ -259,6 +282,12 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
         .and(warp::get())
         .and_then(handle_get);
 
+    let delete = base
+        .clone()
+        .and(warp::path::param::<u32>()) // key
+        .and(warp::delete())
+        .and_then(handle_delete);
+
     let update = base
         .clone()
         .and(warp::path::param::<u32>()) // key
@@ -274,7 +303,6 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
         .and(warp::get())
         .and(warp::query::raw()) // query
         .and_then(handle_find);
-    //.map(|cl, collection, auth, key| format!("collection (get): {}\n", collection));
 
-    warp::path("db").and(set.or(get).or(update).or(find))
+    warp::path("db").and(set.or(get).or(delete).or(update).or(find))
 }
