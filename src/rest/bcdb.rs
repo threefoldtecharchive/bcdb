@@ -90,7 +90,10 @@ async fn handle_set(
     };
 
     let response = response.into_inner();
-    Ok(warp::reply::json(&response.id))
+    Ok(warp::reply::with_status(
+        warp::reply::json(&response.id),
+        StatusCode::CREATED,
+    ))
 }
 
 async fn handle_get(

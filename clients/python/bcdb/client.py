@@ -329,9 +329,8 @@ class HTTPAclClient:
             "perm": perm,
             'users': users
         }
-        print(data)
 
-        return requests.post(self.url(), json=data, headers=self.headers())
+        return requests.post(self.url(), json=data, headers=self.headers()).json()
 
     def set(self, key, perm):
         """
@@ -346,7 +345,7 @@ class HTTPAclClient:
             'perm': perm
         }
 
-        return requests.put(self.url(key), json=data, headers=self.headers())
+        requests.put(self.url(key), json=data, headers=self.headers())
 
     def get(self, key):
         """
@@ -356,7 +355,7 @@ class HTTPAclClient:
         :returns: acl object
         """
 
-        return requests.get(self.url(key), headers=self.headers())
+        return requests.get(self.url(key), headers=self.headers()).json()
 
     def grant(self, key, users):
         """
@@ -371,7 +370,7 @@ class HTTPAclClient:
             'users': users
         }
 
-        return requests.post(self.url(f"{key}/grant"), json=data, headers=self.headers())
+        return requests.post(self.url(f"{key}/grant"), json=data, headers=self.headers()).json()
 
     def revoke(self, key, users):
         """
@@ -386,7 +385,7 @@ class HTTPAclClient:
             'users': users
         }
 
-        return requests.post(self.url(f"{key}/revoke"), json=data, headers=self.headers())
+        return requests.post(self.url(f"{key}/revoke"), json=data, headers=self.headers()).json()
 
     def list(self):
         """
@@ -394,7 +393,16 @@ class HTTPAclClient:
 
         :returns: acl list
         """
-        return requests.get(self.url(), headers=self.headers())
+        response = requests.get(
+            self.url(), headers=self.headers())
+
+        # this should instead read response "stream" and parse each object individually
+        content = response.text
+        dec = json.JSONDecoder()
+        while content:
+            obj, idx = dec.raw_decode(content)
+            yield obj
+            content = content[idx:]
 
 
 class HTTPBcdbClient:
@@ -459,6 +467,7 @@ class HTTPBcdbClient:
             # hence we add a dummy query that is ignred by the server
             kwargs = {'_': ''}
 
+        # this should instead read response "stream" and parse each object individually
         response = requests.get(
             self.url(), params=kwargs, headers=self.headers())
 

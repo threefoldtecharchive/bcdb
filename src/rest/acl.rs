@@ -57,7 +57,11 @@ async fn handle_create(
     };
 
     let response = response.into_inner();
-    Ok(warp::reply::json(&response.key))
+
+    Ok(warp::reply::with_status(
+        warp::reply::json(&response.key),
+        StatusCode::CREATED,
+    ))
 }
 
 async fn handle_set(
@@ -84,7 +88,7 @@ async fn handle_set(
         Err(status) => return Err(super::status_to_rejection(status)),
     };
 
-    Ok(warp::reply::with_status("created", StatusCode::CREATED))
+    Ok(warp::reply::reply())
 }
 
 async fn handle_get(cl: Client, auth: String, key: u32) -> Result<impl warp::Reply, Rejection> {
@@ -236,11 +240,8 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
         .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
         .and(warp::body::json())
         .and_then(handle_create);
-            
-    let list = base
-        .clone()
-        .and(warp::get())
-        .and_then(handle_list);
+
+    let list = base.clone().and(warp::get()).and_then(handle_list);
 
     let get = base
         .clone()
@@ -272,7 +273,5 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
         .and(warp::body::json())
         .and_then(handle_revoke);
 
-
-    warp::path("acl")
-        .and(set.or(grant).or(revoke).or(get).or(list).or(create))
+    warp::path("acl").and(set.or(grant).or(revoke).or(get).or(list).or(create))
 }

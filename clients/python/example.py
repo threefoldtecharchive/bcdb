@@ -3,66 +3,44 @@ from bcdb import Identity, Client, HTTPClient
 if __name__ == "__main__":
     identity = Identity.from_seed("user.seed")
     client = HTTPClient("http://localhost:50061", identity)
-    collection = client.collection("http", 17)
+    # collection = client.collection("http")
 
-    response = collection.set(
-        "Some data goes here", {"name": "test", "parent": "some parent with\nnewlines"}, acl='10')
+    # id = collection.set(
+    #     "Some data goes here", {"name": "test", "parent": "some parent with\nnewlines"}, acl='10')
+    # response = collection.get(id)
 
-    print(response.text)
+    # print(response)
+    # print(response.headers)
+    # print(response.text)
 
-    id = response.text
-    response = collection.get(id)
+    # print("update", id)
+    # response = collection.update(id,
+    #                              "Updated data", {"name": "test", "parent": "new value"})
 
-    print(response)
-    print(response.headers)
-    print(response.text)
+    # print("Update Response:", response)
 
-    print("update", id)
-    response = collection.update(id,
-                                 "Updated data", {"name": "test", "parent": "new value"})
+    # response = collection.get(id)
 
-    print("Update Response:", response)
-
-    response = collection.get(id)
-
-    print(response)
-    print(response.headers)
-    print(response.text)
+    # print(response)
+    # print(response.headers)
+    # print(response.text)
 
     acl = client.acl
 
-    response = acl.create("r--", [1])
+    key = acl.create("r--", [1, 2])
 
-    print(response)
-    print(response.headers)
-    print(response.text)
+    print("ACL ID", key)
 
-    response = acl.get("0")
+    acl.set(key, 'r-d')
+    response = acl.get(key)
 
-    print(response)
-    print(response.headers)
-    print(response.text)
+    print("ACL:", response)
 
-    response = acl.set("0", "rwd")
+    acl.set(0, "rwd")
 
-    print(response)
-    print(response.headers)
-    print(response.text)
+    print("grant", acl.grant(key, [2, 3]))
 
-    response = acl.grant("0", [1])
+    print("revokie", acl.revoke(key, [1]))
 
-    print(response)
-    print(response.headers)
-    print(response.text)
-
-    response = acl.revoke("0", [1])
-
-    print(response)
-    print(response.headers)
-    print(response.text)
-
-    response = acl.list()
-
-    print(response)
-    print(response.headers)
-    print(response.text)
+    for acl in acl.list():
+        print(acl)
