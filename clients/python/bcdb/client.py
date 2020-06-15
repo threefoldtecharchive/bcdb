@@ -286,6 +286,8 @@ class HTTPClient:
     def headers(self, **args):
         output = {}
         for k, v in args.items():
+            if v is None:
+                continue
             k = k.replace('_', '-').lower()
             output[k] = v
 
@@ -293,10 +295,10 @@ class HTTPClient:
         return args
 
     def url(self, *parts):
-        return "%s%s" % (self.__url, path.join(*parts))
+        return "%s%s" % (self.__url, path.join(*map(str, parts)))
 
-    def collection(self, collection):
-        return HTTPBcdbClient(self, collection)
+    def collection(self, collection: str, threebot_id: int = None):
+        return HTTPBcdbClient(self, collection, threebot_id)
 
     @property
     def acl(self):
@@ -387,10 +389,12 @@ class HTTPAclClient:
 
         return requests.post(self.url(f"{key}/revoke"), json=data, headers=self.headers())
 
+
 class HTTPBcdbClient:
-    def __init__(self, client, collection):
+    def __init__(self, client, collection, threebot_id: int = None):
         self.client = client
         self.collection = collection
+        self.threebot_id = threebot_id
 
     def url(self, *parts):
         url = self.client.url("db", self.collection, *parts)
@@ -398,7 +402,7 @@ class HTTPBcdbClient:
         return url
 
     def headers(self, **kwargs):
-        return self.client.headers(**kwargs)
+        return self.client.headers(x_threebot_id=self.threebot_id, **kwargs)
 
     def set(self, data, tags: dict = None, acl: int = None):
         """
@@ -410,13 +414,14 @@ class HTTPBcdbClient:
         :returns: new object id
         """
 
-        headers = {}
-        if acl:
-            headers['x-acl'] = acl
-        if tags:
-            headers['x-tags'] = json.dumps(tags)
-
-        return requests.post(self.url(), data=data, headers=self.headers(**headers))
+        return requests.post(
+            self.url(),
+            data=data,
+            headers=self.headers(
+                x_acl=acl,
+                x_tags=json.dumps(tags) if tags else None,
+            ),
+        ).json()
 
     def get(self, key):
         """
@@ -431,13 +436,14 @@ class HTTPBcdbClient:
         return requests.get(self.url(key), headers=self.headers())
 
     def update(self, key, data: bytes = None, tags: dict = None, acl: int = None):
-        headers = {}
-        if acl is not None:
-            headers['x-acl'] = acl
-        if tags is not None:
-            headers['x-tags'] = json.dumps(tags)
-
-        return requests.put(self.url(str(key)), data=data, headers=self.headers(**headers)).json()
+        return requests.put(
+            self.url(str(key)),
+            data=data,
+            headers=self.headers(
+                x_acl=acl,
+                x_tags=json.dumps(tags) if tags else None,
+            ),
+        )
 
     def find(self, **kwargs):
         if kwargs is None or len(kwargs) == 0:

@@ -5,12 +5,11 @@ if __name__ == "__main__":
     client = HTTPClient("http://localhost:3030", identity)
     collection = client.collection("http")
 
-    response = collection.set(
+    id = collection.set(
         "Some data goes here", {"name": "test", "parent": "some parent with\nnewlines"}, acl='10')
 
-    print(response.text)
+    print(id)
 
-    id = response.text
     response = collection.get(id)
 
     print(response)
@@ -21,7 +20,7 @@ if __name__ == "__main__":
     response = collection.update(id,
                                  "Updated data", {"name": "test", "parent": "new value"})
 
-    print(response.text)
+    print("Update Response:", response)
 
     response = collection.get(id)
 
