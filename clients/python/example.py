@@ -39,6 +39,7 @@ def rest_client_example():
     example.update(key, b'updated string', {"example": "updated"}, acl=10)
     obj = example.get(key)
     print(obj)
+    print(obj.data)
 
     for o in example.find(example="updated"):
         print(o)
