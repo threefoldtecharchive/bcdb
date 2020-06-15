@@ -1,12 +1,16 @@
 # BCDB Rest API
-## Data endpoints
-Data endpoints are used to store, get, and find objects from bcdb.
 
-### Authorization
+## Authorization
 All request to BCDB must provide an `authorization` header. The `authorization` header is *[httpsig](https://tools.ietf.org/html/draft-cavage-http-signatures-12)* header
 
 Please check the reference [python implementation](https://github.com/threefoldtech/dbreboot/blob/bed9aa93b86c6d14f8534a6627bba1a4a75f2037/clients/python/bcdb/auth.py#L60) here.
 
+
+## Data endpoints
+Data endpoints are used to store, get, and find objects from bcdb.
+
+### Peer 2 Peer
+All requests to data endpoints accepts an optional header `x-threebot-id`. If the header is not set (or equals the instance ID), the bcdb instance handles the call locally. If the header is provided is not equal to the bcdb instance id, the BCDB instance will loop the explorer for the address of the bcdb instance of that user and forward the call to that instance (behind the scene).
 
 ### POST `/db/:collection`
 Request body is your entire data. Currently we have a limitation of 4MB on the rest api as a protection mechanism until the large file support is implemented.
