@@ -394,7 +394,7 @@ class HTTPAclClient:
 
         :returns: acl list
         """
-        return requests.get(self.url("list"), headers=self.headers())
+        return requests.get(self.url(), headers=self.headers())
 
 
 class HTTPBcdbClient:

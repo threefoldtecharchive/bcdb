@@ -236,18 +236,17 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
         .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
         .and(warp::body::json())
         .and_then(handle_create);
+            
+    let list = base
+        .clone()
+        .and(warp::get())
+        .and_then(handle_list);
 
     let get = base
         .clone()
         .and(warp::path::param::<u32>()) // key
         .and(warp::get())
         .and_then(handle_get);
-
-    let list = base
-        .clone()
-        .and(warp::path!("list"))
-        .and(warp::get())
-        .and_then(handle_list);
 
     let set = base
         .clone()
@@ -273,5 +272,7 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
         .and(warp::body::json())
         .and_then(handle_revoke);
 
-    warp::path("acl").and(set.or(grant).or(revoke).or(list).or(create).or(get))
+
+    warp::path("acl")
+        .and(set.or(grant).or(revoke).or(get).or(list).or(create))
 }
