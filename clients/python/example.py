@@ -1,46 +1,56 @@
 from bcdb import Identity, Client, HTTPClient
 
-if __name__ == "__main__":
+
+def grpc_client_example():
     identity = Identity.from_seed("user.seed")
-    client = HTTPClient("http://localhost:50061", identity)
-    # collection = client.collection("http")
+    client = Client("127.0.0.1:50051", identity, ssl=False)
 
-    # id = collection.set(
-    #     "Some data goes here", {"name": "test", "parent": "some parent with\nnewlines"}, acl='10')
-    # response = collection.get(id)
+    example = client.collection("example")
 
-    # print(response)
-    # print(response.headers)
-    # print(response.text)
+    key = example.set(b'hello world', {"example": "value", "tag2": "v2"})
+    obj = example.get(key)
+    print(obj)
 
-    # print("update", id)
-    # response = collection.update(id,
-    #                              "Updated data", {"name": "test", "parent": "new value"})
+    example.update(key, b'updated string', {"example": "updated"}, acl=10)
+    obj = example.get(key)
+    print(obj)
 
-    # print("Update Response:", response)
+    for id in example.list(example="updated"):
+        print(id)
 
-    # response = collection.get(id)
+    for o in example.find(example="updated"):
+        print(o)
 
-    # print(response)
-    # print(response.headers)
-    # print(response.text)
+    example.delete(key)
+    obj = example.get(key)
+    print(obj)
 
-    acl = client.acl
 
-    key = acl.create("r--", [1, 2])
+def rest_client_example():
+    identity = Identity.from_seed("user.seed")
+    client = HTTPClient("http://127.0.0.1:50061", identity)
 
-    print("ACL ID", key)
+    example = client.collection("example")
 
-    acl.set(key, 'r-d')
-    response = acl.get(key)
+    key = example.set(b'hello world', {"example": "value", "tag2": "v2"})
+    obj = example.get(key)
+    print(obj.headers)
+    print(obj.text)
 
-    print("ACL:", response)
+    example.update(key, b'updated string', {"example": "updated"}, acl=10)
+    obj = example.get(key)
+    print(obj.headers)
+    print(obj.text)
 
-    acl.set(0, "rwd")
+    for o in example.find(example="updated"):
+        print(o)
 
-    print("grant", acl.grant(key, [2, 3]))
+    example.delete(key)
+    obj = example.get(key)
+    print(obj)
+    print(obj.headers)
+    print(obj.text)
 
-    print("revokie", acl.revoke(key, [1]))
 
-    for acl in acl.list():
-        print(acl)
+if __name__ == '__main__':
+    rest_client_example()

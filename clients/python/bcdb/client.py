@@ -289,7 +289,7 @@ class HTTPClient:
             if v is None:
                 continue
             k = k.replace('_', '-').lower()
-            output[k] = v
+            output[k] = str(v)
 
         output.update([self.__auth.get_auth_header()])
         return output
@@ -409,11 +409,10 @@ class HTTPBcdbClient:
     def __init__(self, client, collection, threebot_id: int = None):
         self.client = client
         self.collection = collection
-        self.threebot_id = str(threebot_id)
+        self.threebot_id = threebot_id
 
     def url(self, *parts):
         url = self.client.url("db", self.collection, *parts)
-        print("url:", url)
         return url
 
     def headers(self, **kwargs):
@@ -449,6 +448,18 @@ class HTTPBcdbClient:
         """
 
         return requests.get(self.url(key), headers=self.headers())
+
+    def delete(self, key):
+        """
+        set creates a new object given data and tags, and optional acl key.
+
+        :param data: data to set
+        :param tags: optional tags associated with the object. useful for find operations
+        :param acl: optional acl key
+        :returns: new object id
+        """
+
+        return requests.delete(self.url(key), headers=self.headers())
 
     def update(self, key, data: bytes = None, tags: dict = None, acl: int = None):
         return requests.put(
