@@ -4,16 +4,18 @@ and forward all calls from the HTTP interface to the official grpc interface.
 
 This might change in the future to directly access the data layer
 */
-use crate::bcdb::generated::bcdb_client::BcdbClient;
 use crate::bcdb::generated::acl_client::AclClient;
+use crate::bcdb::generated::bcdb_client::BcdbClient;
+use failure::Error;
 use serde::Serialize;
 use std::convert::Infallible;
+use std::net::SocketAddr;
 use warp::http::StatusCode;
 use warp::reject::{Reject, Rejection};
 use warp::Filter;
 
-mod bcdb;
 mod acl;
+mod bcdb;
 
 #[derive(Debug)]
 enum BcdbRejection {
@@ -84,13 +86,28 @@ async fn handle_rejections(err: Rejection) -> Result<impl warp::Reply, Infallibl
     Ok(warp::reply::with_status(json, code))
 }
 
-pub async fn run() {
-    let bcdb_cli = BcdbClient::connect("http://127.0.0.1:50051").await.unwrap();
-    let bcdb_api = bcdb::router(bcdb_cli);
-    
-    let acl_cli = AclClient::connect("http://127.0.0.1:50051").await.unwrap();
-    let acl_api = acl::router(acl_cli);
+pub async fn run(address: SocketAddr, grpc: u16) -> Result<(), Error> {
+    let u = format!("http://127.0.0.1:{}", grpc);
+
+    let channel = loop {
+        let channel = tonic::transport::Endpoint::new(u.clone())?.connect().await;
+        match channel {
+            Ok(channel) => break channel,
+            Err(err) => {
+                debug!("failed to establish connection to grpc interface: {}", err);
+                debug!("retrying");
+                tokio::time::delay_for(std::time::Duration::from_millis(300)).await;
+                continue;
+            }
+        };
+    };
+
+    // let channel = tonic::transport::Endpoint::new(u)?.connect().await;
+    let bcdb_api = bcdb::router(BcdbClient::new(channel.clone()));
+    let acl_api = acl::router(AclClient::new(channel));
 
     let api = bcdb_api.or(acl_api).recover(handle_rejections);
-    warp::serve(api).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(api).run(address).await;
+
+    Ok(())
 }

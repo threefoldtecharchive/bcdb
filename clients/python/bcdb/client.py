@@ -291,8 +291,8 @@ class HTTPClient:
             k = k.replace('_', '-').lower()
             output[k] = v
 
-        args.update([self.__auth.get_auth_header()])
-        return args
+        output.update([self.__auth.get_auth_header()])
+        return output
 
     def url(self, *parts):
         return "%s%s" % (self.__url, path.join(*map(str, parts)))
@@ -314,7 +314,6 @@ class HTTPAclClient:
 
     def url(self, *parts):
         url = self.client.url("acl", *parts)
-        print("url:", url)
         return url
 
     def create(self, perm, users):
@@ -397,11 +396,12 @@ class HTTPAclClient:
         """
         return requests.get(self.url("list"), headers=self.headers())
 
+
 class HTTPBcdbClient:
     def __init__(self, client, collection, threebot_id: int = None):
         self.client = client
         self.collection = collection
-        self.threebot_id = threebot_id
+        self.threebot_id = str(threebot_id)
 
     def url(self, *parts):
         url = self.client.url("db", self.collection, *parts)
