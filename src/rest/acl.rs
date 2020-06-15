@@ -1,9 +1,11 @@
 use crate::bcdb::generated::acl_client::AclClient;
 use crate::bcdb::generated::*;
+use failure::Error;
 use serde::{Deserialize, Serialize};
 use warp::http::StatusCode;
 use warp::reject::{Rejection};
 use warp::Filter;
+use hyper::Body;
 
 type Client = AclClient<tonic::transport::Channel>;
 
@@ -178,6 +180,56 @@ async fn handle_revoke(
     Ok(warp::reply::json(&response.updated))
 }
 
+#[derive(Serialize)]
+struct ACL {
+    perm: String,
+    users: Vec<u64>,
+}
+
+#[derive(Serialize)]
+struct ListResult {
+    key: u32,
+    acl: ACL,
+}
+
+async fn handle_list(
+    cl: Client,
+    auth: String,
+) -> Result<impl warp::Reply, Rejection> {
+    let mut cl = cl.clone();
+
+
+    let mut request = tonic::Request::new(AclListRequest{});
+    request.metadata_mut().append(
+        "authorization",
+        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
+    );
+
+    let response = match cl.list(request).await {
+        Ok(response) => response,
+        Err(status) => return Err(super::status_to_rejection(status)),
+    };
+    let response = response.into_inner();
+
+    use tokio::stream::StreamExt;
+    let response = response.map(|entry| -> Result<String, Error> {
+        let entry = entry?;
+        let acl = entry.acl.unwrap();
+        let data = ListResult {
+            key: entry.key,
+            acl: ACL{
+                perm: acl.perm,
+                users: acl.users
+            }
+        };
+        Ok(serde_json::to_string(&data)?)
+    });
+
+    let body = Body::wrap_stream(response);
+
+    Ok(warp::reply::Response::new(body))
+}
+
 fn with_client(
     cl: Client,
 ) -> impl Filter<Extract = (Client,), Error = std::convert::Infallible> + Clone {
@@ -202,6 +254,12 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
         .and(warp::get())
         .and_then(handle_get);
         
+    let list = base
+        .clone()
+        .and(warp::path!("list"))
+        .and(warp::get())
+        .and_then(handle_list);
+
     let set = base
         .clone()
         .and(warp::path::param::<u32>()) // key
@@ -212,8 +270,7 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
 
     let grant = base
         .clone()
-        .and(warp::path::param::<u32>()) // key
-        .and(warp::path("grant"))
+        .and(warp::path!(u32 / "grant"))
         .and(warp::post())
         .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
         .and(warp::body::json())
@@ -221,13 +278,13 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
 
     let revoke = base
         .clone()
-        .and(warp::path::param::<u32>()) // key
-        .and(warp::path("revoke"))
+        .and(warp::path!(u32 / "revoke"))
         .and(warp::post())
         .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
         .and(warp::body::json())
         .and_then(handle_revoke);
 
+
     warp::path("acl")
-        .and(create.or(get).or(set).or(grant).or(revoke))
+        .and(set.or(grant).or(revoke).or(list).or(create).or(get))
 }
