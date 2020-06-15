@@ -212,8 +212,7 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
 
     let grant = base
         .clone()
-        .and(warp::path::param::<u32>()) // key
-        .and(warp::path("grant"))
+        .and(warp::path!(u32 / "grant"))
         .and(warp::post())
         .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
         .and(warp::body::json())
@@ -221,13 +220,13 @@ pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rej
 
     let revoke = base
         .clone()
-        .and(warp::path::param::<u32>()) // key
-        .and(warp::path("revoke"))
+        .and(warp::path!(u32 / "revoke"))
         .and(warp::post())
         .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
         .and(warp::body::json())
         .and_then(handle_revoke);
 
+
     warp::path("acl")
-        .and(create.or(get).or(set).or(grant).or(revoke))
+        .and(set.or(grant).or(revoke).or(create).or(get))
 }

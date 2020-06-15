@@ -5,29 +5,29 @@ if __name__ == "__main__":
     client = HTTPClient("http://localhost:3030", identity)
     collection = client.collection("http")
 
-    response = collection.set(
-        "Some data goes here", {"name": "test", "parent": "some parent with\nnewlines"}, acl='10')
+    # response = collection.set(
+    #     "Some data goes here", {"name": "test", "parent": "some parent with\nnewlines"}, acl='10')
 
-    print(response.text)
+    # print(response.text)
 
-    id = response.text
-    response = collection.get(id)
+    # id = response.text
+    # response = collection.get(id)
 
-    print(response)
-    print(response.headers)
-    print(response.text)
+    # print(response)
+    # print(response.headers)
+    # print(response.text)
 
-    print("update", id)
-    response = collection.update(id,
-                                 "Updated data", {"name": "test", "parent": "new value"})
+    # print("update", id)
+    # response = collection.update(id,
+    #                              "Updated data", {"name": "test", "parent": "new value"})
 
-    print(response.text)
+    # print(response.text)
 
-    response = collection.get(id)
+    # response = collection.get(id)
 
-    print(response)
-    print(response.headers)
-    print(response.text)
+    # print(response)
+    # print(response.headers)
+    # print(response.text)
 
     acl = client.acl
 
@@ -50,6 +50,12 @@ if __name__ == "__main__":
     print(response.text)
 
     response = acl.grant("0", [1])
+
+    print(response)
+    print(response.headers)
+    print(response.text)
+
+    response = acl.revoke("0", [1])
 
     print(response)
     print(response.headers)
