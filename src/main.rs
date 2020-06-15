@@ -1,12 +1,9 @@
 use clap::{App, Arg};
-use log::debug;
-use tonic::transport::Server;
-
-use std::fs::File;
-use std::io::Read;
-
 use identity::Identity;
+use log::debug;
+use std::net::SocketAddr;
 use storage::{encrypted::EncryptedStorage, zdb::Zdb};
+use tonic::transport::Server;
 
 #[macro_use]
 extern crate failure;
@@ -19,6 +16,7 @@ mod bcdb;
 mod explorer;
 mod identity;
 mod meta;
+mod rest;
 mod storage;
 
 const MEAT_DIR: &str = ".bcdb-meta";
@@ -40,12 +38,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .default_value("9900"),
         )
         .arg(
-            Arg::with_name("listen")
-                .help("listen on address")
-                .long("listen")
-                .short("l")
+            Arg::with_name("grpc")
+                .help("listen on address for grpc api")
+                .long("grpc")
+                .short("g")
                 .takes_value(true)
-                .default_value("[::1]:50051"),
+                .default_value("0.0.0.0:50051"),
+        )
+        .arg(
+            Arg::with_name("rest")
+                .help("listen on address for rest api")
+                .long("rest")
+                .short("r")
+                .takes_value(true)
+                .default_value("0.0.0.0:50061"),
         )
         .arg(
             Arg::with_name("meta")
@@ -172,7 +178,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //identity api
     let identity_service = bcdb::IdentityService::new(identity);
 
-    let addr = matches.value_of("listen").unwrap().parse()?;
+    let grpc_address: SocketAddr = matches.value_of("grpc").unwrap().parse()?;
+    let rest_address: SocketAddr = matches.value_of("rest").unwrap().parse()?;
+
+    let grpc_port = grpc_address.port();
+    tokio::spawn(async move { rest::run(rest_address, grpc_port).await });
 
     Server::builder()
         .add_service(bcdb::BcdbServer::with_interceptor(
@@ -184,7 +194,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             move |request| acl_interceptor.authenticate_blocking(request),
         ))
         .add_service(bcdb::IdentityServer::new(identity_service))
-        .serve(addr)
+        .serve(grpc_address)
         .await?;
 
     Ok(())

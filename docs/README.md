@@ -1,6 +1,7 @@
 # Index
 - [Peer 2 Peer](#peer-2-peer)
 - [Example usage](#example-usage)
+- [Rest API](api.md)
 
 ## Peer 2 Peer
 By default bcdb will proxy any call that need to be handled by a different instance to the right peer. Bcdb will alway check for the `x-threebot-id` metadata header in all BCDB grpc calls. And then will take the decision either to handle the request locally, or forward it to a different `bcdb` instance.

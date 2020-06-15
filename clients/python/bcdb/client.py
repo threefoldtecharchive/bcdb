@@ -6,6 +6,8 @@ from .generated.bcdb_pb2_grpc import BCDBStub, AclStub
 import base64
 import grpc
 from typing import NamedTuple
+import requests
+from os import path
 
 
 class AclClient:
@@ -271,3 +273,231 @@ class Client:
                       one directly connected to by this client
         """
         return BcdbClient(self.__channel, collection, threebot_id)
+
+
+class HTTPClient:
+    def __init__(self, url, identity):
+        auth_gateway = AuthGateway(identity, 3)
+        self.__auth = auth_gateway
+        if not url.endswith('/'):
+            url = url + '/'
+        self.__url = url
+
+    def headers(self, **args):
+        output = {}
+        for k, v in args.items():
+            if v is None:
+                continue
+            k = k.replace('_', '-').lower()
+            output[k] = str(v)
+
+        output.update([self.__auth.get_auth_header()])
+        return output
+
+    def url(self, *parts):
+        return "%s%s" % (self.__url, path.join(*map(str, parts)))
+
+    def collection(self, collection: str, threebot_id: int = None):
+        return HTTPBcdbClient(self, collection, threebot_id)
+
+    @property
+    def acl(self):
+        return HTTPAclClient(self)
+
+
+class HTTPAclClient:
+    def __init__(self, client):
+        self.client = client
+
+    def headers(self, **kwargs):
+        return self.client.headers(**kwargs)
+
+    def url(self, *parts):
+        url = self.client.url("acl", *parts)
+        return url
+
+    def create(self, perm, users):
+        """
+        create creates an acl with a permission and users
+
+        :param perm: permission to set
+        :param users: list of users to set permission on
+        :returns: newly created key
+        """
+
+        data = {
+            "perm": perm,
+            'users': users
+        }
+
+        return requests.post(self.url(), json=data, headers=self.headers()).json()
+
+    def set(self, key, perm):
+        """
+        set sets a permission to an acl key
+
+        :param key: acl key
+        :param perm: permission to set
+        :returns: new object id
+        """
+
+        data = {
+            'perm': perm
+        }
+
+        requests.put(self.url(key), json=data, headers=self.headers())
+
+    def get(self, key):
+        """
+        get retrieves an acl by key
+
+        :param key: acl key
+        :returns: acl object
+        """
+
+        return requests.get(self.url(key), headers=self.headers()).json()
+
+    def grant(self, key, users):
+        """
+        grants to users
+
+        :param key: acl key
+        :param users: users to grant
+        :returns: updated id
+        """
+
+        data = {
+            'users': users
+        }
+
+        return requests.post(self.url(f"{key}/grant"), json=data, headers=self.headers()).json()
+
+    def revoke(self, key, users):
+        """
+        revoke from users
+
+        :param key: acl key
+        :param users: users to revoke
+        :returns: updated id
+        """
+
+        data = {
+            'users': users
+        }
+
+        return requests.post(self.url(f"{key}/revoke"), json=data, headers=self.headers()).json()
+
+    def list(self):
+        """
+        list all acl's
+
+        :returns: acl list
+        """
+        response = requests.get(
+            self.url(), headers=self.headers())
+
+        # this should instead read response "stream" and parse each object individually
+        content = response.text
+        dec = json.JSONDecoder()
+        while content:
+            obj, idx = dec.raw_decode(content)
+            yield obj
+            content = content[idx:]
+
+
+class HTTPBcdbClient:
+    def __init__(self, client, collection, threebot_id: int = None):
+        self.client = client
+        self.collection = collection
+        self.threebot_id = threebot_id
+
+    def url(self, *parts):
+        url = self.client.url("db", self.collection, *parts)
+        return url
+
+    def headers(self, **kwargs):
+        return self.client.headers(x_threebot_id=self.threebot_id, **kwargs)
+
+    def set(self, data, tags: dict = None, acl: int = None):
+        """
+        set creates a new object given data and tags, and optional acl key.
+
+        :param data: data to set
+        :param tags: optional tags associated with the object. useful for find operations
+        :param acl: optional acl key
+        :returns: new object id
+        """
+
+        return requests.post(
+            self.url(),
+            data=data,
+            headers=self.headers(
+                x_acl=acl,
+                x_tags=json.dumps(tags) if tags else None,
+            ),
+        ).json()
+
+    def get(self, key):
+        """
+        set creates a new object given data and tags, and optional acl key.
+
+        :param data: data to set
+        :param tags: optional tags associated with the object. useful for find operations
+        :param acl: optional acl key
+        :returns: new object id
+        """
+
+        response = requests.get(self.url(key), headers=self.headers())
+
+        return Object(
+            id=key,
+            data=response.content,
+            tags=json.loads(
+                response.headers.get('x-tags', 'null')
+            ),
+        )
+
+    def delete(self, key):
+        """
+        set creates a new object given data and tags, and optional acl key.
+
+        :param data: data to set
+        :param tags: optional tags associated with the object. useful for find operations
+        :param acl: optional acl key
+        :returns: new object id
+        """
+
+        return requests.delete(self.url(key), headers=self.headers())
+
+    def update(self, key, data: bytes = None, tags: dict = None, acl: int = None):
+        return requests.put(
+            self.url(str(key)),
+            data=data,
+            headers=self.headers(
+                x_acl=acl,
+                x_tags=json.dumps(tags) if tags else None,
+            ),
+        )
+
+    def find(self, **kwargs):
+        if kwargs is None or len(kwargs) == 0:
+            # due to a bug in the warp router (server side)
+            # this call does not match if no queries are supplied
+            # hence we add a dummy query that is ignred by the server
+            kwargs = {'_': ''}
+
+        # this should instead read response "stream" and parse each object individually
+        response = requests.get(
+            self.url(), params=kwargs, headers=self.headers())
+
+        content = response.text
+        dec = json.JSONDecoder()
+        while content:
+            obj, idx = dec.raw_decode(content)
+            yield Object(
+                id=obj['id'],
+                tags=obj['tags'],
+                data=None,
+            )
+
+            content = content[idx:]
