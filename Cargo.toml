@@ -1,5 +1,5 @@
 [package]
-name = "dbreboot"
+name = "bcdb"
 version = "0.1.0"
 authors = ["The ThreefoldTech developers <info@threefold.tech>"]
 edition = "2018"
