@@ -1,4 +1,4 @@
-module github.com/threefoldtech/dbreboot/examples/bcfiles
+module github.com/threefoldtech/bcdb/examples/bcfiles
 
 go 1.14
 
@@ -8,7 +8,7 @@ require (
 	github.com/minio/cli v1.22.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.18.0
-	github.com/threefoldtech/dbreboot/clients/go v0.0.0-20200429124008-9ae32c83752b
+	github.com/threefoldtech/bcdb/clients/go v0.0.0-20200429124008-9ae32c83752b
 	github.com/urfave/cli v1.22.4 // indirect
 	golang.org/x/crypto v0.0.0-20200427165652-729f1e841bcc // indirect
 	golang.org/x/net v0.0.0-20200425230154-ff2c4b7c35a0 // indirect
@@ -18,4 +18,4 @@ require (
 	google.golang.org/grpc v1.29.1
 )
 
-replace github.com/threefoldtech/dbreboot/clients/go => ../../clients/go
+replace github.com/threefoldtech/bcdb/clients/go => ../../clients/go

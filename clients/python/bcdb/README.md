@@ -29,7 +29,7 @@ JSX> j.me.encryptor.words
 You can put it to a file and run bcdb server with it as:
 
 ```
-/target/release/dbreboot --explorer https://explorer.grid.tf/explorer/ --seed-file mywords.seed -l 127.0.0.1:50051
+/target/release/bcdb --explorer https://explorer.grid.tf/explorer/ --seed-file mywords.seed -l 127.0.0.1:50051
 ```
 
 

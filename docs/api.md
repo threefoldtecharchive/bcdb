@@ -3,7 +3,7 @@
 ## Authorization
 All request to BCDB must provide an `authorization` header. The `authorization` header is *[httpsig](https://tools.ietf.org/html/draft-cavage-http-signatures-12)* header
 
-Please check the reference [python implementation](https://github.com/threefoldtech/dbreboot/blob/bed9aa93b86c6d14f8534a6627bba1a4a75f2037/clients/python/bcdb/auth.py#L60) here.
+Please check the reference [python implementation](https://github.com/threefoldtech/bcdb/blob/bed9aa93b86c6d14f8534a6627bba1a4a75f2037/clients/python/bcdb/auth.py#L60) here.
 
 
 ## Data endpoints

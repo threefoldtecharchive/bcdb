@@ -43,9 +43,9 @@ github.com/russross/blackfriday/v2 v2.0.1 h1:lPqVAte+HuHNfhJ/0LC98ESWRz8afy9tM/0
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/shurcooL/sanitized_anchor_name v1.0.0 h1:PdmoCO6wvbs+7yrJyMORt4/BmY5IYyJwS/kOiWx8mHo=
 github.com/shurcooL/sanitized_anchor_name v1.0.0/go.mod h1:1NzhyTcUVG4SuEtjjoZeVRXNmyL/1OwPU0+IJeTBvfc=
-github.com/threefoldtech/dbreboot v0.0.0-20200429124008-9ae32c83752b h1:6DIliYokFMG2UpeECxxdyuOlrFATF1kqHMyJWy4tSDs=
-github.com/threefoldtech/dbreboot/clients/go v0.0.0-20200429124008-9ae32c83752b h1:WiY8a2pmsyVj50cQ6BrpkURnhTssSu3gDd7ftfuEWFk=
-github.com/threefoldtech/dbreboot/clients/go v0.0.0-20200429124008-9ae32c83752b/go.mod h1:yU1eGMVBvAt9QF4lf4wjtGXNQ/lMYsg//iYYFnPtiyI=
+github.com/threefoldtech/bcdb v0.0.0-20200429124008-9ae32c83752b h1:6DIliYokFMG2UpeECxxdyuOlrFATF1kqHMyJWy4tSDs=
+github.com/threefoldtech/bcdb/clients/go v0.0.0-20200429124008-9ae32c83752b h1:WiY8a2pmsyVj50cQ6BrpkURnhTssSu3gDd7ftfuEWFk=
+github.com/threefoldtech/bcdb/clients/go v0.0.0-20200429124008-9ae32c83752b/go.mod h1:yU1eGMVBvAt9QF4lf4wjtGXNQ/lMYsg//iYYFnPtiyI=
 github.com/tyler-smith/go-bip39 v1.0.2 h1:+t3w+KwLXO6154GNJY+qUtIxLTmFjfUmpguQT1OlOT8=
 github.com/tyler-smith/go-bip39 v1.0.2/go.mod h1:sJ5fKU0s6JVwZjjcUEX2zFOnvq0ASQ2K9Zr6cf67kNs=
 github.com/urfave/cli v1.22.4 h1:u7tSpNPPswAFymm8IehJhy4uJMlUuU/GmqSkvJ1InXA=

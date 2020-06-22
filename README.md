@@ -13,14 +13,13 @@ zdb --mode seq
 ```bash
 make
 ```
-> Note that the code name for bcdb is `dbreboot`. This might stay for a while until the first official release. Hence the binary name is `dbreboot`
 - check available options
 ```bash
-# dbreboot --help
+# bcdb --help
 bcdb
 
 USAGE:
-    dbreboot [FLAGS] [OPTIONS] --threebot-id <id> --seed <seed> --seed-file <seed-file>
+    bcdb [FLAGS] [OPTIONS] --threebot-id <id> --seed <seed> --seed-file <seed-file>
 
 FLAGS:
     -d, --debug      enable debug logging

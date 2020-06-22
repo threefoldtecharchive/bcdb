@@ -13,7 +13,7 @@ import (
 	"github.com/coreos/go-semver/semver"
 	"github.com/minio/cli"
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/dbreboot/clients/go/bcdb"
+	"github.com/threefoldtech/bcdb/clients/go/bcdb"
 	"google.golang.org/grpc"
 )
 
