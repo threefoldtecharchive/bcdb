@@ -19,6 +19,15 @@ pub struct Identity {
     kp: Keypair,
 }
 
+impl Clone for Identity {
+    fn clone(&self) -> Self {
+        Identity {
+            id: self.id,
+            kp: Keypair::from_bytes(&self.kp.to_bytes()).unwrap(),
+        }
+    }
+}
+
 /// A stand alone public key, which can be used to verify signatures made with the associated
 /// private key.
 #[derive(Debug, Copy, Clone)]

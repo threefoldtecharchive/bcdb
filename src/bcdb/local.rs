@@ -61,6 +61,8 @@ where
             None => return Ok(Permissions::default()),
         };
 
+        debug!("checking user {} against acl: {:?}", user, acl);
+
         if acl.users.contains(&user) {
             return Ok(acl.perm);
         }
@@ -82,7 +84,7 @@ where
             return Ok(());
         }
 
-        return Err(Status::unauthenticated("unauthorized request"));
+        return Err(Status::unauthenticated("not authorized"));
     }
 
     fn build_pb_meta<C>(collection: C, meta: meta::Meta) -> Metadata
@@ -221,7 +223,7 @@ where
                     self.is_authorized(acl.acl, auth.get_user().unwrap(), "r--".parse().unwrap())?;
                 }
 
-                None => (),
+                None => return Err(Status::unauthenticated("not authorized")),
             };
         }
 
@@ -254,7 +256,7 @@ where
                     self.is_authorized(acl.acl, auth.get_user().unwrap(), "-w-".parse().unwrap())?;
                 }
 
-                None => (),
+                None => return Err(Status::unauthenticated("not authorized")),
             };
         }
 
@@ -296,11 +298,7 @@ where
                     self.is_authorized(acl.acl, auth.get_user().unwrap(), "-w-".parse().unwrap())?;
                 }
 
-                None => {
-                    return Err(Status::unauthenticated(
-                        "no acl set on object, only owner can access it",
-                    ));
-                }
+                None => return Err(Status::unauthenticated("not authorized")),
             };
         }
 

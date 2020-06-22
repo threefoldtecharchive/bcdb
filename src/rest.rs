@@ -6,10 +6,11 @@ This might change in the future to directly access the data layer
 */
 use crate::bcdb::generated::acl_client::AclClient;
 use crate::bcdb::generated::bcdb_client::BcdbClient;
+use crate::identity::Identity;
 use failure::Error;
 use serde::Serialize;
 use std::convert::Infallible;
-use std::net::SocketAddr;
+use tokio::net::UnixListener;
 use warp::http::StatusCode;
 use warp::reject::{Reject, Rejection};
 use warp::Filter;
@@ -86,7 +87,7 @@ async fn handle_rejections(err: Rejection) -> Result<impl warp::Reply, Infallibl
     Ok(warp::reply::with_status(json, code))
 }
 
-pub async fn run(address: SocketAddr, grpc: u16) -> Result<(), Error> {
+pub async fn run(id: Identity, unx: String, grpc: u16) -> Result<(), Error> {
     let u = format!("http://127.0.0.1:{}", grpc);
 
     let channel = loop {
@@ -103,11 +104,16 @@ pub async fn run(address: SocketAddr, grpc: u16) -> Result<(), Error> {
     };
 
     // let channel = tonic::transport::Endpoint::new(u)?.connect().await;
-    let bcdb_api = bcdb::router(BcdbClient::new(channel.clone()));
-    let acl_api = acl::router(AclClient::new(channel));
+    let bcdb_api = bcdb::router(id.clone(), BcdbClient::new(channel.clone()));
+    let acl_api = acl::router(id.clone(), AclClient::new(channel));
 
     let api = bcdb_api.or(acl_api).recover(handle_rejections);
-    warp::serve(api).run(address).await;
+
+    let _ = std::fs::remove_file(&unx);
+    let mut listener = UnixListener::bind(unx)?;
+    let incoming = listener.incoming();
+
+    warp::serve(api).run_incoming(incoming).await;
 
     Ok(())
 }

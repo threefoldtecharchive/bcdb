@@ -47,11 +47,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .arg(
             Arg::with_name("rest")
-                .help("listen on address for rest api")
+                .help("listen unix socket for rest api")
                 .long("rest")
                 .short("r")
                 .takes_value(true)
-                .default_value("0.0.0.0:50061"),
+                .default_value("/tmp/bcdb.sock"),
         )
         .arg(
             Arg::with_name("meta")
@@ -176,13 +176,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let acl_service = bcdb::AclService::new(acl_store);
 
     //identity api
-    let identity_service = bcdb::IdentityService::new(identity);
+    let identity_service = bcdb::IdentityService::new(identity.clone());
 
     let grpc_address: SocketAddr = matches.value_of("grpc").unwrap().parse()?;
-    let rest_address: SocketAddr = matches.value_of("rest").unwrap().parse()?;
+    let rest_address = matches.value_of("rest").unwrap().into();
 
     let grpc_port = grpc_address.port();
-    tokio::spawn(async move { rest::run(rest_address, grpc_port).await });
+    tokio::spawn(async move {
+        match rest::run(identity, rest_address, grpc_port).await {
+            Ok(_) => {}
+            Err(err) => {
+                error!("failed to start rest api: {}", err);
+                std::process::exit(1);
+            }
+        }
+    });
 
     Server::builder()
         .add_service(bcdb::BcdbServer::with_interceptor(

@@ -1,5 +1,7 @@
+use crate::auth::header;
 use crate::bcdb::generated::acl_client::AclClient;
 use crate::bcdb::generated::*;
+use crate::identity::Identity;
 use failure::Error;
 use hyper::Body;
 use serde::{Deserialize, Serialize};
@@ -31,9 +33,17 @@ struct ACLUsersRequest {
     users: Vec<u64>,
 }
 
+fn set_headers<T>(request: &mut tonic::Request<T>, id: Identity) {
+    // sign request.
+    request.metadata_mut().append(
+        "authorization",
+        tonic::metadata::AsciiMetadataValue::from_str(header(&id, None).as_ref()).unwrap(),
+    );
+}
+
 async fn handle_create(
     cl: Client,
-    auth: String,
+    id: Identity,
     body: ACLCreateRequest,
 ) -> Result<impl warp::Reply, Rejection> {
     let mut cl = cl.clone();
@@ -46,10 +56,7 @@ async fn handle_create(
     };
 
     let mut request = tonic::Request::new(request);
-    request.metadata_mut().append(
-        "authorization",
-        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
-    );
+    set_headers(&mut request, id);
 
     let response = match cl.create(request).await {
         Ok(response) => response,
@@ -66,7 +73,7 @@ async fn handle_create(
 
 async fn handle_set(
     cl: Client,
-    auth: String,
+    id: Identity,
     key: u32,
     body: ACLSetRequest,
 ) -> Result<impl warp::Reply, Rejection> {
@@ -78,10 +85,7 @@ async fn handle_set(
     };
 
     let mut request = tonic::Request::new(request);
-    request.metadata_mut().append(
-        "authorization",
-        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
-    );
+    set_headers(&mut request, id);
 
     match cl.set(request).await {
         Ok(response) => response,
@@ -91,16 +95,13 @@ async fn handle_set(
     Ok(warp::reply::reply())
 }
 
-async fn handle_get(cl: Client, auth: String, key: u32) -> Result<impl warp::Reply, Rejection> {
+async fn handle_get(cl: Client, id: Identity, key: u32) -> Result<impl warp::Reply, Rejection> {
     let mut cl = cl.clone();
 
     let request = AclGetRequest { key: key };
 
     let mut request = tonic::Request::new(request);
-    request.metadata_mut().append(
-        "authorization",
-        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
-    );
+    set_headers(&mut request, id);
 
     let response = match cl.get(request).await {
         Ok(response) => response,
@@ -123,7 +124,7 @@ async fn handle_get(cl: Client, auth: String, key: u32) -> Result<impl warp::Rep
 
 async fn handle_grant(
     cl: Client,
-    auth: String,
+    id: Identity,
     key: u32,
     body: ACLUsersRequest,
 ) -> Result<impl warp::Reply, Rejection> {
@@ -135,10 +136,7 @@ async fn handle_grant(
     };
 
     let mut request = tonic::Request::new(request);
-    request.metadata_mut().append(
-        "authorization",
-        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
-    );
+    set_headers(&mut request, id);
 
     let response = match cl.grant(request).await {
         Ok(response) => response,
@@ -151,7 +149,7 @@ async fn handle_grant(
 
 async fn handle_revoke(
     cl: Client,
-    auth: String,
+    id: Identity,
     key: u32,
     body: ACLUsersRequest,
 ) -> Result<impl warp::Reply, Rejection> {
@@ -163,10 +161,7 @@ async fn handle_revoke(
     };
 
     let mut request = tonic::Request::new(request);
-    request.metadata_mut().append(
-        "authorization",
-        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
-    );
+    set_headers(&mut request, id);
 
     let response = match cl.revoke(request).await {
         Ok(response) => response,
@@ -189,14 +184,11 @@ struct ListResult {
     acl: ACL,
 }
 
-async fn handle_list(cl: Client, auth: String) -> Result<impl warp::Reply, Rejection> {
+async fn handle_list(cl: Client, id: Identity) -> Result<impl warp::Reply, Rejection> {
     let mut cl = cl.clone();
 
     let mut request = tonic::Request::new(AclListRequest {});
-    request.metadata_mut().append(
-        "authorization",
-        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
-    );
+    set_headers(&mut request, id);
 
     let response = match cl.list(request).await {
         Ok(response) => response,
@@ -229,10 +221,19 @@ fn with_client(
     warp::any().map(move || cl.clone())
 }
 
-pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+fn with_identity(
+    id: Identity,
+) -> impl Filter<Extract = (Identity,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || id.clone())
+}
+
+pub fn router(
+    id: Identity,
+    cl: Client,
+) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let base = warp::any()
         .and(with_client(cl.clone()))
-        .and(warp::header::header::<String>("authorization"));
+        .and(with_identity(id.clone()));
 
     let create = base
         .clone()
