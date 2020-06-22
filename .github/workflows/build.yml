@@ -7,12 +7,24 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
-    - name: Build
+    - name: Build BCDB
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+
+  go-client:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Go 1.14
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.14
+    - name: build go client
+      run: |
+        cd clients/go/bcdb
+        go build
+    
