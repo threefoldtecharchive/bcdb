@@ -117,7 +117,7 @@ impl std::fmt::Display for Permissions {
     }
 }
 // ACL object structure
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Debug)]
 pub struct ACL {
     pub perm: Permissions,
     pub users: Vec<u64>,

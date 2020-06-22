@@ -8,6 +8,8 @@ import grpc
 from typing import NamedTuple
 import requests
 from os import path
+from urllib.parse import quote_plus
+import requests_unixsocket
 
 
 class AclClient:
@@ -276,12 +278,14 @@ class Client:
 
 
 class HTTPClient:
-    def __init__(self, url, identity):
-        auth_gateway = AuthGateway(identity, 3)
-        self.__auth = auth_gateway
-        if not url.endswith('/'):
-            url = url + '/'
+    def __init__(self, sock):
+        url = 'http+unix://%s/' % quote_plus(sock)
+        self.__session = requests_unixsocket.Session()
         self.__url = url
+
+    @property
+    def session(self):
+        return self.__session
 
     def headers(self, **args):
         output = {}
@@ -291,7 +295,6 @@ class HTTPClient:
             k = k.replace('_', '-').lower()
             output[k] = str(v)
 
-        output.update([self.__auth.get_auth_header()])
         return output
 
     def url(self, *parts):
@@ -308,6 +311,10 @@ class HTTPClient:
 class HTTPAclClient:
     def __init__(self, client):
         self.client = client
+
+    @property
+    def session(self):
+        return self.client.session
 
     def headers(self, **kwargs):
         return self.client.headers(**kwargs)
@@ -330,7 +337,7 @@ class HTTPAclClient:
             'users': users
         }
 
-        return requests.post(self.url(), json=data, headers=self.headers()).json()
+        return self.session.post(self.url(), json=data, headers=self.headers()).json()
 
     def set(self, key, perm):
         """
@@ -345,7 +352,7 @@ class HTTPAclClient:
             'perm': perm
         }
 
-        requests.put(self.url(key), json=data, headers=self.headers())
+        self.session.put(self.url(key), json=data, headers=self.headers())
 
     def get(self, key):
         """
@@ -355,7 +362,7 @@ class HTTPAclClient:
         :returns: acl object
         """
 
-        return requests.get(self.url(key), headers=self.headers()).json()
+        return self.session.get(self.url(key), headers=self.headers()).json()
 
     def grant(self, key, users):
         """
@@ -370,7 +377,7 @@ class HTTPAclClient:
             'users': users
         }
 
-        return requests.post(self.url(f"{key}/grant"), json=data, headers=self.headers()).json()
+        return self.session.post(self.url(f"{key}/grant"), json=data, headers=self.headers()).json()
 
     def revoke(self, key, users):
         """
@@ -385,7 +392,7 @@ class HTTPAclClient:
             'users': users
         }
 
-        return requests.post(self.url(f"{key}/revoke"), json=data, headers=self.headers()).json()
+        return self.session.post(self.url(f"{key}/revoke"), json=data, headers=self.headers()).json()
 
     def list(self):
         """
@@ -393,7 +400,7 @@ class HTTPAclClient:
 
         :returns: acl list
         """
-        response = requests.get(
+        response = self.session.get(
             self.url(), headers=self.headers())
 
         # this should instead read response "stream" and parse each object individually
@@ -410,6 +417,10 @@ class HTTPBcdbClient:
         self.client = client
         self.collection = collection
         self.threebot_id = threebot_id
+
+    @property
+    def session(self):
+        return self.client.session
 
     def url(self, *parts):
         url = self.client.url("db", self.collection, *parts)
@@ -428,7 +439,7 @@ class HTTPBcdbClient:
         :returns: new object id
         """
 
-        return requests.post(
+        return self.session.post(
             self.url(),
             data=data,
             headers=self.headers(
@@ -447,7 +458,7 @@ class HTTPBcdbClient:
         :returns: new object id
         """
 
-        response = requests.get(self.url(key), headers=self.headers())
+        response = self.session.get(self.url(key), headers=self.headers())
 
         return Object(
             id=key,
@@ -467,10 +478,10 @@ class HTTPBcdbClient:
         :returns: new object id
         """
 
-        return requests.delete(self.url(key), headers=self.headers())
+        return self.session.delete(self.url(key), headers=self.headers())
 
     def update(self, key, data: bytes = None, tags: dict = None, acl: int = None):
-        return requests.put(
+        return self.session.put(
             self.url(str(key)),
             data=data,
             headers=self.headers(
@@ -487,7 +498,7 @@ class HTTPBcdbClient:
             kwargs = {'_': ''}
 
         # this should instead read response "stream" and parse each object individually
-        response = requests.get(
+        response = self.session.get(
             self.url(), params=kwargs, headers=self.headers())
 
         content = response.text

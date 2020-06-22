@@ -1,5 +1,7 @@
+use crate::auth::header;
 use crate::bcdb::generated::bcdb_client::BcdbClient;
 use crate::bcdb::generated::*;
+use crate::identity::Identity;
 use failure::Error;
 use http::response::Builder as ResponseBuilder;
 use hyper::Body;
@@ -42,10 +44,11 @@ fn tags_to_str(tags: Vec<Tag>) -> Result<String, Error> {
     Ok(serde_json::to_string(&map)?)
 }
 
-fn set_headers<T>(request: &mut tonic::Request<T>, auth: String, route: Option<String>) {
+fn set_headers<T>(request: &mut tonic::Request<T>, id: Identity, route: Option<String>) {
+    // sign request.
     request.metadata_mut().append(
         "authorization",
-        tonic::metadata::AsciiMetadataValue::from_str(&auth).unwrap(),
+        tonic::metadata::AsciiMetadataValue::from_str(header(&id, None).as_ref()).unwrap(),
     );
 
     if let Some(header) = route {
@@ -58,8 +61,8 @@ fn set_headers<T>(request: &mut tonic::Request<T>, auth: String, route: Option<S
 
 async fn handle_set(
     cl: Client,
+    id: Identity,
     collection: String,
-    auth: String,
     route: Option<String>,
     acl: Option<u32>,
     tags: Option<String>,
@@ -82,7 +85,7 @@ async fn handle_set(
     };
 
     let mut request = tonic::Request::new(request);
-    set_headers(&mut request, auth, route);
+    set_headers(&mut request, id, route);
 
     let response = match cl.set(request).await {
         Ok(response) => response,
@@ -98,8 +101,8 @@ async fn handle_set(
 
 async fn handle_get(
     cl: Client,
+    id: Identity,
     collection: String,
-    auth: String,
     route: Option<String>,
     key: u32,
 ) -> Result<impl warp::Reply, Rejection> {
@@ -111,7 +114,7 @@ async fn handle_get(
     };
 
     let mut request = tonic::Request::new(request);
-    set_headers(&mut request, auth, route);
+    set_headers(&mut request, id, route);
 
     let response = match cl.get(request).await {
         Ok(response) => response,
@@ -133,8 +136,8 @@ async fn handle_get(
 
 async fn handle_delete(
     cl: Client,
+    id: Identity,
     collection: String,
-    auth: String,
     route: Option<String>,
     key: u32,
 ) -> Result<impl warp::Reply, Rejection> {
@@ -146,7 +149,7 @@ async fn handle_delete(
     };
 
     let mut request = tonic::Request::new(request);
-    set_headers(&mut request, auth, route);
+    set_headers(&mut request, id, route);
 
     match cl.delete(request).await {
         Ok(_) => Ok(warp::reply()),
@@ -156,8 +159,8 @@ async fn handle_delete(
 
 async fn handle_update(
     cl: Client,
+    id: Identity,
     collection: String,
-    auth: String,
     route: Option<String>,
     key: u32,
     acl: Option<u32>,
@@ -188,7 +191,7 @@ async fn handle_update(
     };
 
     let mut request = tonic::Request::new(request);
-    set_headers(&mut request, auth, route);
+    set_headers(&mut request, id, route);
 
     match cl.update(request).await {
         Ok(_) => Ok(warp::reply::reply()),
@@ -205,8 +208,8 @@ struct FindResult {
 
 async fn handle_find(
     cl: Client,
+    id: Identity,
     collection: String,
-    auth: String,
     route: Option<String>,
     query: String,
 ) -> Result<impl warp::Reply, Rejection> {
@@ -232,7 +235,7 @@ async fn handle_find(
     };
 
     let mut request = tonic::Request::new(request);
-    set_headers(&mut request, auth, route);
+    set_headers(&mut request, id, route);
 
     let response = match cl.find(request).await {
         Ok(response) => response,
@@ -270,11 +273,20 @@ fn with_client(
     warp::any().map(move || cl.clone())
 }
 
-pub fn router(cl: Client) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+fn with_identity(
+    id: Identity,
+) -> impl Filter<Extract = (Identity,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || id.clone())
+}
+
+pub fn router(
+    id: Identity,
+    cl: Client,
+) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let base = warp::any()
         .and(with_client(cl.clone()))
+        .and(with_identity(id.clone()))
         .and(warp::path::param::<String>()) // collection
-        .and(warp::header::header::<String>("authorization"))
         .and(warp::header::optional::<String>(HEADER_ROUTE));
 
     let set = base

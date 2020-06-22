@@ -5,7 +5,6 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
-use surf;
 use tokio::sync::Mutex;
 use tonic::metadata::{AsciiMetadataValue, MetadataMap};
 use tonic::{Request, Status};
@@ -143,6 +142,34 @@ impl Authenticator {
 
         Ok(request)
     }
+}
+
+const DEFAULT_EXPIRE: std::time::Duration = std::time::Duration::from_secs(5);
+
+pub fn header(id: &Identity, expires: Option<std::time::Duration>) -> String {
+    let created = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let expires = created + expires.unwrap_or(DEFAULT_EXPIRE).as_secs();
+
+    let sig_str = format!(
+        "(created): {}\n(expires): {}\n(key-id): {}",
+        created,
+        expires,
+        id.id()
+    );
+
+    let sig = id.sign(sig_str.as_ref());
+
+    format!(
+        r#"Signature keyId="{}",algorithm="hs2019",headers="(created) (expires) (key-id)",created="{}",expires="{}",signature="{}""#,
+        id.id(),
+        created,
+        expires,
+        base64::encode(&sig.to_bytes()[..])
+    )
 }
 
 #[derive(Debug)]
