@@ -327,7 +327,8 @@ class HTTPAclClient:
         """
         create creates an acl with a permission and users
 
-        :param perm: permission to set
+        :param perm: permission to set, formatted as `rwd` replace the missing flag with `-`
+                     so a `r--` is readonly. while `rw-` is read/write.
         :param users: list of users to set permission on
         :returns: newly created key
         """

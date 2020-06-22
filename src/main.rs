@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("rest")
                 .short("r")
                 .takes_value(true)
-                .default_value("/var/run/bcdb.sock"),
+                .default_value("/tmp/bcdb.sock"),
         )
         .arg(
             Arg::with_name("meta")

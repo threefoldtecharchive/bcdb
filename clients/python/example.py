@@ -27,12 +27,13 @@ def grpc_client_example():
 
 
 def rest_client_example():
-    identity = Identity.from_seed("user.seed")
-    client = HTTPClient("http://127.0.0.1:50061", identity)
+    client = HTTPClient("/tmp/bcdb.sock")
 
+    acl = client.acl.create("r--", [7, 9])
     example = client.collection("example")
 
-    key = example.set(b'hello world', {"example": "value", "tag2": "v2"})
+    key = example.set(
+        b'hello world', {"example": "value", "tag2": "v2"}, acl=acl)
     obj = example.get(key)
     print(obj)
 
