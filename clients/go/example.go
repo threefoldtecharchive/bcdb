@@ -8,7 +8,7 @@ import (
 
 	"time"
 
-	"github.com/threefoldtech/dbreboot/clients/go/bcdb"
+	"github.com/threefoldtech/bcdb/clients/go/bcdb"
 	"google.golang.org/grpc"
 )
 

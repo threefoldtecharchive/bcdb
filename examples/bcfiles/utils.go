@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/dbreboot/clients/go/bcdb"
+	"github.com/threefoldtech/bcdb/clients/go/bcdb"
 )
 
 var (

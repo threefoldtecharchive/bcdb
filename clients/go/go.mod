@@ -1,4 +1,4 @@
-module github.com/threefoldtech/dbreboot/clients/go
+module github.com/threefoldtech/bcdb/clients/go
 
 go 1.13
 

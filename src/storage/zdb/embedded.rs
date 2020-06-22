@@ -118,8 +118,8 @@ fn do_something() {
         // write stoof
         // let key = CString::new("testkey").unwrap().into_raw();
         let key = "testkey\0".as_ptr();
-        //let data = CString::new("Hello from dbreboot").unwrap().into_raw();
-        let data = "Hello from dbreboot\0".as_ptr();
+        //let data = CString::new("Hello from bcdb").unwrap().into_raw();
+        let data = "Hello from bcdb\0".as_ptr();
         let reply = zdb_api_set(ns, key as *mut c_void, 7, data as *mut c_void, 20);
         dump_type((*reply).status);
         zdb_api_reply_free(reply);
