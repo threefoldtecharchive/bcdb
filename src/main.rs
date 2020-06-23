@@ -155,7 +155,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         acl_store.clone(),
     );
 
-    let interceptor = auth::Authenticator::new(matches.value_of("explorer"), identity.id())?;
+    let interceptor = auth::Authenticator::new(matches.value_of("explorer"), identity.clone())?;
     let acl_interceptor = interceptor.clone();
 
     let peers = if matches.is_present("peers-file") {

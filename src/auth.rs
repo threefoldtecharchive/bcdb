@@ -13,7 +13,7 @@ use tonic::{Request, Status};
 pub struct Authenticator {
     client: Explorer,
     cache: Arc<Mutex<HashMap<u64, PublicKey>>>,
-    id: u32,
+    id: Identity,
 }
 
 #[derive(Deserialize)]
@@ -22,10 +22,15 @@ struct User {
 }
 
 impl Authenticator {
-    pub fn new(base: Option<&str>, id: u32) -> Result<Authenticator, Error> {
+    pub fn new(base: Option<&str>, id: Identity) -> Result<Authenticator, Error> {
+        let mut cache = HashMap::new();
+
+        cache.insert(id.id() as u64, id.public_key());
+        let cache = Arc::new(Mutex::new(cache));
+
         Ok(Authenticator {
             client: Explorer::new(base)?,
-            cache: Arc::new(Mutex::new(HashMap::new())),
+            cache: cache,
             id: id,
         })
     }
@@ -51,7 +56,7 @@ impl Authenticator {
     pub async fn authenticate<T>(&self, request: Request<T>) -> Result<Request<T>, Status> {
         let meta = request.metadata();
 
-        if let Route::Proxy(_) = meta.route(self.id)? {
+        if let Route::Proxy(_) = meta.route(self.id.id())? {
             // this is a proxy call, no authentication is needed
             return Ok(request);
         }
@@ -136,7 +141,7 @@ impl Authenticator {
             AsciiMetadataValue::from_str(&format!("{}", header.key_id)).unwrap(),
         );
 
-        if self.id as u64 == header.key_id {
+        if self.id.id() as u64 == header.key_id {
             meta.insert("owner", AsciiMetadataValue::from_str("true").unwrap());
         }
 
@@ -401,7 +406,8 @@ mod tests {
 
     #[tokio::test]
     async fn get_user_key() {
-        let auth = Authenticator::new(None, 0).unwrap();
+        let id = Identity::from_mnemonic(1, "crunch depend lock agree lava include clown toss runway source better such never bonus divide trade squeeze type ride satoshi slender lottery rain cause").unwrap();
+        let auth = Authenticator::new(None, id).unwrap();
         match auth.get_key(1).await {
             Ok(key) => println!("pubkey: {:?}", key),
             Err(err) => panic!(err), //assert_eq!(true, false, "failed to get user id: {}", err),
@@ -412,7 +418,8 @@ mod tests {
 
     #[tokio::test]
     async fn get_user_blocking() {
-        let auth = Authenticator::new(None, 0).unwrap();
+        let id = Identity::from_mnemonic(0, "crunch depend lock agree lava include clown toss runway source better such never bonus divide trade squeeze type ride satoshi slender lottery rain cause").unwrap();
+        let auth = Authenticator::new(None, id).unwrap();
         match futures::executor::block_on(auth.get_key(1)) {
             Ok(key) => println!("pubkey: {:?}", key),
             Err(err) => panic!(err), //assert_eq!(true, false, "failed to get user id: {}", err),
