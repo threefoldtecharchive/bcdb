@@ -18,7 +18,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='bcdb',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=b'\n\nbcdb.proto\x12\x04\x62\x63\x64\x62\"!\n\x03Tag\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"\x15\n\x06\x41\x63lRef\x12\x0b\n\x03\x61\x63l\x18\x01 \x01(\x04\"R\n\x08Metadata\x12\x17\n\x04tags\x18\x01 \x03(\x0b\x32\t.bcdb.Tag\x12\x12\n\ncollection\x18\x02 \x01(\t\x12\x19\n\x03\x61\x63l\x18\x03 \x01(\x0b\x32\x0c.bcdb.AclRef\"<\n\nSetRequest\x12 \n\x08metadata\x18\x01 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"\x19\n\x0bSetResponse\x12\n\n\x02id\x18\x01 \x01(\r\",\n\nGetRequest\x12\n\n\x02id\x18\x01 \x01(\r\x12\x12\n\ncollection\x18\x02 \x01(\t\"=\n\x0bGetResponse\x12 \n\x08metadata\x18\x01 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"\x87\x01\n\rUpdateRequest\x12\n\n\x02id\x18\x01 \x01(\r\x12 \n\x08metadata\x18\x02 \x01(\x0b\x32\x0e.bcdb.Metadata\x12,\n\x04\x64\x61ta\x18\x03 \x01(\x0b\x32\x1e.bcdb.UpdateRequest.UpdateData\x1a\x1a\n\nUpdateData\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c\"\x10\n\x0eUpdateResponse\";\n\x0cQueryRequest\x12\x12\n\ncollection\x18\x01 \x01(\t\x12\x17\n\x04tags\x18\x02 \x03(\x0b\x32\t.bcdb.Tag\"\x1a\n\x0cListResponse\x12\n\n\x02id\x18\x01 \x01(\r\"<\n\x0c\x46indResponse\x12\n\n\x02id\x18\x01 \x01(\r\x12 \n\x08metadata\x18\x02 \x01(\x0b\x32\x0e.bcdb.Metadata\"/\n\rDeleteRequest\x12\n\n\x02id\x18\x01 \x01(\r\x12\x12\n\ncollection\x18\x02 \x01(\t\"\x10\n\x0e\x44\x65leteResponse\"\"\n\x03\x41\x43L\x12\x0c\n\x04perm\x18\x01 \x01(\t\x12\r\n\x05users\x18\x02 \x03(\x04\"\x1c\n\rACLGetRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\"(\n\x0e\x41\x43LGetResponse\x12\x16\n\x03\x61\x63l\x18\x01 \x01(\x0b\x32\t.bcdb.ACL\"*\n\x10\x41\x43LCreateRequest\x12\x16\n\x03\x61\x63l\x18\x01 \x01(\x0b\x32\t.bcdb.ACL\" \n\x11\x41\x43LCreateResponse\x12\x0b\n\x03key\x18\x01 \x01(\r\"\x10\n\x0e\x41\x43LListRequest\"6\n\x0f\x41\x43LListResponse\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\x16\n\x03\x61\x63l\x18\x02 \x01(\x0b\x32\t.bcdb.ACL\"*\n\rACLSetRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\x0c\n\x04perm\x18\x02 \x01(\t\"\x10\n\x0e\x41\x43LSetResponse\"-\n\x0f\x41\x43LUsersRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\r\n\x05users\x18\x02 \x03(\x04\"#\n\x10\x41\x43LUsersResponse\x12\x0f\n\x07updated\x18\x01 \x01(\x04\"\'\n\x0cIdentityInfo\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0b\n\x03key\x18\x02 \x01(\t\"\r\n\x0bInfoRequest\"4\n\x0cInfoResponse\x12$\n\x08identity\x18\x01 \x01(\x0b\x32\x12.bcdb.IdentityInfo\"\x1e\n\x0bSignRequest\x12\x0f\n\x07message\x18\x01 \x01(\x0c\"G\n\x0cSignResponse\x12$\n\x08identity\x18\x01 \x01(\x0b\x32\x12.bcdb.IdentityInfo\x12\x11\n\tsignature\x18\x02 \x01(\x0c\x32\xb8\x02\n\x04\x42\x43\x44\x42\x12,\n\x03Set\x12\x10.bcdb.SetRequest\x1a\x11.bcdb.SetResponse\"\x00\x12,\n\x03Get\x12\x10.bcdb.GetRequest\x1a\x11.bcdb.GetResponse\"\x00\x12\x35\n\x06Update\x12\x13.bcdb.UpdateRequest\x1a\x14.bcdb.UpdateResponse\"\x00\x12\x32\n\x04List\x12\x12.bcdb.QueryRequest\x1a\x12.bcdb.ListResponse\"\x00\x30\x01\x12\x32\n\x04\x46ind\x12\x12.bcdb.QueryRequest\x1a\x12.bcdb.FindResponse\"\x00\x30\x01\x12\x35\n\x06\x44\x65lete\x12\x13.bcdb.DeleteRequest\x1a\x14.bcdb.DeleteResponse\"\x00\x32\xd8\x02\n\x03\x41\x63l\x12\x32\n\x03Get\x12\x13.bcdb.ACLGetRequest\x1a\x14.bcdb.ACLGetResponse\"\x00\x12;\n\x06\x43reate\x12\x16.bcdb.ACLCreateRequest\x1a\x17.bcdb.ACLCreateResponse\"\x00\x12\x37\n\x04List\x12\x14.bcdb.ACLListRequest\x1a\x15.bcdb.ACLListResponse\"\x00\x30\x01\x12\x32\n\x03Set\x12\x13.bcdb.ACLSetRequest\x1a\x14.bcdb.ACLSetResponse\"\x00\x12\x38\n\x05Grant\x12\x15.bcdb.ACLUsersRequest\x1a\x16.bcdb.ACLUsersResponse\"\x00\x12\x39\n\x06Revoke\x12\x15.bcdb.ACLUsersRequest\x1a\x16.bcdb.ACLUsersResponse\"\x00\x32l\n\x08Identity\x12/\n\x04Info\x12\x11.bcdb.InfoRequest\x1a\x12.bcdb.InfoResponse\"\x00\x12/\n\x04Sign\x12\x11.bcdb.SignRequest\x1a\x12.bcdb.SignResponse\"\x00\x62\x06proto3'
+  serialized_pb=b'\n\nbcdb.proto\x12\x04\x62\x63\x64\x62\"!\n\x03Tag\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"\x15\n\x06\x41\x63lRef\x12\x0b\n\x03\x61\x63l\x18\x01 \x01(\x04\"R\n\x08Metadata\x12\x17\n\x04tags\x18\x01 \x03(\x0b\x32\t.bcdb.Tag\x12\x12\n\ncollection\x18\x02 \x01(\t\x12\x19\n\x03\x61\x63l\x18\x03 \x01(\x0b\x32\x0c.bcdb.AclRef\"<\n\nSetRequest\x12 \n\x08metadata\x18\x01 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"\x19\n\x0bSetResponse\x12\n\n\x02id\x18\x01 \x01(\r\"\x1a\n\x0c\x46\x65tchRequest\x12\n\n\x02id\x18\x01 \x01(\r\",\n\nGetRequest\x12\n\n\x02id\x18\x01 \x01(\r\x12\x12\n\ncollection\x18\x02 \x01(\t\"=\n\x0bGetResponse\x12 \n\x08metadata\x18\x01 \x01(\x0b\x32\x0e.bcdb.Metadata\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"\x87\x01\n\rUpdateRequest\x12\n\n\x02id\x18\x01 \x01(\r\x12 \n\x08metadata\x18\x02 \x01(\x0b\x32\x0e.bcdb.Metadata\x12,\n\x04\x64\x61ta\x18\x03 \x01(\x0b\x32\x1e.bcdb.UpdateRequest.UpdateData\x1a\x1a\n\nUpdateData\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c\"\x10\n\x0eUpdateResponse\";\n\x0cQueryRequest\x12\x12\n\ncollection\x18\x01 \x01(\t\x12\x17\n\x04tags\x18\x02 \x03(\x0b\x32\t.bcdb.Tag\"\x1a\n\x0cListResponse\x12\n\n\x02id\x18\x01 \x01(\r\"<\n\x0c\x46indResponse\x12\n\n\x02id\x18\x01 \x01(\r\x12 \n\x08metadata\x18\x02 \x01(\x0b\x32\x0e.bcdb.Metadata\"/\n\rDeleteRequest\x12\n\n\x02id\x18\x01 \x01(\r\x12\x12\n\ncollection\x18\x02 \x01(\t\"\x10\n\x0e\x44\x65leteResponse\"\"\n\x03\x41\x43L\x12\x0c\n\x04perm\x18\x01 \x01(\t\x12\r\n\x05users\x18\x02 \x03(\x04\"\x1c\n\rACLGetRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\"(\n\x0e\x41\x43LGetResponse\x12\x16\n\x03\x61\x63l\x18\x01 \x01(\x0b\x32\t.bcdb.ACL\"*\n\x10\x41\x43LCreateRequest\x12\x16\n\x03\x61\x63l\x18\x01 \x01(\x0b\x32\t.bcdb.ACL\" \n\x11\x41\x43LCreateResponse\x12\x0b\n\x03key\x18\x01 \x01(\r\"\x10\n\x0e\x41\x43LListRequest\"6\n\x0f\x41\x43LListResponse\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\x16\n\x03\x61\x63l\x18\x02 \x01(\x0b\x32\t.bcdb.ACL\"*\n\rACLSetRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\x0c\n\x04perm\x18\x02 \x01(\t\"\x10\n\x0e\x41\x43LSetResponse\"-\n\x0f\x41\x43LUsersRequest\x12\x0b\n\x03key\x18\x01 \x01(\r\x12\r\n\x05users\x18\x02 \x03(\x04\"#\n\x10\x41\x43LUsersResponse\x12\x0f\n\x07updated\x18\x01 \x01(\x04\"\'\n\x0cIdentityInfo\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0b\n\x03key\x18\x02 \x01(\t\"\r\n\x0bInfoRequest\"4\n\x0cInfoResponse\x12$\n\x08identity\x18\x01 \x01(\x0b\x32\x12.bcdb.IdentityInfo\"\x1e\n\x0bSignRequest\x12\x0f\n\x07message\x18\x01 \x01(\x0c\"G\n\x0cSignResponse\x12$\n\x08identity\x18\x01 \x01(\x0b\x32\x12.bcdb.IdentityInfo\x12\x11\n\tsignature\x18\x02 \x01(\x0c\x32\xea\x02\n\x04\x42\x43\x44\x42\x12,\n\x03Set\x12\x10.bcdb.SetRequest\x1a\x11.bcdb.SetResponse\"\x00\x12,\n\x03Get\x12\x10.bcdb.GetRequest\x1a\x11.bcdb.GetResponse\"\x00\x12\x30\n\x05\x46\x65tch\x12\x12.bcdb.FetchRequest\x1a\x11.bcdb.GetResponse\"\x00\x12\x35\n\x06Update\x12\x13.bcdb.UpdateRequest\x1a\x14.bcdb.UpdateResponse\"\x00\x12\x32\n\x04List\x12\x12.bcdb.QueryRequest\x1a\x12.bcdb.ListResponse\"\x00\x30\x01\x12\x32\n\x04\x46ind\x12\x12.bcdb.QueryRequest\x1a\x12.bcdb.FindResponse\"\x00\x30\x01\x12\x35\n\x06\x44\x65lete\x12\x13.bcdb.DeleteRequest\x1a\x14.bcdb.DeleteResponse\"\x00\x32\xd8\x02\n\x03\x41\x63l\x12\x32\n\x03Get\x12\x13.bcdb.ACLGetRequest\x1a\x14.bcdb.ACLGetResponse\"\x00\x12;\n\x06\x43reate\x12\x16.bcdb.ACLCreateRequest\x1a\x17.bcdb.ACLCreateResponse\"\x00\x12\x37\n\x04List\x12\x14.bcdb.ACLListRequest\x1a\x15.bcdb.ACLListResponse\"\x00\x30\x01\x12\x32\n\x03Set\x12\x13.bcdb.ACLSetRequest\x1a\x14.bcdb.ACLSetResponse\"\x00\x12\x38\n\x05Grant\x12\x15.bcdb.ACLUsersRequest\x1a\x16.bcdb.ACLUsersResponse\"\x00\x12\x39\n\x06Revoke\x12\x15.bcdb.ACLUsersRequest\x1a\x16.bcdb.ACLUsersResponse\"\x00\x32l\n\x08Identity\x12/\n\x04Info\x12\x11.bcdb.InfoRequest\x1a\x12.bcdb.InfoResponse\"\x00\x12/\n\x04Sign\x12\x11.bcdb.SignRequest\x1a\x12.bcdb.SignResponse\"\x00\x62\x06proto3'
 )
 
 
@@ -207,6 +207,37 @@ _SETRESPONSE = _descriptor.Descriptor(
 )
 
 
+_FETCHREQUEST = _descriptor.Descriptor(
+  name='FetchRequest',
+  full_name='bcdb.FetchRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='id', full_name='bcdb.FetchRequest.id', index=0,
+      number=1, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=251,
+  serialized_end=277,
+)
+
+
 _GETREQUEST = _descriptor.Descriptor(
   name='GetRequest',
   full_name='bcdb.GetRequest',
@@ -240,8 +271,8 @@ _GETREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=251,
-  serialized_end=295,
+  serialized_start=279,
+  serialized_end=323,
 )
 
 
@@ -278,8 +309,8 @@ _GETRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=297,
-  serialized_end=358,
+  serialized_start=325,
+  serialized_end=386,
 )
 
 
@@ -309,8 +340,8 @@ _UPDATEREQUEST_UPDATEDATA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=470,
-  serialized_end=496,
+  serialized_start=498,
+  serialized_end=524,
 )
 
 _UPDATEREQUEST = _descriptor.Descriptor(
@@ -353,8 +384,8 @@ _UPDATEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=361,
-  serialized_end=496,
+  serialized_start=389,
+  serialized_end=524,
 )
 
 
@@ -377,8 +408,8 @@ _UPDATERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=498,
-  serialized_end=514,
+  serialized_start=526,
+  serialized_end=542,
 )
 
 
@@ -415,8 +446,8 @@ _QUERYREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=516,
-  serialized_end=575,
+  serialized_start=544,
+  serialized_end=603,
 )
 
 
@@ -446,8 +477,8 @@ _LISTRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=577,
-  serialized_end=603,
+  serialized_start=605,
+  serialized_end=631,
 )
 
 
@@ -484,8 +515,8 @@ _FINDRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=605,
-  serialized_end=665,
+  serialized_start=633,
+  serialized_end=693,
 )
 
 
@@ -522,8 +553,8 @@ _DELETEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=667,
-  serialized_end=714,
+  serialized_start=695,
+  serialized_end=742,
 )
 
 
@@ -546,8 +577,8 @@ _DELETERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=716,
-  serialized_end=732,
+  serialized_start=744,
+  serialized_end=760,
 )
 
 
@@ -584,8 +615,8 @@ _ACL = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=734,
-  serialized_end=768,
+  serialized_start=762,
+  serialized_end=796,
 )
 
 
@@ -615,8 +646,8 @@ _ACLGETREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=770,
-  serialized_end=798,
+  serialized_start=798,
+  serialized_end=826,
 )
 
 
@@ -646,8 +677,8 @@ _ACLGETRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=800,
-  serialized_end=840,
+  serialized_start=828,
+  serialized_end=868,
 )
 
 
@@ -677,8 +708,8 @@ _ACLCREATEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=842,
-  serialized_end=884,
+  serialized_start=870,
+  serialized_end=912,
 )
 
 
@@ -708,8 +739,8 @@ _ACLCREATERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=886,
-  serialized_end=918,
+  serialized_start=914,
+  serialized_end=946,
 )
 
 
@@ -732,8 +763,8 @@ _ACLLISTREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=920,
-  serialized_end=936,
+  serialized_start=948,
+  serialized_end=964,
 )
 
 
@@ -770,8 +801,8 @@ _ACLLISTRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=938,
-  serialized_end=992,
+  serialized_start=966,
+  serialized_end=1020,
 )
 
 
@@ -808,8 +839,8 @@ _ACLSETREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=994,
-  serialized_end=1036,
+  serialized_start=1022,
+  serialized_end=1064,
 )
 
 
@@ -832,8 +863,8 @@ _ACLSETRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1038,
-  serialized_end=1054,
+  serialized_start=1066,
+  serialized_end=1082,
 )
 
 
@@ -870,8 +901,8 @@ _ACLUSERSREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1056,
-  serialized_end=1101,
+  serialized_start=1084,
+  serialized_end=1129,
 )
 
 
@@ -901,8 +932,8 @@ _ACLUSERSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1103,
-  serialized_end=1138,
+  serialized_start=1131,
+  serialized_end=1166,
 )
 
 
@@ -939,8 +970,8 @@ _IDENTITYINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1140,
-  serialized_end=1179,
+  serialized_start=1168,
+  serialized_end=1207,
 )
 
 
@@ -963,8 +994,8 @@ _INFOREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1181,
-  serialized_end=1194,
+  serialized_start=1209,
+  serialized_end=1222,
 )
 
 
@@ -994,8 +1025,8 @@ _INFORESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1196,
-  serialized_end=1248,
+  serialized_start=1224,
+  serialized_end=1276,
 )
 
 
@@ -1025,8 +1056,8 @@ _SIGNREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1250,
-  serialized_end=1280,
+  serialized_start=1278,
+  serialized_end=1308,
 )
 
 
@@ -1063,8 +1094,8 @@ _SIGNRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1282,
-  serialized_end=1353,
+  serialized_start=1310,
+  serialized_end=1381,
 )
 
 _METADATA.fields_by_name['tags'].message_type = _TAG
@@ -1086,6 +1117,7 @@ DESCRIPTOR.message_types_by_name['AclRef'] = _ACLREF
 DESCRIPTOR.message_types_by_name['Metadata'] = _METADATA
 DESCRIPTOR.message_types_by_name['SetRequest'] = _SETREQUEST
 DESCRIPTOR.message_types_by_name['SetResponse'] = _SETRESPONSE
+DESCRIPTOR.message_types_by_name['FetchRequest'] = _FETCHREQUEST
 DESCRIPTOR.message_types_by_name['GetRequest'] = _GETREQUEST
 DESCRIPTOR.message_types_by_name['GetResponse'] = _GETRESPONSE
 DESCRIPTOR.message_types_by_name['UpdateRequest'] = _UPDATEREQUEST
@@ -1147,6 +1179,13 @@ SetResponse = _reflection.GeneratedProtocolMessageType('SetResponse', (_message.
   # @@protoc_insertion_point(class_scope:bcdb.SetResponse)
   })
 _sym_db.RegisterMessage(SetResponse)
+
+FetchRequest = _reflection.GeneratedProtocolMessageType('FetchRequest', (_message.Message,), {
+  'DESCRIPTOR' : _FETCHREQUEST,
+  '__module__' : 'bcdb_pb2'
+  # @@protoc_insertion_point(class_scope:bcdb.FetchRequest)
+  })
+_sym_db.RegisterMessage(FetchRequest)
 
 GetRequest = _reflection.GeneratedProtocolMessageType('GetRequest', (_message.Message,), {
   'DESCRIPTOR' : _GETREQUEST,
@@ -1339,8 +1378,8 @@ _BCDB = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=1356,
-  serialized_end=1668,
+  serialized_start=1384,
+  serialized_end=1746,
   methods=[
   _descriptor.MethodDescriptor(
     name='Set',
@@ -1361,9 +1400,18 @@ _BCDB = _descriptor.ServiceDescriptor(
     serialized_options=None,
   ),
   _descriptor.MethodDescriptor(
+    name='Fetch',
+    full_name='bcdb.BCDB.Fetch',
+    index=2,
+    containing_service=None,
+    input_type=_FETCHREQUEST,
+    output_type=_GETRESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
     name='Update',
     full_name='bcdb.BCDB.Update',
-    index=2,
+    index=3,
     containing_service=None,
     input_type=_UPDATEREQUEST,
     output_type=_UPDATERESPONSE,
@@ -1372,7 +1420,7 @@ _BCDB = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='List',
     full_name='bcdb.BCDB.List',
-    index=3,
+    index=4,
     containing_service=None,
     input_type=_QUERYREQUEST,
     output_type=_LISTRESPONSE,
@@ -1381,7 +1429,7 @@ _BCDB = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='Find',
     full_name='bcdb.BCDB.Find',
-    index=4,
+    index=5,
     containing_service=None,
     input_type=_QUERYREQUEST,
     output_type=_FINDRESPONSE,
@@ -1390,7 +1438,7 @@ _BCDB = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='Delete',
     full_name='bcdb.BCDB.Delete',
-    index=5,
+    index=6,
     containing_service=None,
     input_type=_DELETEREQUEST,
     output_type=_DELETERESPONSE,
@@ -1408,8 +1456,8 @@ _ACL = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=1,
   serialized_options=None,
-  serialized_start=1671,
-  serialized_end=2015,
+  serialized_start=1749,
+  serialized_end=2093,
   methods=[
   _descriptor.MethodDescriptor(
     name='Get',
@@ -1477,8 +1525,8 @@ _IDENTITY = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=2,
   serialized_options=None,
-  serialized_start=2017,
-  serialized_end=2125,
+  serialized_start=2095,
+  serialized_end=2203,
   methods=[
   _descriptor.MethodDescriptor(
     name='Info',

@@ -62,8 +62,8 @@ fn set_headers<T>(request: &mut tonic::Request<T>, id: Identity, route: Option<S
 async fn handle_set(
     cl: Client,
     id: Identity,
-    collection: String,
     route: Option<String>,
+    collection: String,
     acl: Option<u32>,
     tags: Option<String>,
     data: bytes::Bytes,
@@ -102,8 +102,8 @@ async fn handle_set(
 async fn handle_get(
     cl: Client,
     id: Identity,
-    collection: String,
     route: Option<String>,
+    collection: String,
     key: u32,
 ) -> Result<impl warp::Reply, Rejection> {
     let mut cl = cl.clone();
@@ -134,11 +134,43 @@ async fn handle_get(
     Ok(builder.body(response.data))
 }
 
+async fn handle_fetch(
+    cl: Client,
+    id: Identity,
+    route: Option<String>,
+    key: u32,
+) -> Result<impl warp::Reply, Rejection> {
+    let mut cl = cl.clone();
+
+    let request = FetchRequest { id: key };
+
+    let mut request = tonic::Request::new(request);
+    set_headers(&mut request, id, route);
+
+    let response = match cl.fetch(request).await {
+        Ok(response) => response,
+        Err(status) => return Err(super::status_to_rejection(status)),
+    };
+
+    let response = response.into_inner();
+    let mut builder = ResponseBuilder::new().status(StatusCode::OK);
+
+    if let Some(meta) = response.metadata {
+        if let Some(acl) = meta.acl {
+            builder = builder.header(HEADER_ACL, acl.acl)
+        }
+
+        builder = builder.header(HEADER_TAGS, tags_to_str(meta.tags).unwrap());
+    }
+
+    Ok(builder.body(response.data))
+}
+
 async fn handle_delete(
     cl: Client,
     id: Identity,
-    collection: String,
     route: Option<String>,
+    collection: String,
     key: u32,
 ) -> Result<impl warp::Reply, Rejection> {
     let mut cl = cl.clone();
@@ -160,8 +192,8 @@ async fn handle_delete(
 async fn handle_update(
     cl: Client,
     id: Identity,
-    collection: String,
     route: Option<String>,
+    collection: String,
     key: u32,
     acl: Option<u32>,
     tags: Option<String>,
@@ -209,8 +241,8 @@ struct FindResult {
 async fn handle_find(
     cl: Client,
     id: Identity,
-    collection: String,
     route: Option<String>,
+    collection: String,
     query: String,
 ) -> Result<impl warp::Reply, Rejection> {
     let mut cl = cl.clone();
@@ -286,10 +318,17 @@ pub fn router(
     let base = warp::any()
         .and(with_client(cl.clone()))
         .and(with_identity(id.clone()))
-        .and(warp::path::param::<String>()) // collection
         .and(warp::header::optional::<String>(HEADER_ROUTE));
 
-    let set = base
+    let fetch = base
+        .clone()
+        .and(warp::path::param::<u32>())
+        .and(warp::get())
+        .and_then(handle_fetch);
+
+    let collection = base.clone().and(warp::path::param::<String>()); // collection
+
+    let set = collection
         .clone()
         .and(warp::post())
         .and(warp::header::optional::<u32>(HEADER_ACL))
@@ -298,19 +337,19 @@ pub fn router(
         .and(warp::body::bytes())
         .and_then(handle_set);
 
-    let get = base
+    let get = collection
         .clone()
         .and(warp::path::param::<u32>()) // key
         .and(warp::get())
         .and_then(handle_get);
 
-    let delete = base
+    let delete = collection
         .clone()
         .and(warp::path::param::<u32>()) // key
         .and(warp::delete())
         .and_then(handle_delete);
 
-    let update = base
+    let update = collection
         .clone()
         .and(warp::path::param::<u32>()) // key
         .and(warp::put())
@@ -320,11 +359,11 @@ pub fn router(
         .and(warp::body::bytes())
         .and_then(handle_update);
 
-    let find = base
+    let find = collection
         .clone()
         .and(warp::get())
         .and(warp::query::raw()) // query
         .and_then(handle_find);
 
-    warp::path("db").and(set.or(get).or(delete).or(update).or(find))
+    warp::path("db").and(fetch.or(set).or(get).or(delete).or(update).or(find))
 }

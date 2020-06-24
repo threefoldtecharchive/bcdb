@@ -113,6 +113,16 @@ where
         client.get(request).await
     }
 
+    async fn proxy_fetch(
+        &self,
+        id: u32,
+        request: Request<FetchRequest>,
+    ) -> Result<Response<GetResponse>, Status> {
+        let mut client = self.get_peer(id).await?;
+
+        client.fetch(request).await
+    }
+
     async fn proxy_delete(
         &self,
         id: u32,
@@ -194,6 +204,18 @@ where
             Route::Proxy(id) => self.proxy_get(id, request).await,
             _ => Err(Status::unauthenticated("unauthenticated request")),
         }
+    }
+
+    async fn fetch(&self, request: Request<FetchRequest>) -> Result<Response<GetResponse>, Status> {
+        match request.metadata().route(self.id)? {
+            Route::Local if request.metadata().is_authenticated() => {
+                self.local.fetch(request).await
+            }
+            Route::Proxy(id) => self.proxy_fetch(id, request).await,
+            _ => Err(Status::unauthenticated("unauthenticated request")),
+        }
+
+        //return Err(Status::unimplemented("not implemented"));
     }
 
     async fn delete(

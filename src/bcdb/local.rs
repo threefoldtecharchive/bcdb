@@ -122,19 +122,25 @@ where
         Ok(m)
     }
 
-    async fn get_metadata(&self, collection: &str, id: u32) -> Result<Metadata, Status> {
+    async fn get_metadata(&self, collection: Option<&str>, id: u32) -> Result<Metadata, Status> {
         let mut meta = self.meta.clone();
         let info = match meta.get(id).await {
             Ok(info) => info,
             Err(err) => return Err(err.status()),
         };
 
-        match info.find(TAG_COLLECTION) {
-            Some(v) if v == collection => {}
-            _ => return Err(Status::not_found("object not found")),
-        };
+        let col = info.find(TAG_COLLECTION);
+        if let Some(collection) = collection {
+            match col {
+                Some(ref v) if v == collection => {}
+                _ => return Err(Status::not_found("object not found")),
+            };
+        }
 
-        Ok(Self::build_pb_meta(collection, info))
+        Ok(Self::build_pb_meta(
+            col.unwrap_or_else(|| ":unknown".into()),
+            info,
+        ))
     }
 }
 
@@ -202,7 +208,7 @@ where
         let request = request.into_inner();
         let id = request.id;
 
-        let metadata = self.get_metadata(&request.collection, id).await?;
+        let metadata = self.get_metadata(Some(&request.collection), id).await?;
 
         if !auth.is_owner() {
             match metadata.acl {
@@ -226,6 +232,37 @@ where
             metadata: Some(metadata),
         }))
     }
+
+    async fn fetch(&self, request: Request<FetchRequest>) -> Result<Response<GetResponse>, Status> {
+        let auth = request.metadata().clone();
+        let request = request.into_inner();
+        let id = request.id;
+
+        let metadata = self.get_metadata(None, id).await?;
+
+        if !auth.is_owner() {
+            match metadata.acl {
+                Some(ref acl) => {
+                    self.is_authorized(acl.acl, auth.get_user().unwrap(), "r--".parse().unwrap())?;
+                }
+
+                None => return Err(Status::unauthenticated("not authorized")),
+            };
+        }
+
+        let mut db = self.db.clone();
+        let handle = spawn_blocking(move || db.get(id).expect("failed to load data"));
+        // TODO: proper error handling
+        let data = handle.await.expect("failed thread pool task");
+        if data.is_none() {
+            return Err(Status::not_found(format!("Key {} doesn't exist", id)));
+        }
+        Ok(Response::new(GetResponse {
+            data: data.unwrap(), // This unwrap is safe as we checked the none case above
+            metadata: Some(metadata),
+        }))
+    }
+
     async fn delete(
         &self,
         request: Request<DeleteRequest>,
@@ -235,7 +272,7 @@ where
         let request = request.into_inner();
         let id = request.id;
 
-        let metadata = self.get_metadata(&request.collection, id).await?;
+        let metadata = self.get_metadata(Some(&request.collection), id).await?;
 
         if !auth.is_owner() {
             match metadata.acl {
@@ -272,7 +309,9 @@ where
             None => return Err(Status::invalid_argument("metadata is required")),
         };
 
-        let metadata = self.get_metadata(&new_metadata.collection, id).await?;
+        let metadata = self
+            .get_metadata(Some(&new_metadata.collection), id)
+            .await?;
 
         if !auth.is_owner() {
             match metadata.acl {

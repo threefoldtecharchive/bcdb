@@ -9,7 +9,10 @@ def grpc_client_example():
 
     key = example.set(b'hello world', {"example": "value", "tag2": "v2"})
     obj = example.get(key)
-    print(obj)
+    print("get: ", obj)
+
+    obj = client.fetch(key)
+    print("fetch: ", obj)
 
     example.update(key, b'updated string', {"example": "updated"}, acl=10)
     obj = example.get(key)
@@ -35,7 +38,10 @@ def rest_client_example():
     key = example.set(
         b'hello world', {"example": "value", "tag2": "v2"}, acl=acl)
     obj = example.get(key)
-    print(obj)
+    print("get:", obj)
+
+    obj = client.fetch(key)
+    print("fetch: ", obj)
 
     example.update(key, b'updated string', {"example": "updated"}, acl=10)
     obj = example.get(key)
