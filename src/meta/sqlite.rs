@@ -1,4 +1,4 @@
-use crate::meta::{Key, Meta, Storage, StorageFactory, Tag};
+use crate::meta::{Key, Meta, Storage, Tag};
 use async_trait::async_trait;
 use failure::Error;
 use sqlx::prelude::*;
@@ -7,27 +7,22 @@ use tokio::sync::mpsc;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-pub struct SqliteMetaStoreFactory {
+pub struct SqliteMetaStoreBuilder {
     root: String,
 }
 
-impl SqliteMetaStoreFactory {
-    pub fn new<P>(root: P) -> Result<SqliteMetaStoreFactory>
+impl SqliteMetaStoreBuilder {
+    pub fn new<P>(root: P) -> Result<SqliteMetaStoreBuilder>
     where
         P: Into<String>,
     {
         let root = root.into();
         std::fs::create_dir_all(&root)?;
 
-        Ok(SqliteMetaStoreFactory { root: root })
+        Ok(SqliteMetaStoreBuilder { root: root })
     }
-}
 
-#[async_trait]
-impl StorageFactory for SqliteMetaStoreFactory {
-    type Storage = SqliteMetaStore;
-
-    async fn new(&self, collection: &str) -> Result<Self::Storage> {
+    pub async fn build(&self, collection: &str) -> Result<SqliteMetaStore> {
         if collection.len() == 0 {
             bail!("collection name must not be empty");
         }

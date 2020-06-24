@@ -141,7 +141,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // use sqlite meta data factory
     let meta_factory =
-        meta::sqlite::SqliteMetaStoreFactory::new(matches.value_of("meta").unwrap())?;
+        meta::sqlite::SqliteMetaStoreBuilder::new(matches.value_of("meta").unwrap())?;
 
     // the acl_store
     let acl_store = acl::ACLStorage::new(EncryptedStorage::new(
@@ -151,7 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let local_bcdb = bcdb::LocalBcdb::new(
         EncryptedStorage::new(identity.as_sk_bytes(), zdb.collection("objects")),
-        meta_factory,
+        meta_factory.build("metadata").await?,
         acl_store.clone(),
     );
 
