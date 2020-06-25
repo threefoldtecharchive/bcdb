@@ -41,6 +41,16 @@ impl Meta {
     {
         self.tags.push(Tag::new(key, value))
     }
+
+    pub fn find<K: AsRef<str>>(&self, key: K) -> Option<String> {
+        for t in self.tags.iter() {
+            if t.key == key.as_ref() {
+                return Some(t.value.clone());
+            }
+        }
+
+        return None;
+    }
 }
 
 #[async_trait]
@@ -48,11 +58,4 @@ pub trait Storage: Send + Sync + 'static {
     async fn set(&mut self, key: Key, meta: Meta) -> Result<(), Error>;
     async fn get(&mut self, key: Key) -> Result<Meta, Error>;
     async fn find(&mut self, tags: Vec<Tag>) -> Result<mpsc::Receiver<Result<Key, Error>>, Error>;
-}
-
-#[async_trait]
-pub trait StorageFactory: Send + Sync + 'static {
-    type Storage: Storage + Clone;
-
-    async fn new(&self, typ: &str) -> Result<Self::Storage, Error>;
 }

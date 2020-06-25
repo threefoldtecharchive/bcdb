@@ -10,6 +10,9 @@ service BCDB {
   // Get a document from header
   rpc Get(GetRequest) returns (GetResponse) {}
 
+  // Fetch is similar to Get but does not require a collection
+  rpc Fetch(FetchRequest) returns (GetResponse) {}
+
   // Modify updates a document meta
   rpc Update(UpdateRequest) returns (UpdateResponse) {}
 
@@ -54,6 +57,9 @@ message SetRequest {
 
 // Set response
 message SetResponse { uint32 id = 1; }
+
+// Get request
+message FetchRequest { uint32 id = 1; }
 
 // Get request
 message GetRequest {

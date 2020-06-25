@@ -67,6 +67,14 @@ func main() {
 	id := response.GetId()
 	fmt.Println("ID:", id)
 
+	obj, err := cl.Fetch(ctx, &bcdb.FetchRequest{Id: id})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("meta: %+v\n", obj.Metadata)
+	fmt.Println("data:", string(obj.Data))
+
 	os.Exit(0)
 
 	list, err := cl.Find(context.TODO(), &bcdb.QueryRequest{

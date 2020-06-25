@@ -3,26 +3,29 @@ use super::generated::*;
 use super::FailureExt;
 use crate::acl::*;
 use failure::Error;
-use std::collections::HashMap;
-use std::sync::Arc;
 use tokio::sync::mpsc;
-use tokio::sync::Mutex;
 use tokio::task::spawn_blocking;
 use tonic::{Request, Response, Status};
 
 use crate::auth::MetadataMapExt;
-use crate::meta::{self, Storage as MetaStorage, StorageFactory as MetaStorageFactory};
+use crate::meta::{self, Storage as MetaStorage};
 use crate::storage::Storage as ObjectStorage;
+
+const TAG_COLLECTION: &str = ":collection";
+const TAG_ACL: &str = ":acl";
+const TAG_SIZE: &str = ":size";
+const TAG_CREATED: &str = ":created";
+const TAG_UPDATED: &str = ":updated";
+const TAG_DELETED: &str = ":deleted";
 
 //TODO: use generics for both object store type and meta factory type.
 pub struct LocalBcdb<S, M>
 where
     S: ObjectStorage,
-    M: MetaStorageFactory,
+    M: MetaStorage,
 {
     db: S,
-    factory: M,
-    collections: Arc<Mutex<HashMap<String, M::Storage>>>,
+    meta: M,
     //NOTE: acl storage doesn't have to use the same underlying storage type S
     acl: ACLStorage<S>,
 }
@@ -30,27 +33,14 @@ where
 impl<S, M> LocalBcdb<S, M>
 where
     S: ObjectStorage,
-    M: MetaStorageFactory,
+    M: MetaStorage + Clone,
 {
-    pub fn new(db: S, factory: M, acl: ACLStorage<S>) -> LocalBcdb<S, M> {
+    pub fn new(db: S, meta: M, acl: ACLStorage<S>) -> LocalBcdb<S, M> {
         LocalBcdb {
-            db,
-            factory,
-            collections: Arc::new(Mutex::new(HashMap::new())),
+            db: db,
+            meta: meta,
             acl: acl,
         }
-    }
-
-    async fn get_collection(&self, collection: &str) -> Result<M::Storage, Error> {
-        let mut stores = self.collections.lock().await;
-        if let Some(store) = stores.get(collection) {
-            return Ok(store.clone());
-        }
-
-        let store = self.factory.new(collection).await?;
-        stores.insert(collection.into(), store.clone());
-
-        Ok(store)
     }
 
     fn get_permissions(&self, acl: u64, user: u64) -> Result<Permissions, Error> {
@@ -94,7 +84,7 @@ where
         let mut tags = vec![];
         let mut acl = None;
         for tag in meta.tags {
-            if tag.key == ":acl" {
+            if tag.key == TAG_ACL {
                 acl = Some(AclRef {
                     acl: tag.value.parse().unwrap_or(0),
                 });
@@ -132,18 +122,25 @@ where
         Ok(m)
     }
 
-    async fn get_metadata(&self, collection: &str, id: u32) -> Result<Metadata, Status> {
-        let mut col = match self.get_collection(collection).await {
-            Ok(store) => store,
-            Err(err) => return Err(err.status()),
-        };
-
-        let info = match col.get(id).await {
+    async fn get_metadata(&self, collection: Option<&str>, id: u32) -> Result<Metadata, Status> {
+        let mut meta = self.meta.clone();
+        let info = match meta.get(id).await {
             Ok(info) => info,
             Err(err) => return Err(err.status()),
         };
 
-        Ok(Self::build_pb_meta(collection, info))
+        let col = info.find(TAG_COLLECTION);
+        if let Some(collection) = collection {
+            match col {
+                Some(ref v) if v == collection => {}
+                _ => return Err(Status::not_found("object not found")),
+            };
+        }
+
+        Ok(Self::build_pb_meta(
+            col.unwrap_or_else(|| ":unknown".into()),
+            info,
+        ))
     }
 }
 
@@ -151,7 +148,7 @@ where
 impl<S, M> BcdbServiceTrait for LocalBcdb<S, M>
 where
     S: ObjectStorage + Send + Sync + 'static,
-    M: MetaStorageFactory,
+    M: MetaStorage + Clone,
 {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
         let auth = request.metadata();
@@ -171,13 +168,14 @@ where
         let mut m = self.build_meta(&metadata)?;
 
         match metadata.acl {
-            Some(ref acl) => m.add(":acl", &format!("{}", acl.acl)),
+            Some(ref acl) => m.add(TAG_ACL, &format!("{}", acl.acl)),
             None => {}
         };
 
-        m.add(":size", &format!("{}", data.len()));
+        m.add(TAG_COLLECTION, metadata.collection);
+        m.add(TAG_SIZE, &format!("{}", data.len()));
         m.add(
-            ":created",
+            TAG_CREATED,
             &format!(
                 "{}",
                 std::time::SystemTime::now()
@@ -198,13 +196,8 @@ where
                 )));
             }
         };
-
-        let mut collection = match self.get_collection(&metadata.collection).await {
-            Ok(store) => store,
-            Err(err) => return Err(err.status()),
-        };
-
-        match collection.set(id, m).await {
+        let mut meta = self.meta.clone();
+        match meta.set(id, m).await {
             Ok(_) => Ok(Response::new(SetResponse { id })),
             Err(err) => Err(err.status()),
         }
@@ -215,7 +208,7 @@ where
         let request = request.into_inner();
         let id = request.id;
 
-        let metadata = self.get_metadata(&request.collection, id).await?;
+        let metadata = self.get_metadata(Some(&request.collection), id).await?;
 
         if !auth.is_owner() {
             match metadata.acl {
@@ -239,6 +232,37 @@ where
             metadata: Some(metadata),
         }))
     }
+
+    async fn fetch(&self, request: Request<FetchRequest>) -> Result<Response<GetResponse>, Status> {
+        let auth = request.metadata().clone();
+        let request = request.into_inner();
+        let id = request.id;
+
+        let metadata = self.get_metadata(None, id).await?;
+
+        if !auth.is_owner() {
+            match metadata.acl {
+                Some(ref acl) => {
+                    self.is_authorized(acl.acl, auth.get_user().unwrap(), "r--".parse().unwrap())?;
+                }
+
+                None => return Err(Status::unauthenticated("not authorized")),
+            };
+        }
+
+        let mut db = self.db.clone();
+        let handle = spawn_blocking(move || db.get(id).expect("failed to load data"));
+        // TODO: proper error handling
+        let data = handle.await.expect("failed thread pool task");
+        if data.is_none() {
+            return Err(Status::not_found(format!("Key {} doesn't exist", id)));
+        }
+        Ok(Response::new(GetResponse {
+            data: data.unwrap(), // This unwrap is safe as we checked the none case above
+            metadata: Some(metadata),
+        }))
+    }
+
     async fn delete(
         &self,
         request: Request<DeleteRequest>,
@@ -248,7 +272,7 @@ where
         let request = request.into_inner();
         let id = request.id;
 
-        let metadata = self.get_metadata(&request.collection, id).await?;
+        let metadata = self.get_metadata(Some(&request.collection), id).await?;
 
         if !auth.is_owner() {
             match metadata.acl {
@@ -262,14 +286,9 @@ where
 
         let mut m = meta::Meta::default();
 
-        m.add(":deleted", "1");
-
-        let mut collection = match self.get_collection(&request.collection).await {
-            Ok(store) => store,
-            Err(err) => return Err(err.status()),
-        };
-
-        match collection.set(request.id, m).await {
+        m.add(TAG_DELETED, "1");
+        let mut meta = self.meta.clone();
+        match meta.set(request.id, m).await {
             Ok(_) => Ok(Response::new(DeleteResponse {})),
             Err(err) => Err(err.status()),
         }
@@ -290,7 +309,9 @@ where
             None => return Err(Status::invalid_argument("metadata is required")),
         };
 
-        let metadata = self.get_metadata(&new_metadata.collection, id).await?;
+        let metadata = self
+            .get_metadata(Some(&new_metadata.collection), id)
+            .await?;
 
         if !auth.is_owner() {
             match metadata.acl {
@@ -307,7 +328,7 @@ where
         match new_metadata.acl {
             Some(ref acl) => {
                 if auth.is_owner() {
-                    m.add(":acl", &format!("{}", acl.acl));
+                    m.add(TAG_ACL, &format!("{}", acl.acl));
                 } else {
                     //trying to update acl while u are not the owner
                     return Err(Status::unauthenticated("only owner can update acl"));
@@ -317,7 +338,7 @@ where
         };
 
         m.add(
-            ":updated",
+            TAG_UPDATED,
             &format!(
                 "{}",
                 std::time::SystemTime::now()
@@ -342,12 +363,8 @@ where
             }
         }
 
-        let mut collection = match self.get_collection(&new_metadata.collection).await {
-            Ok(store) => store,
-            Err(err) => return Err(err.status()),
-        };
-
-        match collection.set(request.id, m).await {
+        let mut meta = self.meta.clone();
+        match meta.set(request.id, m).await {
             Ok(_) => Ok(Response::new(UpdateResponse {})),
             Err(err) => Err(err.status()),
         }
@@ -366,10 +383,7 @@ where
         }
 
         let request = request.into_inner();
-        let mut collection = match self.get_collection(&request.collection).await {
-            Ok(store) => store,
-            Err(err) => return Err(err.status()),
-        };
+        let mut meta = self.meta.clone();
 
         let mut tags = vec![];
         for tag in request.tags {
@@ -379,9 +393,14 @@ where
             })
         }
 
+        tags.push(meta::Tag {
+            key: TAG_COLLECTION.into(),
+            value: request.collection,
+        });
+
         let (mut tx, rx) = mpsc::channel(10);
         tokio::spawn(async move {
-            let mut rx = match collection.find(tags).await {
+            let mut rx = match meta.find(tags).await {
                 Ok(rx) => rx,
                 Err(err) => {
                     tx.send(Err(Status::internal(format!("{}", err))))
@@ -419,11 +438,7 @@ where
 
         let request = request.into_inner();
         let collection_name = request.collection;
-        let mut collection = match self.get_collection(&collection_name).await {
-            Ok(store) => store,
-            Err(err) => return Err(err.status()),
-        };
-
+        let mut meta = self.meta.clone();
         let mut tags = vec![];
         for tag in request.tags {
             tags.push(meta::Tag {
@@ -432,10 +447,14 @@ where
             })
         }
 
+        tags.push(meta::Tag {
+            key: TAG_COLLECTION.into(),
+            value: collection_name.clone(),
+        });
+
         let (mut tx, rx) = mpsc::channel(10);
         tokio::spawn(async move {
-            let mut getter = collection.clone();
-            let mut rx = match collection.find(tags).await {
+            let mut rx = match meta.find(tags).await {
                 Ok(rx) => rx,
                 Err(err) => {
                     tx.send(Err(Status::internal(format!("{}", err))))
@@ -454,7 +473,7 @@ where
                     }
                 };
 
-                let meta = match getter.get(id).await {
+                let meta = match meta.get(id).await {
                     Ok(meta) => meta,
                     Err(err) => {
                         tx.send(Err(err.status())).await.unwrap();

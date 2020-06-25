@@ -7,6 +7,10 @@
 // GENERATED CODE -- DO NOT EDIT!
 
 
+/* eslint-disable */
+// @ts-nocheck
+
+
 
 const grpc = {};
 grpc.web = require('grpc-web');
@@ -223,6 +227,86 @@ proto.bcdb.BCDBPromiseClient.prototype.get =
       request,
       metadata || {},
       methodDescriptor_BCDB_Get);
+};
+
+
+/**
+ * @const
+ * @type {!grpc.web.MethodDescriptor<
+ *   !proto.bcdb.FetchRequest,
+ *   !proto.bcdb.GetResponse>}
+ */
+const methodDescriptor_BCDB_Fetch = new grpc.web.MethodDescriptor(
+  '/bcdb.BCDB/Fetch',
+  grpc.web.MethodType.UNARY,
+  proto.bcdb.FetchRequest,
+  proto.bcdb.GetResponse,
+  /**
+   * @param {!proto.bcdb.FetchRequest} request
+   * @return {!Uint8Array}
+   */
+  function(request) {
+    return request.serializeBinary();
+  },
+  proto.bcdb.GetResponse.deserializeBinary
+);
+
+
+/**
+ * @const
+ * @type {!grpc.web.AbstractClientBase.MethodInfo<
+ *   !proto.bcdb.FetchRequest,
+ *   !proto.bcdb.GetResponse>}
+ */
+const methodInfo_BCDB_Fetch = new grpc.web.AbstractClientBase.MethodInfo(
+  proto.bcdb.GetResponse,
+  /**
+   * @param {!proto.bcdb.FetchRequest} request
+   * @return {!Uint8Array}
+   */
+  function(request) {
+    return request.serializeBinary();
+  },
+  proto.bcdb.GetResponse.deserializeBinary
+);
+
+
+/**
+ * @param {!proto.bcdb.FetchRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
+ *     call metadata
+ * @param {function(?grpc.web.Error, ?proto.bcdb.GetResponse)}
+ *     callback The callback function(error, response)
+ * @return {!grpc.web.ClientReadableStream<!proto.bcdb.GetResponse>|undefined}
+ *     The XHR Node Readable Stream
+ */
+proto.bcdb.BCDBClient.prototype.fetch =
+    function(request, metadata, callback) {
+  return this.client_.rpcCall(this.hostname_ +
+      '/bcdb.BCDB/Fetch',
+      request,
+      metadata || {},
+      methodDescriptor_BCDB_Fetch,
+      callback);
+};
+
+
+/**
+ * @param {!proto.bcdb.FetchRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
+ *     call metadata
+ * @return {!Promise<!proto.bcdb.GetResponse>}
+ *     A native promise that resolves to the response
+ */
+proto.bcdb.BCDBPromiseClient.prototype.fetch =
+    function(request, metadata) {
+  return this.client_.unaryCall(this.hostname_ +
+      '/bcdb.BCDB/Fetch',
+      request,
+      metadata || {},
+      methodDescriptor_BCDB_Fetch);
 };
 
 

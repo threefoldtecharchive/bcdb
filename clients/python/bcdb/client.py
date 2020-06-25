@@ -96,6 +96,13 @@ class Object(NamedTuple):
     def updated(self):
         return int(self.tags[':updated']) if ':updated' in self.tags else 0
 
+    @property
+    def collection(self):
+        return self.tags[':collection'] if ':collection' in self.tags else None
+
+    def __repr__(self):
+        return f"{self.collection}({self.tags}) data: {self.data}"
+
 
 class BcdbClient:
     def __init__(self, channel, collection, threebot_id: int = None):
@@ -262,6 +269,7 @@ class Client:
 
         self.__channel = channel
         self.__acl = AclClient(channel)
+        self.__stub = BCDBStub(self.__channel)
 
     @property
     def acl(self):
@@ -275,6 +283,31 @@ class Client:
                       one directly connected to by this client
         """
         return BcdbClient(self.__channel, collection, threebot_id)
+
+    def fetch(self, id: int, threebot_id: int = None) -> Object:
+        """
+        Fetch an object globally. Give the object ID, and optional threebot id.
+
+        :param id: object id
+        :param threebot_id: (optional) threebot id if not given, local bcdb is used
+        """
+        metadata = None if threebot_id is None else (
+            ("x-threebot-id", str(threebot_id)),)
+
+        request = types.FetchRequest(
+            id=id,
+        )
+
+        response = self.__stub.Fetch(request, metadata=metadata)
+        tags = dict()
+        for tag in response.metadata.tags:
+            tags[tag.key] = tag.value
+
+        return Object(
+            id=id,
+            data=response.data,
+            tags=tags
+        )
 
 
 class HTTPClient:
@@ -302,6 +335,23 @@ class HTTPClient:
 
     def collection(self, collection: str, threebot_id: int = None):
         return HTTPBcdbClient(self, collection, threebot_id)
+
+    def fetch(self, key: int, threebot_id: int = None):
+        u = self.url(key)
+        response = self.session.get(
+            self.url("db", key),
+            headers=self.headers(
+                x_threebot_id=threebot_id,
+            ),
+        )
+
+        return Object(
+            id=key,
+            data=response.content,
+            tags=json.loads(
+                response.headers.get('x-tags', '{}')
+            ),
+        )
 
     @property
     def acl(self):
