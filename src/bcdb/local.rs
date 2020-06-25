@@ -8,7 +8,7 @@ use tokio::task::spawn_blocking;
 use tonic::{Request, Response, Status};
 
 use crate::auth::MetadataMapExt;
-use crate::meta::{self, Storage as MetaStorage};
+use crate::database::{self, Index};
 use crate::storage::Storage as ObjectStorage;
 
 const TAG_COLLECTION: &str = ":collection";
@@ -22,7 +22,7 @@ const TAG_DELETED: &str = ":deleted";
 pub struct LocalBcdb<S, M>
 where
     S: ObjectStorage,
-    M: MetaStorage,
+    M: Index,
 {
     db: S,
     meta: M,
@@ -33,7 +33,7 @@ where
 impl<S, M> LocalBcdb<S, M>
 where
     S: ObjectStorage,
-    M: MetaStorage + Clone,
+    M: Index + Clone,
 {
     pub fn new(db: S, meta: M, acl: ACLStorage<S>) -> LocalBcdb<S, M> {
         LocalBcdb {
@@ -77,7 +77,7 @@ where
         return Err(Status::unauthenticated("not authorized"));
     }
 
-    fn build_pb_meta<C>(collection: C, meta: meta::Meta) -> Metadata
+    fn build_pb_meta<C>(collection: C, meta: database::Meta) -> Metadata
     where
         C: Into<String>,
     {
@@ -102,11 +102,11 @@ where
         }
     }
 
-    fn build_meta(&self, metadata: &Metadata) -> Result<meta::Meta, Status> {
+    fn build_meta(&self, metadata: &Metadata) -> Result<database::Meta, Status> {
         //build metadata for storage
-        let mut m = meta::Meta { tags: vec![] };
+        let mut m = database::Meta { tags: vec![] };
         for tag in metadata.tags.iter() {
-            let t = meta::Tag {
+            let t = database::Tag {
                 key: tag.key.clone(),
                 value: tag.value.clone(),
             };
@@ -148,7 +148,7 @@ where
 impl<S, M> BcdbServiceTrait for LocalBcdb<S, M>
 where
     S: ObjectStorage + Send + Sync + 'static,
-    M: MetaStorage + Clone,
+    M: Index + Clone,
 {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
         let auth = request.metadata();
@@ -284,7 +284,7 @@ where
             };
         }
 
-        let mut m = meta::Meta::default();
+        let mut m = database::Meta::default();
 
         m.add(TAG_DELETED, "1");
         let mut meta = self.meta.clone();
@@ -387,13 +387,13 @@ where
 
         let mut tags = vec![];
         for tag in request.tags {
-            tags.push(meta::Tag {
+            tags.push(database::Tag {
                 key: tag.key,
                 value: tag.value,
             })
         }
 
-        tags.push(meta::Tag {
+        tags.push(database::Tag {
             key: TAG_COLLECTION.into(),
             value: request.collection,
         });
@@ -441,13 +441,13 @@ where
         let mut meta = self.meta.clone();
         let mut tags = vec![];
         for tag in request.tags {
-            tags.push(meta::Tag {
+            tags.push(database::Tag {
                 key: tag.key,
                 value: tag.value,
             })
         }
 
-        tags.push(meta::Tag {
+        tags.push(database::Tag {
             key: TAG_COLLECTION.into(),
             value: collection_name.clone(),
         });

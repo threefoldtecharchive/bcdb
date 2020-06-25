@@ -13,9 +13,9 @@ extern crate log;
 mod acl;
 mod auth;
 mod bcdb;
+mod database;
 mod explorer;
 mod identity;
-mod meta;
 mod rest;
 mod storage;
 
@@ -141,7 +141,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // use sqlite meta data factory
     let meta_factory =
-        meta::sqlite::SqliteMetaStoreBuilder::new(matches.value_of("meta").unwrap())?;
+        database::sqlite::SqliteMetaStoreBuilder::new(matches.value_of("meta").unwrap())?;
 
     // the acl_store
     let acl_store = acl::ACLStorage::new(EncryptedStorage::new(

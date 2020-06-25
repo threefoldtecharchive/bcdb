@@ -1,4 +1,4 @@
-use crate::meta::{Key, Meta, Storage, Tag};
+use crate::database::{Index, Key, Meta, Tag};
 use async_trait::async_trait;
 use failure::Error;
 use sqlx::prelude::*;
@@ -54,7 +54,7 @@ impl SqliteMetaStore {
 }
 
 #[async_trait]
-impl Storage for SqliteMetaStore {
+impl Index for SqliteMetaStore {
     async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
         self.schema.insert(key, meta.tags).await
     }

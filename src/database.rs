@@ -54,7 +54,7 @@ impl Meta {
 }
 
 #[async_trait]
-pub trait Storage: Send + Sync + 'static {
+pub trait Index: Send + Sync + 'static {
     async fn set(&mut self, key: Key, meta: Meta) -> Result<(), Error>;
     async fn get(&mut self, key: Key) -> Result<Meta, Error>;
     async fn find(&mut self, tags: Vec<Tag>) -> Result<mpsc::Receiver<Result<Key, Error>>, Error>;
