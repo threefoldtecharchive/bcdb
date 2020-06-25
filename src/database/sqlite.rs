@@ -7,22 +7,22 @@ use tokio::sync::mpsc;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-pub struct SqliteMetaStoreBuilder {
+pub struct SqliteIndexBuilder {
     root: String,
 }
 
-impl SqliteMetaStoreBuilder {
-    pub fn new<P>(root: P) -> Result<SqliteMetaStoreBuilder>
+impl SqliteIndexBuilder {
+    pub fn new<P>(root: P) -> Result<SqliteIndexBuilder>
     where
         P: Into<String>,
     {
         let root = root.into();
         std::fs::create_dir_all(&root)?;
 
-        Ok(SqliteMetaStoreBuilder { root: root })
+        Ok(SqliteIndexBuilder { root: root })
     }
 
-    pub async fn build(&self, collection: &str) -> Result<SqliteMetaStore> {
+    pub async fn build(&self, collection: &str) -> Result<SqliteIndex> {
         if collection.len() == 0 {
             bail!("collection name must not be empty");
         }
@@ -33,28 +33,28 @@ impl SqliteMetaStoreBuilder {
             None => bail!("empty path to db"),
         };
 
-        let store = SqliteMetaStore::new(&format!("sqlite://{}", p)).await?;
+        let store = SqliteIndex::new(&format!("sqlite://{}", p)).await?;
         Ok(store)
     }
 }
 
 #[derive(Clone)]
-pub struct SqliteMetaStore {
+pub struct SqliteIndex {
     schema: Schema,
 }
 
-impl SqliteMetaStore {
-    async fn new(collection: &str) -> Result<SqliteMetaStore> {
+impl SqliteIndex {
+    async fn new(collection: &str) -> Result<Self> {
         let pool = SqlitePool::new(collection).await?;
         let mut schema = Schema::new(pool);
         schema.setup().await?;
 
-        Ok(SqliteMetaStore { schema })
+        Ok(SqliteIndex { schema })
     }
 }
 
 #[async_trait]
-impl Index for SqliteMetaStore {
+impl Index for SqliteIndex {
     async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
         self.schema.insert(key, meta.tags).await
     }
