@@ -2,7 +2,7 @@ use super::generated::bcdb_server::Bcdb as BcdbServiceTrait;
 use super::generated::*;
 use super::FailureExt;
 use crate::acl::*;
-use failure::Error;
+use anyhow::Error;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use tonic::{Request, Response, Status};
@@ -83,16 +83,13 @@ where
     {
         let mut tags = vec![];
         let mut acl = None;
-        for tag in meta.tags {
-            if tag.key == TAG_ACL {
+        for (k, v) in meta {
+            if k == TAG_ACL {
                 acl = Some(AclRef {
-                    acl: tag.value.parse().unwrap_or(0),
+                    acl: v.parse().unwrap_or(0),
                 });
             }
-            tags.push(Tag {
-                key: tag.key,
-                value: tag.value,
-            })
+            tags.push(Tag { key: k, value: v })
         }
 
         Metadata {
@@ -104,7 +101,7 @@ where
 
     fn build_meta(&self, metadata: &Metadata) -> Result<database::Meta, Status> {
         //build metadata for storage
-        let mut m = database::Meta { tags: vec![] };
+        let mut m = database::Meta::default();
         for tag in metadata.tags.iter() {
             let t = database::Tag {
                 key: tag.key.clone(),
@@ -116,7 +113,8 @@ where
                     t.key
                 )));
             }
-            m.tags.push(t);
+
+            m.insert(t.key, t.value);
         }
 
         Ok(m)
@@ -129,18 +127,20 @@ where
             Err(err) => return Err(err.status()),
         };
 
-        let col = info.find(TAG_COLLECTION);
+        let col = info.get(TAG_COLLECTION);
         if let Some(collection) = collection {
             match col {
-                Some(ref v) if v == collection => {}
+                Some(v) if v == collection => {}
                 _ => return Err(Status::not_found("object not found")),
             };
         }
 
-        Ok(Self::build_pb_meta(
-            col.unwrap_or_else(|| ":unknown".into()),
-            info,
-        ))
+        let col: String = match col {
+            Some(v) => v.into(),
+            None => ":unknown".into(),
+        };
+
+        Ok(Self::build_pb_meta(col, info))
     }
 }
 
@@ -167,16 +167,15 @@ where
 
         let mut m = self.build_meta(&metadata)?;
 
-        match metadata.acl {
-            Some(ref acl) => m.add(TAG_ACL, &format!("{}", acl.acl)),
-            None => {}
-        };
+        if let Some(acl) = metadata.acl {
+            m.insert(TAG_ACL.into(), format!("{}", acl.acl));
+        }
 
-        m.add(TAG_COLLECTION, metadata.collection);
-        m.add(TAG_SIZE, &format!("{}", data.len()));
-        m.add(
-            TAG_CREATED,
-            &format!(
+        m.insert(TAG_COLLECTION.into(), metadata.collection);
+        m.insert(TAG_SIZE.into(), format!("{}", data.len()));
+        m.insert(
+            TAG_CREATED.into(),
+            format!(
                 "{}",
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -286,7 +285,7 @@ where
 
         let mut m = database::Meta::default();
 
-        m.add(TAG_DELETED, "1");
+        m.insert(TAG_DELETED.into(), "1".into());
         let mut meta = self.meta.clone();
         match meta.set(request.id, m).await {
             Ok(_) => Ok(Response::new(DeleteResponse {})),
@@ -328,7 +327,7 @@ where
         match new_metadata.acl {
             Some(ref acl) => {
                 if auth.is_owner() {
-                    m.add(TAG_ACL, &format!("{}", acl.acl));
+                    m.insert(TAG_ACL.into(), format!("{}", acl.acl));
                 } else {
                     //trying to update acl while u are not the owner
                     return Err(Status::unauthenticated("only owner can update acl"));
@@ -337,9 +336,9 @@ where
             None => {}
         };
 
-        m.add(
-            TAG_UPDATED,
-            &format!(
+        m.insert(
+            TAG_UPDATED.into(),
+            format!(
                 "{}",
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -350,7 +349,7 @@ where
 
         // updating data is optional in an update call
         if let Some(data) = data {
-            m.add(":size", &format!("{}", data.data.len()));
+            m.insert(TAG_SIZE.into(), format!("{}", data.data.len()));
 
             let mut db = self.db.clone();
             let handle =
@@ -385,18 +384,12 @@ where
         let request = request.into_inner();
         let mut meta = self.meta.clone();
 
-        let mut tags = vec![];
+        let mut tags = database::Meta::default();
         for tag in request.tags {
-            tags.push(database::Tag {
-                key: tag.key,
-                value: tag.value,
-            })
+            tags.insert(tag.key, tag.value);
         }
 
-        tags.push(database::Tag {
-            key: TAG_COLLECTION.into(),
-            value: request.collection,
-        });
+        tags.insert(TAG_COLLECTION.into(), request.collection);
 
         let (mut tx, rx) = mpsc::channel(10);
         tokio::spawn(async move {
@@ -439,18 +432,13 @@ where
         let request = request.into_inner();
         let collection_name = request.collection;
         let mut meta = self.meta.clone();
-        let mut tags = vec![];
+
+        let mut tags = database::Meta::default();
         for tag in request.tags {
-            tags.push(database::Tag {
-                key: tag.key,
-                value: tag.value,
-            })
+            tags.insert(tag.key, tag.value);
         }
 
-        tags.push(database::Tag {
-            key: TAG_COLLECTION.into(),
-            value: collection_name.clone(),
-        });
+        tags.insert(TAG_COLLECTION.into(), collection_name.clone());
 
         let (mut tx, rx) = mpsc::channel(10);
         tokio::spawn(async move {

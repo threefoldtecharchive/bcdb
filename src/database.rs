@@ -1,9 +1,11 @@
 use crate::storage::Key;
+use anyhow::Result;
 use async_trait::async_trait;
-use failure::Error;
+use std::collections::HashMap;
 use tokio::sync::mpsc;
 
-pub mod sqlite;
+pub mod data;
+pub mod index;
 
 #[derive(Debug)]
 pub struct Tag {
@@ -28,34 +30,62 @@ impl Tag {
     }
 }
 
+//#[derive(Default)]
+pub type Meta = HashMap<String, String>;
+
 #[derive(Default)]
-pub struct Meta {
-    pub tags: Vec<Tag>,
-}
-
-impl Meta {
-    pub fn add<K, V>(&mut self, key: K, value: V)
-    where
-        K: Into<String>,
-        V: Into<String>,
-    {
-        self.tags.push(Tag::new(key, value))
-    }
-
-    pub fn find<K: AsRef<str>>(&self, key: K) -> Option<String> {
-        for t in self.tags.iter() {
-            if t.key == key.as_ref() {
-                return Some(t.value.clone());
-            }
-        }
-
-        return None;
-    }
+pub struct Object {
+    pub key: Key,
+    pub meta: Meta,
+    pub data: Vec<u8>,
 }
 
 #[async_trait]
 pub trait Index: Send + Sync + 'static {
-    async fn set(&mut self, key: Key, meta: Meta) -> Result<(), Error>;
-    async fn get(&mut self, key: Key) -> Result<Meta, Error>;
-    async fn find(&mut self, tags: Vec<Tag>) -> Result<mpsc::Receiver<Result<Key, Error>>, Error>;
+    async fn set(&mut self, key: Key, meta: Meta) -> Result<()>;
+    async fn get(&mut self, key: Key) -> Result<Meta>;
+    async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>>;
+}
+
+pub enum Context {
+    Owner,
+    User(u64),
+    Unknown,
+}
+
+impl Context {
+    pub fn is_authenticated(&self) -> bool {
+        match self {
+            Self::Unknown => false,
+            _ => true,
+        }
+    }
+
+    pub fn is_owner(&self) -> bool {
+        match self {
+            Self::Owner => true,
+            _ => false,
+        }
+    }
+}
+
+#[async_trait]
+pub trait Database: Send + Sync + 'static {
+    async fn set(
+        &mut self,
+        ctx: Context,
+        collection: String,
+        data: Vec<u8>,
+        meta: Meta,
+        acl: Option<u64>,
+    ) -> Result<Key>;
+    async fn get(&mut self, ctx: Context, key: Key) -> Result<Object>;
+    // update
+    // delete
+    async fn find(
+        &mut self,
+        ctx: Context,
+        meta: Meta,
+        collection: Option<String>,
+    ) -> Result<mpsc::Receiver<Result<Key>>>;
 }

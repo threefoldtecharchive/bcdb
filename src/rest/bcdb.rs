@@ -2,7 +2,7 @@ use crate::auth::header;
 use crate::bcdb::generated::bcdb_client::BcdbClient;
 use crate::bcdb::generated::*;
 use crate::identity::Identity;
-use failure::Error;
+use anyhow::Error;
 use http::response::Builder as ResponseBuilder;
 use hyper::Body;
 use serde::Serialize;

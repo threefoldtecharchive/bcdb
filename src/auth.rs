@@ -1,6 +1,6 @@
 use crate::explorer::Explorer;
 use crate::identity::{Identity, PublicKey, Signature};
-use failure::Error;
+use anyhow::{Error, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -22,7 +22,7 @@ struct User {
 }
 
 impl Authenticator {
-    pub fn new(base: Option<&str>, id: Identity) -> Result<Authenticator, Error> {
+    pub fn new(base: Option<&str>, id: Identity) -> Result<Authenticator> {
         let mut cache = HashMap::new();
 
         cache.insert(id.id() as u64, id.public_key());
@@ -35,7 +35,7 @@ impl Authenticator {
         })
     }
 
-    async fn get_key(&self, id: u64) -> Result<PublicKey, Error> {
+    async fn get_key(&self, id: u64) -> Result<PublicKey> {
         let mut cache = self.cache.lock().await;
         if let Some(key) = cache.get(&id) {
             return Ok(key.clone());
@@ -189,7 +189,7 @@ struct AuthHeader {
 }
 
 impl AuthHeader {
-    fn valid(&self) -> Result<(), Error> {
+    fn valid(&self) -> Result<()> {
         if self.headers.trim() == "" {
             bail!("invalid headers can not be empty");
         }
@@ -221,7 +221,7 @@ impl AuthHeader {
         Ok(())
     }
 
-    pub fn signature_str(&self) -> Result<String, Error> {
+    pub fn signature_str(&self) -> Result<String> {
         self.valid()?;
         use std::fmt::Write;
 
@@ -444,7 +444,7 @@ mod tests {
     }
     #[test]
     fn auth_header_parse_invalid_key_id() {
-        let auth: Result<AuthHeader, Error> = "Signature keyId=\"bad\",algorithm=\"hs2019\",
+        let auth: Result<AuthHeader> = "Signature keyId=\"bad\",algorithm=\"hs2019\",
         headers=\"(request-target) (created) host digest content-length\",signature=\"some signature\""
             .parse();
 
@@ -453,7 +453,7 @@ mod tests {
 
     #[test]
     fn auth_header_parse_missing_value() {
-        let auth: Result<AuthHeader, Error> = "Signature keyId=\"rsa-key-1\",algorithm=\"hs2019\",
+        let auth: Result<AuthHeader> = "Signature keyId=\"rsa-key-1\",algorithm=\"hs2019\",
         headers=\"(request-target) (created) host digest content-length\""
             .parse();
 

@@ -1,11 +1,10 @@
+use super::*;
 use crate::database::{Index, Key, Meta, Tag};
+use anyhow::Result;
 use async_trait::async_trait;
-use failure::Error;
 use sqlx::prelude::*;
 use sqlx::SqlitePool;
 use tokio::sync::mpsc;
-
-pub type Result<T> = std::result::Result<T, Error>;
 
 pub struct SqliteIndexBuilder {
     root: String,
@@ -56,16 +55,15 @@ impl SqliteIndex {
 #[async_trait]
 impl Index for SqliteIndex {
     async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
-        self.schema.insert(key, meta.tags).await
+        self.schema.insert(key, meta).await
     }
 
     async fn get(&mut self, key: Key) -> Result<Meta> {
-        let tags = self.schema.get(key).await?;
-        Ok(Meta { tags: tags })
+        self.schema.get(key).await
     }
 
-    async fn find(&mut self, tags: Vec<Tag>) -> Result<mpsc::Receiver<Result<Key>>> {
-        self.schema.find(tags).await
+    async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
+        self.schema.find(meta).await
     }
 }
 
@@ -98,9 +96,9 @@ impl Schema {
         Ok(())
     }
 
-    async fn insert(&mut self, key: Key, tags: Vec<Tag>) -> Result<()> {
+    async fn insert(&mut self, key: Key, tags: Meta) -> Result<()> {
         let mut tx: sqlx::Transaction<_> = self.c.begin().await?;
-        for tag in tags {
+        for (k, v) in tags {
             sqlx::query(
                 "
                 INSERT INTO metadata (key, tag, value) values
@@ -110,9 +108,9 @@ impl Schema {
                 ",
             )
             .bind(key as f64) // only f64 is supported by sqlite.
-            .bind(&tag.key)
-            .bind(&tag.value)
-            .bind(&tag.value)
+            .bind(&k)
+            .bind(&v)
+            .bind(&v)
             .execute(&mut tx)
             .await?;
         }
@@ -121,7 +119,7 @@ impl Schema {
         Ok(())
     }
 
-    async fn get(&mut self, key: Key) -> Result<Vec<Tag>> {
+    async fn get(&mut self, key: Key) -> Result<Meta> {
         let mut cur = sqlx::query("SELECT tag, value FROM metadata WHERE key = ?")
             .bind(key as f64)
             .fetch(&self.c);
@@ -132,20 +130,20 @@ impl Schema {
             value: String,
         }
 
-        let mut tags: Vec<Tag> = vec![];
+        let mut meta = Meta::default();
         while let Some(row) = cur.next().await? {
             let row = Row::from_row(&row)?;
-            tags.push(Tag::new(row.tag, row.value));
+            meta.insert(row.tag, row.value);
         }
 
-        Ok(tags)
+        Ok(meta)
     }
 
-    async fn find<'a>(&'a mut self, tags: Vec<Tag>) -> Result<mpsc::Receiver<Result<Key>>> {
+    async fn find<'a>(&'a mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
         let q = "SELECT key FROM metadata WHERE tag = ? AND value = ?";
         let mut query_str = String::new();
 
-        for _ in 0..tags.len() {
+        for _ in 0..meta.len() {
             if query_str.len() > 0 {
                 query_str.push_str(" intersect ");
             }
@@ -164,8 +162,8 @@ impl Schema {
         let pool = self.c.clone();
         tokio::spawn(async move {
             let mut query = sqlx::query(&query_str);
-            for tag in tags {
-                query = query.bind(tag.key).bind(tag.value);
+            for (k, v) in meta {
+                query = query.bind(k).bind(v);
             }
 
             let mut cur = query.fetch(&pool);
@@ -228,8 +226,8 @@ mod tests {
                 None => break,
             };
             let tags = getter.get(key.unwrap()).await.expect("object not found");
-            for t in tags {
-                println!("{}: {}", t.key, t.value);
+            for (k, v) in tags {
+                println!("{}: {}", k, v);
             }
         }
     }

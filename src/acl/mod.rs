@@ -1,8 +1,6 @@
 use crate::storage::{Key, Storage};
-use failure::Error;
+use anyhow::{Error, Result};
 use serde::{Deserialize, Serialize};
-
-type Result<T> = std::result::Result<T, Error>;
 
 const READ: u32 = 0x4;
 const WRITE: u32 = 0x2;
@@ -67,7 +65,7 @@ impl Permissions {
 }
 
 impl std::str::FromStr for Permissions {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self> {
         if s.len() != 3 {
             bail!(

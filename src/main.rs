@@ -6,7 +6,7 @@ use storage::{encrypted::EncryptedStorage, zdb::Zdb};
 use tonic::transport::Server;
 
 #[macro_use]
-extern crate failure;
+extern crate anyhow;
 #[macro_use]
 extern crate log;
 
@@ -140,8 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let zdb = Zdb::new(matches.value_of("zdb").unwrap().parse()?);
 
     // use sqlite meta data factory
-    let meta_factory =
-        database::sqlite::SqliteMetaStoreBuilder::new(matches.value_of("meta").unwrap())?;
+    let meta_factory = database::index::SqliteIndexBuilder::new(matches.value_of("meta").unwrap())?;
 
     // the acl_store
     let acl_store = acl::ACLStorage::new(EncryptedStorage::new(

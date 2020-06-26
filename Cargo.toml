@@ -8,7 +8,7 @@ edition = "2018"
 tonic = "0.2"
 prost = "0.6"
 tokio = { version = "0.2", features = ["macros", "stream", "sync"] }
-failure = "0.1.7"
+anyhow = "1.0.31"
 redis = "0.15"
 r2d2 = "0.8"
 scheduled-thread-pool = "0.2"

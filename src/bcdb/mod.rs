@@ -1,6 +1,6 @@
 use crate::acl::*;
 use crate::identity::Identity;
-use failure::Error;
+use anyhow::Error;
 use generated::acl_server::Acl as AclServiceTrait;
 use generated::bcdb_client::BcdbClient;
 use generated::bcdb_server::Bcdb as BcdbServiceTrait;

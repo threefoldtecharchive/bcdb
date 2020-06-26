@@ -7,7 +7,7 @@ This might change in the future to directly access the data layer
 use crate::bcdb::generated::acl_client::AclClient;
 use crate::bcdb::generated::bcdb_client::BcdbClient;
 use crate::identity::Identity;
-use failure::Error;
+use anyhow::Error;
 use serde::Serialize;
 use std::convert::Infallible;
 use tokio::net::UnixListener;

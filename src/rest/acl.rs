@@ -2,7 +2,7 @@ use crate::auth::header;
 use crate::bcdb::generated::acl_client::AclClient;
 use crate::bcdb::generated::*;
 use crate::identity::Identity;
-use failure::Error;
+use anyhow::Error;
 use hyper::Body;
 use serde::{Deserialize, Serialize};
 use warp::http::StatusCode;

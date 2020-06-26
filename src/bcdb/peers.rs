@@ -1,5 +1,5 @@
+use anyhow::Error;
 use async_trait::async_trait;
-use failure::Error;
 use lru_time_cache::LruCache;
 use std::collections::HashMap;
 use std::convert::TryFrom;
