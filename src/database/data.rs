@@ -1,17 +1,10 @@
 use crate::acl::*;
-use anyhow::Result;
+use anyhow::{Context as ErrorContext, Result};
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 
 use super::*;
 use crate::storage::Storage;
-
-const TAG_COLLECTION: &str = ":collection";
-const TAG_ACL: &str = ":acl";
-const TAG_SIZE: &str = ":size";
-const TAG_CREATED: &str = ":created";
-const TAG_UPDATED: &str = ":updated";
-const TAG_DELETED: &str = ":deleted";
 
 //TODO: use generics for both object store type and meta factory type.
 pub struct BcdbDatabase<S, I>
@@ -37,105 +30,39 @@ where
         }
     }
 
-    // fn get_permissions(&self, acl: u64, user: u64) -> Result<Permissions, Error> {
-    //     // self.acl.g
-    //     let mut store = self.acl.clone();
-    //     let acl = match store.get(acl as u32)? {
-    //         Some(acl) => acl,
-    //         None => return Ok(Permissions::default()),
-    //     };
+    fn get_permissions(&self, acl: u64, user: u64) -> Result<Permissions> {
+        // self.acl.g
+        let mut store = self.acl.clone();
+        let acl = match store.get(acl as u32)? {
+            Some(acl) => acl,
+            None => return Ok(Permissions::default()),
+        };
 
-    //     debug!("checking user {} against acl: {:?}", user, acl);
+        if acl.users.contains(&user) {
+            return Ok(acl.perm);
+        }
 
-    //     if acl.users.contains(&user) {
-    //         return Ok(acl.perm);
-    //     }
+        Ok(Permissions::default())
+    }
 
-    //     Ok(Permissions::default())
-    // }
+    fn is_authorized(&self, ctx: &Context, meta: &Meta, perm: Permissions) -> Result<()> {
+        match ctx.authorization {
+            Authorization::Owner => Ok(()),
+            Authorization::User(user) => {
+                if let Some(acl) = meta.acl() {
+                    let stored = self
+                        .get_permissions(acl, user)
+                        .context("failed to get assigned permissions")?;
 
-    // fn is_authorized(&self, acl: u64, user: u64, perm: Permissions) -> Result<(), Status> {
-    //     let stored = match self.get_permissions(acl, user) {
-    //         Ok(stored) => stored,
-    //         Err(err) => {
-    //             return Err(Status::unauthenticated(format!(
-    //                 "failed to get assigned permissions: {}",
-    //                 err
-    //             )))
-    //         }
-    //     };
-    //     if stored.grants(perm) {
-    //         return Ok(());
-    //     }
+                    if stored.grants(perm) {
+                        return Ok(());
+                    }
+                }
 
-    //     return Err(Status::unauthenticated("not authorized"));
-    // }
-
-    // // fn build_pb_meta<C>(collection: C, meta: Meta) -> Metadata
-    // // where
-    // //     C: Into<String>,
-    // // {
-    // //     let mut tags = vec![];
-    // //     let mut acl = None;
-    // //     for tag in meta.tags {
-    // //         if tag.key == TAG_ACL {
-    // //             acl = Some(AclRef {
-    // //                 acl: tag.value.parse().unwrap_or(0),
-    // //             });
-    // //         }
-    // //         tags.push(Tag {
-    // //             key: tag.key,
-    // //             value: tag.value,
-    // //         })
-    // //     }
-
-    // //     Metadata {
-    // //         acl: acl,
-    // //         tags: tags,
-    // //         collection: collection.into(),
-    // //     }
-    // // }
-
-    // fn build_meta(&self, metadata: &Metadata) -> Result<database::Meta, Status> {
-    //     //build metadata for storage
-    //     let mut m = database::Meta { tags: vec![] };
-    //     for tag in metadata.tags.iter() {
-    //         let t = database::Tag {
-    //             key: tag.key.clone(),
-    //             value: tag.value.clone(),
-    //         };
-    //         if t.is_reserved() {
-    //             return Err(Status::invalid_argument(format!(
-    //                 "not allowed use of reserved tags: {}",
-    //                 t.key
-    //             )));
-    //         }
-    //         m.tags.push(t);
-    //     }
-
-    //     Ok(m)
-    // }
-
-    // async fn get_metadata(&self, collection: Option<&str>, id: u32) -> Result<Metadata, Status> {
-    //     let mut meta = self.meta.clone();
-    //     let info = match meta.get(id).await {
-    //         Ok(info) => info,
-    //         Err(err) => return Err(err.status()),
-    //     };
-
-    //     let col = info.find(TAG_COLLECTION);
-    //     if let Some(collection) = collection {
-    //         match col {
-    //             Some(ref v) if v == collection => {}
-    //             _ => return Err(Status::not_found("object not found")),
-    //         };
-    //     }
-
-    //     Ok(Self::build_pb_meta(
-    //         col.unwrap_or_else(|| ":unknown".into()),
-    //         info,
-    //     ))
-    // }
+                bail!("unauthorized");
+            }
+        }
+    }
 }
 
 #[tonic::async_trait]
@@ -158,389 +85,173 @@ where
 
         let mut meta = meta;
         if let Some(acl) = acl {
-            meta.insert(TAG_ACL.into(), format!("{}", acl));
+            meta = meta.with_acl(acl);
         }
 
-        meta.insert(TAG_COLLECTION.into(), collection);
-        meta.insert(TAG_SIZE.into(), format!("{}", data.len()));
-        meta.insert(
-            TAG_CREATED.into(),
-            format!(
-                "{}",
+        meta = meta
+            .with_collection(collection)
+            .with_size(data.len() as u64)
+            .with_created(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_secs()
-            ),
-        );
+                    .as_secs(),
+            );
 
         let mut db = self.data.clone();
-        let handle = spawn_blocking(move || db.set(None, &data).expect("failed to set data"));
-        let id = match handle.await {
-            Ok(id) => id,
-            Err(err) => {
-                bail!("failed to run blocking task: {}", err);
-            }
-        };
+        let id = spawn_blocking(move || db.set(None, &data).expect("failed to set data"))
+            .await
+            .context("failed to run blocking task")?;
 
         let mut index = self.meta.clone();
         index.set(id, meta).await.map(|_| id)
     }
 
     async fn get(&mut self, ctx: Context, key: Key) -> Result<Object> {
-        bail!("not implemented")
+        let meta = self.meta.get(key).await?;
+
+        self.is_authorized(&ctx, &meta, "r--".parse().unwrap())?;
+
+        let mut db = self.data.clone();
+        let data = spawn_blocking(move || db.get(key))
+            .await
+            .context("failed to run blocking task")?
+            .context("failed to get data")?;
+        // TODO: proper error handling
+        if data.is_none() {
+            //TODO: use proper error type here
+            bail!("object with id {} not found", key);
+        }
+
+        Ok(Object {
+            key: key,
+            data: Some(data.unwrap()),
+            meta: meta,
+        })
     }
-    async fn find(
+
+    async fn update(
+        &mut self,
+        ctx: Context,
+        key: Key,
+        collection: String,
+        data: Option<Vec<u8>>,
+        meta: Meta,
+        acl: Option<u64>,
+    ) -> Result<()> {
+        let current = self.meta.get(key).await?;
+
+        self.is_authorized(&ctx, &current, "-w-".parse().unwrap())?;
+
+        if !current.is_collection(collection.as_ref()) {
+            bail!("not found");
+        }
+
+        let mut meta = meta;
+        if let Some(acl) = acl {
+            if !ctx.is_owner() {
+                bail!("only owner can set acl");
+            }
+
+            meta = meta.with_acl(acl);
+        }
+
+        meta = meta.with_updated(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        );
+
+        if let Some(data) = data {
+            meta = meta.with_size(data.len() as u64);
+            let mut db = self.data.clone();
+            spawn_blocking(move || db.set(None, &data).expect("failed to set data"))
+                .await
+                .context("failed to run blocking task")?;
+        }
+
+        let mut index = self.meta.clone();
+        index.set(key, meta).await?;
+
+        Ok(())
+    }
+
+    async fn list(
         &mut self,
         ctx: Context,
         meta: Meta,
         collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Key>>> {
-        bail!("not implemented")
+        if !ctx.is_owner() {
+            bail!("unauthorized");
+        }
+
+        let mut meta = meta;
+
+        if let Some(collection) = collection {
+            meta.insert(TAG_COLLECTION, collection);
+        }
+
+        let mut index = self.meta.clone();
+        index.find(meta).await
     }
 
-    // async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
-    //     let auth = request.metadata();
+    async fn find(
+        &mut self,
+        ctx: Context,
+        meta: Meta,
+        collection: Option<String>,
+    ) -> Result<mpsc::Receiver<Result<Object>>> {
+        if !ctx.is_owner() {
+            bail!("unauthorized");
+        }
 
-    //     if !auth.is_owner() {
-    //         return Err(Status::unauthenticated("not authorized"));
-    //     }
+        let mut meta = meta;
 
-    //     let request = request.into_inner();
+        if let Some(collection) = collection {
+            meta.insert(TAG_COLLECTION, collection);
+        }
 
-    //     let data = request.data;
-    //     let metadata = match request.metadata {
-    //         Some(metadata) => metadata,
-    //         None => return Err(Status::invalid_argument("metadata is required")),
-    //     };
+        let mut index = self.meta.clone();
 
-    //     let mut m = self.build_meta(&metadata)?;
+        let (mut tx, rx) = mpsc::channel(10);
+        tokio::spawn(async move {
+            let mut rx = match index.find(meta).await {
+                Ok(rx) => rx,
+                Err(err) => {
+                    tx.send(Err(anyhow!("{}", err))).await.unwrap();
+                    return;
+                }
+            };
 
-    //     match metadata.acl {
-    //         Some(ref acl) => m.add(TAG_ACL, &format!("{}", acl.acl)),
-    //         None => {}
-    //     };
+            while let Some(id) = rx.recv().await {
+                let id = match id {
+                    Ok(id) => id,
+                    Err(err) => {
+                        tx.send(Err(err)).await.unwrap();
+                        return;
+                    }
+                };
 
-    //     m.add(TAG_COLLECTION, metadata.collection);
-    //     m.add(TAG_SIZE, &format!("{}", data.len()));
-    //     m.add(
-    //         TAG_CREATED,
-    //         &format!(
-    //             "{}",
-    //             std::time::SystemTime::now()
-    //                 .duration_since(std::time::UNIX_EPOCH)
-    //                 .unwrap()
-    //                 .as_secs()
-    //         ),
-    //     );
+                let meta = match index.get(id).await {
+                    Ok(meta) => meta,
+                    Err(err) => {
+                        tx.send(Err(err)).await.unwrap();
+                        return;
+                    }
+                };
 
-    //     let mut db = self.db.clone();
-    //     let handle = spawn_blocking(move || db.set(None, &data).expect("failed to set data"));
-    //     let id = match handle.await {
-    //         Ok(id) => id,
-    //         Err(err) => {
-    //             return Err(Status::internal(format!(
-    //                 "failed to run blocking task: {}",
-    //                 err
-    //             )));
-    //         }
-    //     };
-    //     let mut meta = self.meta.clone();
-    //     match meta.set(id, m).await {
-    //         Ok(_) => Ok(Response::new(SetResponse { id })),
-    //         Err(err) => Err(err.status()),
-    //     }
-    // }
+                tx.send(Ok(Object {
+                    key: id,
+                    meta: meta,
+                    data: None,
+                }))
+                .await
+                .unwrap();
+            }
+        });
 
-    // async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
-    //     let auth = request.metadata().clone();
-    //     let request = request.into_inner();
-    //     let id = request.id;
-
-    //     let metadata = self.get_metadata(Some(&request.collection), id).await?;
-
-    //     if !auth.is_owner() {
-    //         match metadata.acl {
-    //             Some(ref acl) => {
-    //                 self.is_authorized(acl.acl, auth.get_user().unwrap(), "r--".parse().unwrap())?;
-    //             }
-
-    //             None => return Err(Status::unauthenticated("not authorized")),
-    //         };
-    //     }
-
-    //     let mut db = self.db.clone();
-    //     let handle = spawn_blocking(move || db.get(id).expect("failed to load data"));
-    //     // TODO: proper error handling
-    //     let data = handle.await.expect("failed thread pool task");
-    //     if data.is_none() {
-    //         return Err(Status::not_found(format!("Key {} doesn't exist", id)));
-    //     }
-    //     Ok(Response::new(GetResponse {
-    //         data: data.unwrap(), // This unwrap is safe as we checked the none case above
-    //         metadata: Some(metadata),
-    //     }))
-    // }
-
-    // async fn fetch(&self, request: Request<FetchRequest>) -> Result<Response<GetResponse>, Status> {
-    //     let auth = request.metadata().clone();
-    //     let request = request.into_inner();
-    //     let id = request.id;
-
-    //     let metadata = self.get_metadata(None, id).await?;
-
-    //     if !auth.is_owner() {
-    //         match metadata.acl {
-    //             Some(ref acl) => {
-    //                 self.is_authorized(acl.acl, auth.get_user().unwrap(), "r--".parse().unwrap())?;
-    //             }
-
-    //             None => return Err(Status::unauthenticated("not authorized")),
-    //         };
-    //     }
-
-    //     let mut db = self.db.clone();
-    //     let handle = spawn_blocking(move || db.get(id).expect("failed to load data"));
-    //     // TODO: proper error handling
-    //     let data = handle.await.expect("failed thread pool task");
-    //     if data.is_none() {
-    //         return Err(Status::not_found(format!("Key {} doesn't exist", id)));
-    //     }
-    //     Ok(Response::new(GetResponse {
-    //         data: data.unwrap(), // This unwrap is safe as we checked the none case above
-    //         metadata: Some(metadata),
-    //     }))
-    // }
-
-    // async fn delete(
-    //     &self,
-    //     request: Request<DeleteRequest>,
-    // ) -> Result<Response<DeleteResponse>, Status> {
-    //     let auth = request.metadata().clone();
-
-    //     let request = request.into_inner();
-    //     let id = request.id;
-
-    //     let metadata = self.get_metadata(Some(&request.collection), id).await?;
-
-    //     if !auth.is_owner() {
-    //         match metadata.acl {
-    //             Some(ref acl) => {
-    //                 self.is_authorized(acl.acl, auth.get_user().unwrap(), "-w-".parse().unwrap())?;
-    //             }
-
-    //             None => return Err(Status::unauthenticated("not authorized")),
-    //         };
-    //     }
-
-    //     let mut m = database::Meta::default();
-
-    //     m.add(TAG_DELETED, "1");
-    //     let mut meta = self.meta.clone();
-    //     match meta.set(request.id, m).await {
-    //         Ok(_) => Ok(Response::new(DeleteResponse {})),
-    //         Err(err) => Err(err.status()),
-    //     }
-    // }
-
-    // async fn update(
-    //     &self,
-    //     request: Request<UpdateRequest>,
-    // ) -> Result<Response<UpdateResponse>, Status> {
-    //     let auth = request.metadata().clone();
-
-    //     let request = request.into_inner();
-    //     let id = request.id;
-    //     let data = request.data;
-
-    //     let new_metadata = match request.metadata {
-    //         Some(metadata) => metadata,
-    //         None => return Err(Status::invalid_argument("metadata is required")),
-    //     };
-
-    //     let metadata = self
-    //         .get_metadata(Some(&new_metadata.collection), id)
-    //         .await?;
-
-    //     if !auth.is_owner() {
-    //         match metadata.acl {
-    //             Some(ref acl) => {
-    //                 self.is_authorized(acl.acl, auth.get_user().unwrap(), "-w-".parse().unwrap())?;
-    //             }
-
-    //             None => return Err(Status::unauthenticated("not authorized")),
-    //         };
-    //     }
-
-    //     let mut m = self.build_meta(&new_metadata)?;
-
-    //     match new_metadata.acl {
-    //         Some(ref acl) => {
-    //             if auth.is_owner() {
-    //                 m.add(TAG_ACL, &format!("{}", acl.acl));
-    //             } else {
-    //                 //trying to update acl while u are not the owner
-    //                 return Err(Status::unauthenticated("only owner can update acl"));
-    //             }
-    //         }
-    //         None => {}
-    //     };
-
-    //     m.add(
-    //         TAG_UPDATED,
-    //         &format!(
-    //             "{}",
-    //             std::time::SystemTime::now()
-    //                 .duration_since(std::time::UNIX_EPOCH)
-    //                 .unwrap()
-    //                 .as_secs()
-    //         ),
-    //     );
-
-    //     // updating data is optional in an update call
-    //     if let Some(data) = data {
-    //         m.add(":size", &format!("{}", data.data.len()));
-
-    //         let mut db = self.db.clone();
-    //         let handle =
-    //             spawn_blocking(move || db.set(Some(id), &data.data).expect("failed to set data"));
-    //         if let Err(err) = handle.await {
-    //             return Err(Status::internal(format!(
-    //                 "failed to run blocking task: {}",
-    //                 err
-    //             )));
-    //         }
-    //     }
-
-    //     let mut meta = self.meta.clone();
-    //     match meta.set(request.id, m).await {
-    //         Ok(_) => Ok(Response::new(UpdateResponse {})),
-    //         Err(err) => Err(err.status()),
-    //     }
-    // }
-
-    // type ListStream = super::ListStream;
-
-    // async fn list(
-    //     &self,
-    //     request: Request<QueryRequest>,
-    // ) -> Result<Response<super::ListStream>, Status> {
-    //     let auth = request.metadata();
-
-    //     if !auth.is_owner() {
-    //         return Err(Status::unauthenticated("not authorized"));
-    //     }
-
-    //     let request = request.into_inner();
-    //     let mut meta = self.meta.clone();
-
-    //     let mut tags = vec![];
-    //     for tag in request.tags {
-    //         tags.push(database::Tag {
-    //             key: tag.key,
-    //             value: tag.value,
-    //         })
-    //     }
-
-    //     tags.push(database::Tag {
-    //         key: TAG_COLLECTION.into(),
-    //         value: request.collection,
-    //     });
-
-    //     let (mut tx, rx) = mpsc::channel(10);
-    //     tokio::spawn(async move {
-    //         let mut rx = match meta.find(tags).await {
-    //             Ok(rx) => rx,
-    //             Err(err) => {
-    //                 tx.send(Err(Status::internal(format!("{}", err))))
-    //                     .await
-    //                     .unwrap();
-    //                 return;
-    //             }
-    //         };
-
-    //         while let Some(id) = rx.recv().await {
-    //             match id {
-    //                 Ok(id) => tx.send(Ok(ListResponse { id: id })).await.unwrap(),
-    //                 Err(err) => tx
-    //                     .send(Err(Status::internal(format!("{}", err))))
-    //                     .await
-    //                     .unwrap(),
-    //             }
-    //         }
-    //     });
-
-    //     Ok(Response::new(rx))
-    // }
-
-    // type FindStream = super::FindStream;
-
-    // async fn find(
-    //     &self,
-    //     request: Request<QueryRequest>,
-    // ) -> Result<Response<Self::FindStream>, Status> {
-    //     let auth = request.metadata();
-
-    //     if !auth.is_owner() {
-    //         return Err(Status::unauthenticated("not authorized"));
-    //     }
-
-    //     let request = request.into_inner();
-    //     let collection_name = request.collection;
-    //     let mut meta = self.meta.clone();
-    //     let mut tags = vec![];
-    //     for tag in request.tags {
-    //         tags.push(database::Tag {
-    //             key: tag.key,
-    //             value: tag.value,
-    //         })
-    //     }
-
-    //     tags.push(database::Tag {
-    //         key: TAG_COLLECTION.into(),
-    //         value: collection_name.clone(),
-    //     });
-
-    //     let (mut tx, rx) = mpsc::channel(10);
-    //     tokio::spawn(async move {
-    //         let mut rx = match meta.find(tags).await {
-    //             Ok(rx) => rx,
-    //             Err(err) => {
-    //                 tx.send(Err(Status::internal(format!("{}", err))))
-    //                     .await
-    //                     .unwrap();
-    //                 return;
-    //             }
-    //         };
-
-    //         while let Some(id) = rx.recv().await {
-    //             let id = match id {
-    //                 Ok(id) => id,
-    //                 Err(err) => {
-    //                     tx.send(Err(err.status())).await.unwrap();
-    //                     return;
-    //                 }
-    //             };
-
-    //             let meta = match meta.get(id).await {
-    //                 Ok(meta) => meta,
-    //                 Err(err) => {
-    //                     tx.send(Err(err.status())).await.unwrap();
-    //                     return;
-    //                 }
-    //             };
-
-    //             let metadata = Self::build_pb_meta(&collection_name, meta);
-
-    //             tx.send(Ok(FindResponse {
-    //                 id: id,
-    //                 metadata: Some(metadata),
-    //             }))
-    //             .await
-    //             .unwrap();
-    //         }
-    //     });
-
-    //     Ok(Response::new(rx))
-    // }
+        Ok(rx)
+    }
 }

@@ -103,18 +103,14 @@ where
         //build metadata for storage
         let mut m = database::Meta::default();
         for tag in metadata.tags.iter() {
-            let t = database::Tag {
-                key: tag.key.clone(),
-                value: tag.value.clone(),
-            };
-            if t.is_reserved() {
+            if database::is_reserved(&tag.key) {
                 return Err(Status::invalid_argument(format!(
                     "not allowed use of reserved tags: {}",
-                    t.key
+                    tag.key
                 )));
             }
 
-            m.insert(t.key, t.value);
+            m.insert(tag.key.clone(), tag.value.clone());
         }
 
         Ok(m)
@@ -168,13 +164,13 @@ where
         let mut m = self.build_meta(&metadata)?;
 
         if let Some(acl) = metadata.acl {
-            m.insert(TAG_ACL.into(), format!("{}", acl.acl));
+            m.insert(TAG_ACL, format!("{}", acl.acl));
         }
 
-        m.insert(TAG_COLLECTION.into(), metadata.collection);
-        m.insert(TAG_SIZE.into(), format!("{}", data.len()));
+        m.insert(TAG_COLLECTION, metadata.collection);
+        m.insert(TAG_SIZE, format!("{}", data.len()));
         m.insert(
-            TAG_CREATED.into(),
+            TAG_CREATED,
             format!(
                 "{}",
                 std::time::SystemTime::now()
@@ -285,7 +281,7 @@ where
 
         let mut m = database::Meta::default();
 
-        m.insert(TAG_DELETED.into(), "1".into());
+        m.insert(TAG_DELETED, "1");
         let mut meta = self.meta.clone();
         match meta.set(request.id, m).await {
             Ok(_) => Ok(Response::new(DeleteResponse {})),
@@ -327,7 +323,7 @@ where
         match new_metadata.acl {
             Some(ref acl) => {
                 if auth.is_owner() {
-                    m.insert(TAG_ACL.into(), format!("{}", acl.acl));
+                    m.insert(TAG_ACL, format!("{}", acl.acl));
                 } else {
                     //trying to update acl while u are not the owner
                     return Err(Status::unauthenticated("only owner can update acl"));
@@ -337,7 +333,7 @@ where
         };
 
         m.insert(
-            TAG_UPDATED.into(),
+            TAG_UPDATED,
             format!(
                 "{}",
                 std::time::SystemTime::now()
@@ -349,7 +345,7 @@ where
 
         // updating data is optional in an update call
         if let Some(data) = data {
-            m.insert(TAG_SIZE.into(), format!("{}", data.data.len()));
+            m.insert(TAG_SIZE, format!("{}", data.data.len()));
 
             let mut db = self.db.clone();
             let handle =
@@ -389,7 +385,7 @@ where
             tags.insert(tag.key, tag.value);
         }
 
-        tags.insert(TAG_COLLECTION.into(), request.collection);
+        tags.insert(TAG_COLLECTION, request.collection);
 
         let (mut tx, rx) = mpsc::channel(10);
         tokio::spawn(async move {
@@ -438,7 +434,7 @@ where
             tags.insert(tag.key, tag.value);
         }
 
-        tags.insert(TAG_COLLECTION.into(), collection_name.clone());
+        tags.insert(TAG_COLLECTION, collection_name.clone());
 
         let (mut tx, rx) = mpsc::channel(10);
         tokio::spawn(async move {

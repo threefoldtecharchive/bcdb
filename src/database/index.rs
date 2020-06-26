@@ -1,5 +1,4 @@
 use super::*;
-use crate::database::{Index, Key, Meta, Tag};
 use anyhow::Result;
 use async_trait::async_trait;
 use sqlx::prelude::*;
@@ -143,7 +142,7 @@ impl Schema {
         let q = "SELECT key FROM metadata WHERE tag = ? AND value = ?";
         let mut query_str = String::new();
 
-        for _ in 0..meta.len() {
+        for _ in 0..meta.count() {
             if query_str.len() > 0 {
                 query_str.push_str(" intersect ");
             }
@@ -203,23 +202,20 @@ mod tests {
         let c = SqlitePool::new(&constr).await.expect("failed to connect");
         let mut schema = Schema::new(c);
         schema.setup().await.expect("failed to create table");
+        let mut meta = Meta::default();
+        meta.insert("name", "filename");
+        meta.insert("type", "file");
+        meta.insert("parent", "/root/dir");
+
         schema
-            .insert(
-                100,
-                vec![
-                    Tag::new("name", "filename"),
-                    Tag::new("type", "file"),
-                    Tag::new("parent", "/root/dir"),
-                ],
-            )
+            .insert(100, meta)
             .await
             .expect("failed to insert object");
 
         let mut getter = schema.clone();
-        let mut cur = schema
-            .find(vec![Tag::new("name", "filename")])
-            .await
-            .expect("failed to do fine");
+        let mut filter = Meta::default();
+        filter.insert("name", "filename");
+        let mut cur = schema.find(filter).await.expect("failed to do fine");
         loop {
             let key = match cur.recv().await {
                 Some(key) => key,
