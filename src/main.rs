@@ -12,11 +12,11 @@ extern crate log;
 
 mod acl;
 mod auth;
-mod bcdb;
 mod database;
 mod explorer;
 mod identity;
 mod peer;
+mod rpc;
 //mod rest;
 mod storage;
 
@@ -171,16 +171,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let interceptor = auth::Authenticator::new(matches.value_of("explorer"), identity.clone())?;
     let acl_interceptor = interceptor.clone();
 
-    let bcdb_service = bcdb::BcdbService::new(db);
+    let bcdb_service = rpc::BcdbService::new(db);
 
     // //bcdb storage api
-    // let bcdb_service = bcdb::BcdbService::new(identity.id(), local_bcdb, tracker);
+    // let bcdb_service = rpc::BcdbService::new(identity.id(), local_bcdb, tracker);
 
     //acl api
-    let acl_service = bcdb::AclService::new(acl_store);
+    let acl_service = rpc::AclService::new(acl_store);
 
     //identity api
-    let identity_service = bcdb::IdentityService::new(identity.clone());
+    let identity_service = rpc::IdentityService::new(identity.clone());
 
     let grpc_address: SocketAddr = matches.value_of("grpc").unwrap().parse()?;
     // TODO: enable rest
@@ -198,15 +198,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // });
 
     Server::builder()
-        .add_service(bcdb::BcdbServer::with_interceptor(
+        .add_service(rpc::BcdbServer::with_interceptor(
             bcdb_service,
             move |request| interceptor.authenticate_blocking(request),
         ))
-        .add_service(bcdb::AclServer::with_interceptor(
+        .add_service(rpc::AclServer::with_interceptor(
             acl_service,
             move |request| acl_interceptor.authenticate_blocking(request),
         ))
-        .add_service(bcdb::IdentityServer::new(identity_service))
+        .add_service(rpc::IdentityServer::new(identity_service))
         .serve(grpc_address)
         .await?;
 

@@ -1,6 +1,6 @@
-use crate::bcdb::generated::identity_client::IdentityClient;
-use crate::bcdb::generated::SignRequest;
 use crate::identity::{PublicKey, Signature};
+use crate::rpc::generated::identity_client::IdentityClient;
+use crate::rpc::generated::SignRequest;
 use anyhow::Result;
 use serde::Deserialize;
 use surf;
