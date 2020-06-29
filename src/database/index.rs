@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use sqlx::prelude::*;
 use sqlx::SqlitePool;
@@ -111,7 +111,8 @@ impl Schema {
             .bind(&v)
             .bind(&v)
             .execute(&mut tx)
-            .await?;
+            .await
+            .context("failed to insert data to index")?;
         }
 
         tx.commit().await?;

@@ -1,5 +1,5 @@
 use crate::acl::*;
-use anyhow::{Context as ErrorContext, Result};
+use anyhow::Context as ErrorContext;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 
@@ -60,9 +60,9 @@ where
                     }
                 }
 
-                bail!("unauthorized");
+                bail!(Reason::Unauthorized);
             }
-            Authorization::Invalid => bail!("unauthorized"),
+            Authorization::Invalid => bail!(Reason::Unauthorized),
         }
     }
 }
@@ -82,7 +82,7 @@ where
         acl: Option<u64>,
     ) -> Result<Key> {
         if !ctx.is_owner() {
-            bail!("unauthorized");
+            bail!(Reason::Unauthorized)
         }
 
         let mut meta = meta;
@@ -122,7 +122,7 @@ where
         // TODO: proper error handling
         if data.is_none() {
             //TODO: use proper error type here
-            bail!("object with id {} not found", key);
+            bail!(Reason::NotFound(key));
         }
 
         Ok(Object {
@@ -146,13 +146,13 @@ where
         self.is_authorized(&ctx, &current, "-w-".parse().unwrap())?;
 
         if !current.is_collection(collection.as_ref()) {
-            bail!("not found");
+            bail!(Reason::NotFound(key));
         }
 
         let mut meta = meta;
         if let Some(acl) = acl {
             if !ctx.is_owner() {
-                bail!("only owner can set acl");
+                bail!(Reason::OwnerOnly("acl".into()));
             }
 
             meta = meta.with_acl(acl);
@@ -186,7 +186,7 @@ where
         collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Key>>> {
         if !ctx.is_owner() {
-            bail!("unauthorized");
+            bail!(Reason::Unauthorized);
         }
 
         let mut meta = meta;
@@ -206,7 +206,7 @@ where
         collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Object>>> {
         if !ctx.is_owner() {
-            bail!("unauthorized");
+            bail!(Reason::Unauthorized);
         }
 
         let mut meta = meta;

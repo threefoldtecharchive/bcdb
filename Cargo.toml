@@ -35,6 +35,7 @@ bytes = "0.5.4"
 http = "0.2.1"
 hyper = "0.13.6"
 openssl-sys = { version="*", features = ["vendored"] }
+thiserror = "1.0.20"
 
 [build-dependencies]
 bindgen = "0.53"

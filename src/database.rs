@@ -3,6 +3,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::iter::{FromIterator, IntoIterator};
+use thiserror::Error;
 use tokio::sync::mpsc;
 
 pub mod data;
@@ -14,6 +15,18 @@ const TAG_CREATED: &str = ":created";
 const TAG_UPDATED: &str = ":updated";
 const TAG_DELETE: &str = ":deleted";
 const TAG_SIZE: &str = ":size";
+
+#[derive(Error, Debug)]
+pub enum Reason {
+    #[error("Unauthorized")]
+    Unauthorized,
+
+    #[error("Object with id '{0}' not found")]
+    NotFound(u32),
+
+    #[error("Only owner can set '{0}'")]
+    OwnerOnly(String),
+}
 
 pub fn is_reserved(tag: &str) -> bool {
     tag.starts_with(":")
