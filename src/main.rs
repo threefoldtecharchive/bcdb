@@ -166,7 +166,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // tracker cache peers from the given source, and validate their identity
     let tracker = peer::Tracker::new(std::time::Duration::from_secs(20 * 60), 1000, peers);
 
-    let db = peer::Router::new(db, tracker);
+    let db = peer::Router::new(identity.clone(), db, tracker);
 
     let interceptor = auth::Authenticator::new(matches.value_of("explorer"), identity.clone())?;
     let acl_interceptor = interceptor.clone();

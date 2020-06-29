@@ -1,6 +1,9 @@
 use super::PeersList;
 use crate::database::*;
-use anyhow::Result;
+use crate::identity::Identity;
+use crate::rpc::generated::bcdb_client::BcdbClient;
+use crate::rpc::generated::*;
+use anyhow::{Context as ErrorContext, Result};
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
@@ -12,6 +15,7 @@ where
 {
     local: L,
     peers: P,
+    id: Identity,
 }
 
 impl<L, P> Router<L, P>
@@ -19,57 +23,101 @@ where
     L: Database,
     P: PeersList,
 {
-    pub fn new(local: L, peers: P) -> Self {
-        Router { local, peers }
+    pub fn new(id: Identity, local: L, peers: P) -> Self {
+        Router { id, local, peers }
+    }
+
+    async fn get_peer(&self, id: u32) -> Result<BcdbClient<tonic::transport::channel::Channel>> {
+        let peer = self
+            .peers
+            .get(id)
+            .await
+            .with_context(|| format!("failed to get peer: {}", id))?;
+
+        let con = peer
+            .connect()
+            .await
+            .with_context(|| format!("failed to connect to peer: {}", id))?;
+
+        Ok(BcdbClient::new(con))
+    }
+
+    fn set_headers<T>(&self, request: &mut tonic::Request<T>) {
+        request.metadata_mut().append(
+            "authorization",
+            tonic::metadata::AsciiMetadataValue::from_str(
+                crate::auth::header(&self.id, None).as_ref(),
+            )
+            .unwrap(),
+        );
     }
 
     async fn remote_set(
         &self,
-        id: u32,
-        collection: String,
-        data: Vec<u8>,
-        meta: Meta,
-        acl: Option<u64>,
+        _id: u32,
+        _collection: String,
+        _data: Vec<u8>,
+        _meta: Meta,
+        _acl: Option<u64>,
     ) -> Result<Key> {
-        bail!("unimplemented")
+        bail!(Reason::NotSupported)
     }
 
     async fn remote_get(&self, id: u32, key: Key) -> Result<Object> {
-        bail!("unimplemented")
+        let request = FetchRequest { id: key };
+
+        let mut request = tonic::Request::new(request);
+        self.set_headers(&mut request);
+
+        let mut cl = self.get_peer(id).await?;
+
+        let response = cl.fetch(request).await.map_err(|s| Reason::from(s))?;
+
+        let response = response.into_inner();
+        let meta = match response.metadata {
+            Some(meta) => Meta::from(meta.tags),
+            None => Meta::default(),
+        };
+
+        Ok(Object {
+            key: key,
+            data: Some(response.data),
+            meta: meta,
+        })
     }
 
-    async fn remote_delete(&mut self, id: u32, key: Key) -> Result<()> {
-        bail!("unimplemented");
+    async fn remote_delete(&mut self, _id: u32, _key: Key) -> Result<()> {
+        bail!(Reason::NotSupported)
     }
 
     async fn remote_update(
         &self,
-        id: u32,
-        key: Key,
-        collection: String,
-        data: Option<Vec<u8>>,
-        meta: Meta,
-        acl: Option<u64>,
+        _id: u32,
+        _key: Key,
+        _collection: String,
+        _data: Option<Vec<u8>>,
+        _meta: Meta,
+        _acl: Option<u64>,
     ) -> Result<()> {
-        bail!("unimplemented");
+        bail!(Reason::NotSupported)
     }
 
     async fn remote_list(
         &self,
-        id: u32,
-        meta: Meta,
-        collection: Option<String>,
+        _id: u32,
+        _meta: Meta,
+        _collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Key>>> {
-        bail!("unimplemented");
+        bail!(Reason::NotSupported);
     }
 
     async fn remote_find(
         &self,
-        id: u32,
-        meta: Meta,
-        collection: Option<String>,
+        _id: u32,
+        _meta: Meta,
+        _collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Object>>> {
-        bail!("unimplemented");
+        bail!(Reason::NotSupported);
     }
 }
 

@@ -24,11 +24,25 @@ pub enum Reason {
     #[error("Unauthorized")]
     Unauthorized,
 
-    #[error("Object with id '{0}' not found")]
-    NotFound(u32),
+    #[error("Object with not found")]
+    NotFound,
 
-    #[error("Only owner can set '{0}'")]
-    OwnerOnly(String),
+    #[error("operation not supported")]
+    NotSupported,
+
+    #[error("Unknown error: {0}")]
+    Unknown(String),
+}
+
+impl From<tonic::Status> for Reason {
+    fn from(s: tonic::Status) -> Self {
+        use tonic::Code;
+        match s.code() {
+            Code::Unauthenticated => Reason::Unauthorized,
+            Code::NotFound => Reason::NotFound,
+            _ => Reason::Unknown(s.message().into()),
+        }
+    }
 }
 
 pub fn is_reserved(tag: &str) -> bool {

@@ -119,10 +119,8 @@ where
             .await
             .context("failed to run blocking task")?
             .context("failed to get data")?;
-        // TODO: proper error handling
         if data.is_none() {
-            //TODO: use proper error type here
-            bail!(Reason::NotFound(key));
+            bail!(Reason::NotFound);
         }
 
         Ok(Object {
@@ -159,13 +157,13 @@ where
         self.is_authorized(&ctx, &current, "-w-".parse().unwrap())?;
 
         if !current.is_collection(collection) {
-            bail!(Reason::NotFound(key));
+            bail!(Reason::NotFound);
         }
 
         let mut meta = meta;
         if let Some(acl) = acl {
             if !ctx.is_owner() {
-                bail!(Reason::OwnerOnly("acl".into()));
+                bail!(Reason::Unauthorized);
             }
 
             meta = meta.with_acl(acl);
