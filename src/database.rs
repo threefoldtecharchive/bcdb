@@ -9,6 +9,9 @@ use tokio::sync::mpsc;
 pub mod data;
 pub mod index;
 
+pub use data::BcdbDatabase;
+pub use index::SqliteIndexBuilder;
+
 const TAG_COLLECTION: &str = ":collection";
 const TAG_ACL: &str = ":acl";
 const TAG_CREATED: &str = ":created";
@@ -44,6 +47,10 @@ impl Meta {
         self.0.insert(key.into(), value.into());
     }
 
+    pub fn inner(self) -> HashMap<String, String> {
+        self.0
+    }
+
     pub fn count(&self) -> usize {
         self.0.len()
     }
@@ -56,9 +63,9 @@ impl Meta {
         self.get(TAG_COLLECTION).map(|v| v.clone())
     }
 
-    pub fn is_collection(&self, collection: &str) -> bool {
+    pub fn is_collection<S: AsRef<str>>(&self, collection: S) -> bool {
         match self.collection() {
-            Some(col) if col == collection => true,
+            Some(col) if col == collection.as_ref() => true,
             _ => false,
         }
     }
@@ -86,6 +93,10 @@ impl Meta {
         self.get_u64(TAG_CREATED)
     }
 
+    pub fn deleted(&self) -> bool {
+        self.get_u64(TAG_DELETE).map(|v| v > 1).unwrap_or(false)
+    }
+
     pub fn with_collection<V: Into<String>>(mut self, collection: V) -> Self {
         self.0.insert(TAG_COLLECTION.into(), collection.into());
         self
@@ -110,6 +121,10 @@ impl Meta {
 
     pub fn with_updated(self, updated: u64) -> Self {
         self.with_u64(TAG_UPDATED, updated)
+    }
+
+    pub fn with_deleted(self, deleted: bool) -> Self {
+        self.with_u64(TAG_DELETE, if deleted { 1 } else { 0 })
     }
 }
 
@@ -201,6 +216,8 @@ pub trait Database: Send + Sync + 'static {
 
     async fn get(&mut self, ctx: Context, key: Key) -> Result<Object>;
 
+    async fn delete(&mut self, ctx: Context, key: Key) -> Result<()>;
+
     async fn update(
         &mut self,
         ctx: Context,
@@ -210,8 +227,7 @@ pub trait Database: Send + Sync + 'static {
         meta: Meta,
         acl: Option<u64>,
     ) -> Result<()>;
-    // update
-    // delete
+
     async fn list(
         &mut self,
         ctx: Context,

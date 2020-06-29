@@ -132,6 +132,19 @@ where
         })
     }
 
+    async fn delete(&mut self, ctx: Context, key: Key) -> Result<()> {
+        let meta = self.meta.get(key).await?;
+
+        self.is_authorized(&ctx, &meta, "--d".parse().unwrap())?;
+
+        let mut index = self.meta.clone();
+        let meta = Meta::default().with_deleted(true);
+
+        index.set(key, meta).await?;
+
+        Ok(())
+    }
+
     async fn update(
         &mut self,
         ctx: Context,
@@ -145,7 +158,7 @@ where
 
         self.is_authorized(&ctx, &current, "-w-".parse().unwrap())?;
 
-        if !current.is_collection(collection.as_ref()) {
+        if !current.is_collection(collection) {
             bail!(Reason::NotFound(key));
         }
 

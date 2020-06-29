@@ -148,11 +148,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         zdb.collection("acl"),
     ));
 
-    let local_bcdb = bcdb::LocalBcdb::new(
+    let db = database::BcdbDatabase::new(
         EncryptedStorage::new(identity.as_sk_bytes(), zdb.collection("objects")),
         meta_factory.build("metadata").await?,
         acl_store.clone(),
     );
+
+    let local_bcdb = bcdb::LocalBcdb::new(db);
 
     let interceptor = auth::Authenticator::new(matches.value_of("explorer"), identity.clone())?;
     let acl_interceptor = interceptor.clone();
