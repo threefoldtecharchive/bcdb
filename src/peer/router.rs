@@ -63,7 +63,33 @@ where
         bail!(Reason::NotSupported)
     }
 
-    async fn remote_get(&self, id: u32, key: Key) -> Result<Object> {
+    async fn remote_get(&self, id: u32, key: Key, collection: String) -> Result<Object> {
+        let request = GetRequest {
+            id: key,
+            collection: collection,
+        };
+
+        let mut request = tonic::Request::new(request);
+        self.set_headers(&mut request);
+
+        let mut cl = self.get_peer(id).await?;
+
+        let response = cl.get(request).await.map_err(|s| Reason::from(s))?;
+
+        let response = response.into_inner();
+        let meta = match response.metadata {
+            Some(meta) => Meta::from(meta.tags),
+            None => Meta::default(),
+        };
+
+        Ok(Object {
+            key: key,
+            data: Some(response.data),
+            meta: meta,
+        })
+    }
+
+    async fn remote_fetch(&self, id: u32, key: Key) -> Result<Object> {
         let request = FetchRequest { id: key };
 
         let mut request = tonic::Request::new(request);
@@ -86,20 +112,49 @@ where
         })
     }
 
-    async fn remote_delete(&mut self, _id: u32, _key: Key) -> Result<()> {
-        bail!(Reason::NotSupported)
+    async fn remote_delete(&mut self, id: u32, key: Key, collection: String) -> Result<()> {
+        let request = DeleteRequest {
+            id: key,
+            collection: collection,
+        };
+
+        let mut request = tonic::Request::new(request);
+        self.set_headers(&mut request);
+
+        let mut cl = self.get_peer(id).await?;
+
+        cl.delete(request).await.map_err(|s| Reason::from(s))?;
+
+        Ok(())
     }
 
     async fn remote_update(
         &self,
-        _id: u32,
-        _key: Key,
-        _collection: String,
-        _data: Option<Vec<u8>>,
-        _meta: Meta,
-        _acl: Option<u64>,
+        id: u32,
+        key: Key,
+        collection: String,
+        data: Option<Vec<u8>>,
+        meta: Meta,
+        acl: Option<u64>,
     ) -> Result<()> {
-        bail!(Reason::NotSupported)
+        let request = UpdateRequest {
+            id: key,
+            metadata: Some(Metadata {
+                tags: meta.into(),
+                collection: collection,
+                acl: acl.map(|acl| AclRef { acl }),
+            }),
+            data: data.map(|data| update_request::UpdateData { data }),
+        };
+
+        let mut request = tonic::Request::new(request);
+        self.set_headers(&mut request);
+
+        let mut cl = self.get_peer(id).await?;
+
+        cl.update(request).await.map_err(|s| Reason::from(s))?;
+
+        Ok(())
     }
 
     async fn remote_list(
@@ -141,17 +196,24 @@ where
         }
     }
 
-    async fn get(&mut self, ctx: Context, key: Key) -> Result<Object> {
+    async fn fetch(&mut self, ctx: Context, key: Key) -> Result<Object> {
         match ctx.route {
-            Route::Local => self.local.get(ctx, key).await,
-            Route::Remote(id) => self.remote_get(id, key).await,
+            Route::Local => self.local.fetch(ctx, key).await,
+            Route::Remote(id) => self.remote_fetch(id, key).await,
         }
     }
 
-    async fn delete(&mut self, ctx: Context, key: Key) -> Result<()> {
+    async fn get(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object> {
         match ctx.route {
-            Route::Local => self.local.delete(ctx, key).await,
-            Route::Remote(id) => self.remote_delete(id, key).await,
+            Route::Local => self.local.get(ctx, key, collection).await,
+            Route::Remote(id) => self.remote_get(id, key, collection).await,
+        }
+    }
+
+    async fn delete(&mut self, ctx: Context, key: Key, collection: String) -> Result<()> {
+        match ctx.route {
+            Route::Local => self.local.delete(ctx, key, collection).await,
+            Route::Remote(id) => self.remote_delete(id, key, collection).await,
         }
     }
 

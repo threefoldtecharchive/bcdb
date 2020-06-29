@@ -109,7 +109,7 @@ where
         index.set(id, meta).await.map(|_| id)
     }
 
-    async fn get(&mut self, ctx: Context, key: Key) -> Result<Object> {
+    async fn fetch(&mut self, ctx: Context, key: Key) -> Result<Object> {
         let meta = self.meta.get(key).await?;
 
         self.is_authorized(&ctx, &meta, "r--".parse().unwrap())?;
@@ -130,8 +130,37 @@ where
         })
     }
 
-    async fn delete(&mut self, ctx: Context, key: Key) -> Result<()> {
+    async fn get(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object> {
         let meta = self.meta.get(key).await?;
+
+        if !meta.is_collection(collection) {
+            bail!(Reason::NotFound);
+        }
+
+        self.is_authorized(&ctx, &meta, "r--".parse().unwrap())?;
+
+        let mut db = self.data.clone();
+        let data = spawn_blocking(move || db.get(key))
+            .await
+            .context("failed to run blocking task")?
+            .context("failed to get data")?;
+        if data.is_none() {
+            bail!(Reason::NotFound);
+        }
+
+        Ok(Object {
+            key: key,
+            data: Some(data.unwrap()),
+            meta: meta,
+        })
+    }
+
+    async fn delete(&mut self, ctx: Context, key: Key, collection: String) -> Result<()> {
+        let meta = self.meta.get(key).await?;
+
+        if !meta.is_collection(collection) {
+            bail!(Reason::NotFound);
+        }
 
         self.is_authorized(&ctx, &meta, "--d".parse().unwrap())?;
 

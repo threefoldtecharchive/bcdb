@@ -56,7 +56,7 @@ where
         let collection = metadata.collection().unwrap_or_default();
         let acl = metadata.acl().map(|acl| AclRef { acl });
         Metadata {
-            tags: metadata.inner(),
+            tags: metadata.into(),
             collection: collection,
             acl: acl,
         }
@@ -102,11 +102,10 @@ where
         let id = request.id;
 
         let mut db = self.db.clone();
-        let object = db.get(ctx, id).await.map_err(|e| e.status())?;
-
-        if !object.meta.is_collection(request.collection) {
-            return Err(Status::not_found("object not found"));
-        }
+        let object = db
+            .get(ctx, id, request.collection)
+            .await
+            .map_err(|e| e.status())?;
 
         Ok(Response::new(GetResponse {
             data: object.data.unwrap_or_default(), // This unwrap is safe as we checked the none case above
@@ -120,7 +119,7 @@ where
         let id = request.id;
 
         let mut db = self.db.clone();
-        let object = db.get(ctx, id).await.map_err(|e| e.status())?;
+        let object = db.fetch(ctx, id).await.map_err(|e| e.status())?;
 
         Ok(Response::new(GetResponse {
             data: object.data.unwrap_or_default(), // This unwrap is safe as we checked the none case above
@@ -137,7 +136,9 @@ where
         let id = request.id;
 
         let mut db = self.db.clone();
-        db.delete(ctx, id).await.map_err(|e| e.status())?;
+        db.delete(ctx, id, request.collection)
+            .await
+            .map_err(|e| e.status())?;
 
         Ok(Response::new(DeleteResponse {}))
     }

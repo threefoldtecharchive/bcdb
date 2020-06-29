@@ -61,10 +61,6 @@ impl Meta {
         self.0.insert(key.into(), value.into());
     }
 
-    pub fn inner(self) -> HashMap<String, String> {
-        self.0
-    }
-
     pub fn count(&self) -> usize {
         self.0.len()
     }
@@ -139,6 +135,12 @@ impl Meta {
 
     pub fn with_deleted(self, deleted: bool) -> Self {
         self.with_u64(TAG_DELETE, if deleted { 1 } else { 0 })
+    }
+}
+
+impl Into<HashMap<String, String>> for Meta {
+    fn into(self) -> HashMap<String, String> {
+        self.0
     }
 }
 
@@ -228,9 +230,11 @@ pub trait Database: Send + Sync + 'static {
         acl: Option<u64>,
     ) -> Result<Key>;
 
-    async fn get(&mut self, ctx: Context, key: Key) -> Result<Object>;
+    async fn fetch(&mut self, ctx: Context, key: Key) -> Result<Object>;
 
-    async fn delete(&mut self, ctx: Context, key: Key) -> Result<()>;
+    async fn get(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object>;
+
+    async fn delete(&mut self, ctx: Context, key: Key, collection: String) -> Result<()>;
 
     async fn update(
         &mut self,
