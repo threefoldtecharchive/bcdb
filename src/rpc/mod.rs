@@ -1,5 +1,5 @@
 use crate::acl::*;
-use crate::database::{Database, Meta};
+use crate::database::{Database, Meta, Reason};
 use crate::identity::Identity;
 use anyhow::Error;
 use generated::acl_server::Acl as AclServiceTrait;
@@ -28,6 +28,15 @@ trait FailureExt {
 
 impl FailureExt for Error {
     fn status(&self) -> Status {
+        if let Some(e) = self.downcast_ref::<Reason>() {
+            return match e {
+                Reason::Unauthorized => Status::unauthenticated("unauthorized"),
+                Reason::NotFound => Status::not_found("object not found"),
+                Reason::NotSupported => Status::unimplemented("operation not supported"),
+                Reason::Unknown(m) => Status::internal(format!("{}", m)),
+            };
+        }
+
         Status::new(Code::Internal, format!("{}", self))
     }
 }
