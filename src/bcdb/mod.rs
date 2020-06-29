@@ -11,7 +11,7 @@ use std::iter::FromIterator;
 use tokio::sync::mpsc;
 use tonic::{Code, Request, Response, Status};
 
-use crate::auth::{MetadataMapExt, Route};
+use crate::auth::MetadataMapExt;
 use crate::storage::{zdb::Collection, zdb::Zdb, Storage as ObjectStorage};
 
 pub use generated::acl_server::AclServer;
@@ -191,7 +191,7 @@ where
     P: PeersList,
 {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
-        match request.metadata().route(self.id)? {
+        match request.metadata().context().route {
             Route::Local if request.metadata().is_authenticated() => self.local.set(request).await,
             Route::Proxy(id) => self.proxy_set(id, request).await,
             _ => Err(Status::unauthenticated("unauthenticated request")),
@@ -296,9 +296,9 @@ where
         &self,
         request: Request<AclGetRequest>,
     ) -> Result<Response<AclGetResponse>, Status> {
-        let meta = request.metadata();
+        let ctx = request.metadata().context();
 
-        if !meta.is_owner() {
+        if !ctx.is_owner() {
             return Err(Status::unauthenticated("not authorized"));
         }
 
@@ -329,7 +329,9 @@ where
     ) -> Result<Response<AclCreateResponse>, Status> {
         let meta = request.metadata();
 
-        if !meta.is_owner() {
+        let ctx = request.metadata().context();
+
+        if !ctx.is_owner() {
             return Err(Status::unauthenticated("not authorized"));
         }
 
@@ -361,9 +363,9 @@ where
         &self,
         request: Request<AclListRequest>,
     ) -> Result<Response<Self::ListStream>, Status> {
-        let meta = request.metadata();
+        let ctx = request.metadata().context();
 
-        if !meta.is_owner() {
+        if !ctx.is_owner() {
             return Err(Status::unauthenticated("not authorized"));
         }
 
@@ -407,9 +409,9 @@ where
         &self,
         request: Request<AclSetRequest>,
     ) -> Result<Response<AclSetResponse>, Status> {
-        let meta = request.metadata();
+        let ctx = request.metadata().context();
 
-        if !meta.is_owner() {
+        if !ctx.is_owner() {
             return Err(Status::unauthenticated("not authorized"));
         }
 
@@ -445,9 +447,9 @@ where
         &self,
         request: Request<AclUsersRequest>,
     ) -> Result<Response<AclUsersResponse>, Status> {
-        let meta = request.metadata();
+        let ctx = request.metadata().context();
 
-        if !meta.is_owner() {
+        if !ctx.is_owner() {
             return Err(Status::unauthenticated("not authorized"));
         }
 
@@ -486,9 +488,9 @@ where
         &self,
         request: Request<AclUsersRequest>,
     ) -> Result<Response<AclUsersResponse>, Status> {
-        let meta = request.metadata();
+        let ctx = request.metadata().context();
 
-        if !meta.is_owner() {
+        if !ctx.is_owner() {
             return Err(Status::unauthenticated("not authorized"));
         }
 

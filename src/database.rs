@@ -1,4 +1,4 @@
-use crate::storage::Key;
+pub use crate::storage::Key;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;

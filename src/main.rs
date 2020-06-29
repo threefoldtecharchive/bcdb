@@ -16,6 +16,7 @@ mod bcdb;
 mod database;
 mod explorer;
 mod identity;
+mod peer;
 mod rest;
 mod storage;
 

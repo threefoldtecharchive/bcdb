@@ -31,28 +31,6 @@ where
         LocalBcdb { db: db }
     }
 
-    // fn build_pb_meta<C>(collection: C, meta: database::Meta) -> Metadata
-    // where
-    //     C: Into<String>,
-    // {
-    //     let mut tags = vec![];
-    //     let mut acl = None;
-    //     for (k, v) in meta {
-    //         if k == TAG_ACL {
-    //             acl = Some(AclRef {
-    //                 acl: v.parse().unwrap_or(0),
-    //             });
-    //         }
-    //         tags.push(Tag { key: k, value: v })
-    //     }
-
-    //     Metadata {
-    //         acl: acl,
-    //         tags: tags,
-    //         collection: collection.into(),
-    //     }
-    // }
-
     fn build_meta(metadata: Meta) -> Metadata {
         //build metadata for storage
         let collection = metadata.collection().unwrap_or_default();
@@ -63,29 +41,6 @@ where
             acl: acl,
         }
     }
-
-    // async fn get_metadata(&self, collection: Option<&str>, id: u32) -> Result<Metadata, Status> {
-    //     let mut meta = self.meta.clone();
-    //     let info = match meta.get(id).await {
-    //         Ok(info) => info,
-    //         Err(err) => return Err(err.status()),
-    //     };
-
-    //     let col = info.get(TAG_COLLECTION);
-    //     if let Some(collection) = collection {
-    //         match col {
-    //             Some(v) if v == collection => {}
-    //             _ => return Err(Status::not_found("object not found")),
-    //         };
-    //     }
-
-    //     let col: String = match col {
-    //         Some(v) => v.into(),
-    //         None => ":unknown".into(),
-    //     };
-
-    //     Ok(Self::build_pb_meta(col, info))
-    // }
 }
 
 #[tonic::async_trait]
