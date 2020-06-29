@@ -7,6 +7,7 @@ use super::*;
 use crate::storage::Storage;
 
 //TODO: use generics for both object store type and meta factory type.
+#[derive(Clone)]
 pub struct BcdbDatabase<S, I>
 where
     S: Storage,
@@ -51,7 +52,7 @@ where
             Authorization::User(user) => {
                 if let Some(acl) = meta.acl() {
                     let stored = self
-                        .get_permissions(acl, user)
+                        .get_permissions(acl, user as u64)
                         .context("failed to get assigned permissions")?;
 
                     if stored.grants(perm) {
@@ -61,6 +62,7 @@ where
 
                 bail!("unauthorized");
             }
+            Authorization::Invalid => bail!("unauthorized"),
         }
     }
 }

@@ -2,14 +2,13 @@ use super::generated::bcdb_server::Bcdb as BcdbServiceTrait;
 use super::generated::*;
 use super::FailureExt;
 use crate::acl::*;
+use crate::auth::MetadataMapExt;
+use crate::database::{Database, Meta};
+use crate::storage::Storage as ObjectStorage;
 use anyhow::Error;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use tonic::{Request, Response, Status};
-
-use crate::auth::MetadataMapExt;
-use crate::database::{self, Index};
-use crate::storage::Storage as ObjectStorage;
 
 const TAG_COLLECTION: &str = ":collection";
 const TAG_ACL: &str = ":acl";
@@ -19,139 +18,91 @@ const TAG_UPDATED: &str = ":updated";
 const TAG_DELETED: &str = ":deleted";
 
 //TODO: use generics for both object store type and meta factory type.
-pub struct LocalBcdb<S, M>
+pub struct LocalBcdb<D>
 where
-    S: ObjectStorage,
-    M: Index,
+    D: Database,
 {
-    db: S,
-    meta: M,
-    //NOTE: acl storage doesn't have to use the same underlying storage type S
-    acl: ACLStorage<S>,
+    db: D,
 }
 
-impl<S, M> LocalBcdb<S, M>
+impl<D> LocalBcdb<D>
 where
-    S: ObjectStorage,
-    M: Index + Clone,
+    D: Database + Clone,
 {
-    pub fn new(db: S, meta: M, acl: ACLStorage<S>) -> LocalBcdb<S, M> {
-        LocalBcdb {
-            db: db,
-            meta: meta,
-            acl: acl,
-        }
+    pub fn new(db: D) -> Self {
+        LocalBcdb { db: db }
     }
 
-    fn get_permissions(&self, acl: u64, user: u64) -> Result<Permissions, Error> {
-        // self.acl.g
-        let mut store = self.acl.clone();
-        let acl = match store.get(acl as u32)? {
-            Some(acl) => acl,
-            None => return Ok(Permissions::default()),
-        };
+    // fn build_pb_meta<C>(collection: C, meta: database::Meta) -> Metadata
+    // where
+    //     C: Into<String>,
+    // {
+    //     let mut tags = vec![];
+    //     let mut acl = None;
+    //     for (k, v) in meta {
+    //         if k == TAG_ACL {
+    //             acl = Some(AclRef {
+    //                 acl: v.parse().unwrap_or(0),
+    //             });
+    //         }
+    //         tags.push(Tag { key: k, value: v })
+    //     }
 
-        debug!("checking user {} against acl: {:?}", user, acl);
+    //     Metadata {
+    //         acl: acl,
+    //         tags: tags,
+    //         collection: collection.into(),
+    //     }
+    // }
 
-        if acl.users.contains(&user) {
-            return Ok(acl.perm);
-        }
+    // fn build_meta(&self, metadata: &Metadata) -> Result<database::Meta, Status> {
+    //     //build metadata for storage
+    //     let mut m = database::Meta::default();
+    //     for tag in metadata.tags.iter() {
+    //         if database::is_reserved(&tag.key) {
+    //             return Err(Status::invalid_argument(format!(
+    //                 "not allowed use of reserved tags: {}",
+    //                 tag.key
+    //             )));
+    //         }
 
-        Ok(Permissions::default())
-    }
+    //         m.insert(tag.key.clone(), tag.value.clone());
+    //     }
 
-    fn is_authorized(&self, acl: u64, user: u64, perm: Permissions) -> Result<(), Status> {
-        let stored = match self.get_permissions(acl, user) {
-            Ok(stored) => stored,
-            Err(err) => {
-                return Err(Status::unauthenticated(format!(
-                    "failed to get assigned permissions: {}",
-                    err
-                )))
-            }
-        };
-        if stored.grants(perm) {
-            return Ok(());
-        }
+    //     Ok(m)
+    // }
 
-        return Err(Status::unauthenticated("not authorized"));
-    }
+    // async fn get_metadata(&self, collection: Option<&str>, id: u32) -> Result<Metadata, Status> {
+    //     let mut meta = self.meta.clone();
+    //     let info = match meta.get(id).await {
+    //         Ok(info) => info,
+    //         Err(err) => return Err(err.status()),
+    //     };
 
-    fn build_pb_meta<C>(collection: C, meta: database::Meta) -> Metadata
-    where
-        C: Into<String>,
-    {
-        let mut tags = vec![];
-        let mut acl = None;
-        for (k, v) in meta {
-            if k == TAG_ACL {
-                acl = Some(AclRef {
-                    acl: v.parse().unwrap_or(0),
-                });
-            }
-            tags.push(Tag { key: k, value: v })
-        }
+    //     let col = info.get(TAG_COLLECTION);
+    //     if let Some(collection) = collection {
+    //         match col {
+    //             Some(v) if v == collection => {}
+    //             _ => return Err(Status::not_found("object not found")),
+    //         };
+    //     }
 
-        Metadata {
-            acl: acl,
-            tags: tags,
-            collection: collection.into(),
-        }
-    }
+    //     let col: String = match col {
+    //         Some(v) => v.into(),
+    //         None => ":unknown".into(),
+    //     };
 
-    fn build_meta(&self, metadata: &Metadata) -> Result<database::Meta, Status> {
-        //build metadata for storage
-        let mut m = database::Meta::default();
-        for tag in metadata.tags.iter() {
-            if database::is_reserved(&tag.key) {
-                return Err(Status::invalid_argument(format!(
-                    "not allowed use of reserved tags: {}",
-                    tag.key
-                )));
-            }
-
-            m.insert(tag.key.clone(), tag.value.clone());
-        }
-
-        Ok(m)
-    }
-
-    async fn get_metadata(&self, collection: Option<&str>, id: u32) -> Result<Metadata, Status> {
-        let mut meta = self.meta.clone();
-        let info = match meta.get(id).await {
-            Ok(info) => info,
-            Err(err) => return Err(err.status()),
-        };
-
-        let col = info.get(TAG_COLLECTION);
-        if let Some(collection) = collection {
-            match col {
-                Some(v) if v == collection => {}
-                _ => return Err(Status::not_found("object not found")),
-            };
-        }
-
-        let col: String = match col {
-            Some(v) => v.into(),
-            None => ":unknown".into(),
-        };
-
-        Ok(Self::build_pb_meta(col, info))
-    }
+    //     Ok(Self::build_pb_meta(col, info))
+    // }
 }
 
 #[tonic::async_trait]
-impl<S, M> BcdbServiceTrait for LocalBcdb<S, M>
+impl<D> BcdbServiceTrait for LocalBcdb<D>
 where
-    S: ObjectStorage + Send + Sync + 'static,
-    M: Index + Clone,
+    D: Database + Clone,
 {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
-        let auth = request.metadata();
-
-        if !auth.is_owner() {
-            return Err(Status::unauthenticated("not authorized"));
-        }
+        let context = request.metadata().context();
 
         let request = request.into_inner();
 
@@ -161,41 +112,22 @@ where
             None => return Err(Status::invalid_argument("metadata is required")),
         };
 
-        let mut m = self.build_meta(&metadata)?;
+        //let mut m = self.build_meta(&metadata)?;
 
-        if let Some(acl) = metadata.acl {
-            m.insert(TAG_ACL, format!("{}", acl.acl));
-        }
-
-        m.insert(TAG_COLLECTION, metadata.collection);
-        m.insert(TAG_SIZE, format!("{}", data.len()));
-        m.insert(
-            TAG_CREATED,
-            format!(
-                "{}",
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs()
-            ),
-        );
+        let acl = metadata.acl.map(|a| a.acl);
 
         let mut db = self.db.clone();
-        let handle = spawn_blocking(move || db.set(None, &data).expect("failed to set data"));
-        let id = match handle.await {
-            Ok(id) => id,
-            Err(err) => {
-                return Err(Status::internal(format!(
-                    "failed to run blocking task: {}",
-                    err
-                )));
-            }
-        };
-        let mut meta = self.meta.clone();
-        match meta.set(id, m).await {
-            Ok(_) => Ok(Response::new(SetResponse { id })),
-            Err(err) => Err(err.status()),
-        }
+        let id = db
+            .set(
+                context,
+                metadata.collection,
+                data,
+                Meta::from(metadata.tags),
+                acl,
+            )
+            .await?;
+
+        Ok(Response::new(SetResponse { id }))
     }
 
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {

@@ -2,7 +2,7 @@ use crate::storage::Key;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::iter::{FromIterator, IntoIterator, Iterator};
+use std::iter::{FromIterator, IntoIterator};
 use tokio::sync::mpsc;
 
 pub mod data;
@@ -109,6 +109,12 @@ impl IntoIterator for Meta {
     }
 }
 
+impl From<HashMap<String, String>> for Meta {
+    fn from(m: HashMap<String, String>) -> Self {
+        Meta(m)
+    }
+}
+
 impl FromIterator<(String, String)> for Meta {
     fn from_iter<T: IntoIterator<Item = (String, String)>>(iter: T) -> Self {
         let mut map = HashMap::default();
@@ -139,12 +145,13 @@ pub trait Index: Send + Sync + 'static {
 
 pub enum Route {
     Local,
-    Remote(u64),
+    Remote(u32),
 }
 
 pub enum Authorization {
+    Invalid,
     Owner,
-    User(u64),
+    User(u32),
 }
 
 pub struct Context {

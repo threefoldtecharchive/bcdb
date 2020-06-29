@@ -1,3 +1,4 @@
+use crate::database::{Authorization, Context, Route};
 use crate::explorer::Explorer;
 use crate::identity::{Identity, PublicKey, Signature};
 use anyhow::{Error, Result};
@@ -53,13 +54,43 @@ impl Authenticator {
         futures::executor::block_on(self.authenticate(request))
     }
 
+    fn route(&self, meta: &MetadataMap) -> Result<Route, Status> {
+        let header = match meta.get("x-threebot-id") {
+            Some(value) => value,
+            None => return Ok(Route::Local),
+        };
+
+        let id: u32 = match header.to_str() {
+            Ok(s) => match s.parse() {
+                Ok(id) => id,
+                Err(err) => {
+                    return Err(Status::invalid_argument(format!(
+                        "invalid x-threebot-id not a number: {}",
+                        err
+                    )))
+                }
+            },
+            Err(err) => {
+                return Err(Status::invalid_argument(
+                    "invalid x-threebot-id format expecting string",
+                ))
+            }
+        };
+
+        if id == self.id.id() {
+            return Ok(Route::Local);
+        }
+
+        Ok(Route::Remote(id))
+    }
+
     pub async fn authenticate<T>(&self, request: Request<T>) -> Result<Request<T>, Status> {
         let meta = request.metadata();
 
-        if let Route::Proxy(_) = meta.route(self.id.id())? {
-            // this is a proxy call, no authentication is needed
-            return Ok(request);
-        }
+        // if let Route::Remote(_) = meta.route(self.id.id())? {
+        //     // this is a proxy call, no authentication is needed
+        //     return Ok(request);
+        // }
 
         let header_str: String = match meta.get("authorization") {
             None => return Err(Status::unauthenticated("missing authorization header")),
@@ -126,6 +157,8 @@ impl Authenticator {
             }
         };
 
+        let route = self.route(&meta)?;
+
         drop(meta);
 
         let mut request = Request::new(request.into_inner());
@@ -138,11 +171,18 @@ impl Authenticator {
 
         meta.insert(
             "key-id",
-            AsciiMetadataValue::from_str(&format!("{}", header.key_id)).unwrap(),
+            AsciiMetadataValue::from_str(format!("{}", header.key_id)).unwrap(),
         );
 
         if self.id.id() as u64 == header.key_id {
             meta.insert("owner", AsciiMetadataValue::from_str("true").unwrap());
+        }
+
+        if let Route::Remote(id) = route {
+            meta.insert(
+                "remote",
+                AsciiMetadataValue::from_str(format!("{}", id)).unwrap(),
+            );
         }
 
         Ok(request)
@@ -335,68 +375,29 @@ impl FromStr for AuthHeader {
     }
 }
 
-pub enum Route {
-    Local,
-    Proxy(u32),
-}
-
 pub trait MetadataMapExt {
-    fn is_authenticated(&self) -> bool;
-    fn is_owner(&self) -> bool;
-    fn get_user(&self) -> Option<u64>;
-    fn route(&self, current: u32) -> Result<Route, Status>;
+    fn context(&self) -> Context;
 }
 
 impl MetadataMapExt for MetadataMap {
-    fn is_authenticated(&self) -> bool {
-        match self.get("key-id") {
-            Some(_) => true,
-            None => false,
-        }
-    }
-
-    fn is_owner(&self) -> bool {
-        match self.get("owner") {
-            Some(_) => true,
-            None => false,
-        }
-    }
-
-    fn get_user(&self) -> Option<u64> {
-        match self.get("key-id") {
-            Some(u) => Some(u.to_str().unwrap().parse().unwrap()),
-            None => None,
-        }
-    }
-
-    fn route(&self, current: u32) -> Result<Route, Status> {
-        let header = match self.get("x-threebot-id") {
-            Some(value) => value,
-            None => return Ok(Route::Local),
-        };
-
-        let id: u32 = match header.to_str() {
-            Ok(s) => match s.parse() {
-                Ok(id) => id,
-                Err(err) => {
-                    return Err(Status::invalid_argument(format!(
-                        "invalid x-threebot-id not a number: {}",
-                        err
-                    )))
-                }
+    fn context(&self) -> Context {
+        let auth = match self.get("owner") {
+            Some(_) => Authorization::Owner,
+            None => match self.get("key-id") {
+                Some(u) => Authorization::User(u.to_str().unwrap().parse().unwrap()),
+                None => Authorization::Invalid,
             },
-            Err(err) => {
-                return Err(Status::invalid_argument(
-                    "invalid x-threebot-id format expecting string",
-                ))
-            }
         };
 
-        if id == current {
-            return Ok(Route::Local);
-        }
+        let route = match self.get("remote") {
+            None => Route::Local,
+            Some(u) => Route::Remote(u.to_str().unwrap().parse().unwrap()),
+        };
 
-        Ok(Route::Proxy(id))
+        Context {
+            authorization: auth,
+            route: route,
+        }
     }
 }
 
