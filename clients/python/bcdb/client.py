@@ -116,13 +116,6 @@ class BcdbClient:
     def collection(self):
         return self.__collection
 
-    def __tags_from_meta(self, metadata):
-        tags = dict()
-        for tag in metadata.tags:
-            tags[tag.key] = tag.value
-
-        return tags
-
     def get(self, id: int) -> Object:
         """
         gets an object given object id
@@ -133,7 +126,7 @@ class BcdbClient:
         )
 
         response = self.__stub.Get(request, metadata=self.__metadata)
-        tags = self.__tags_from_meta(response.metadata)
+        tags = response.metadata.tags
 
         return Object(
             id=id,
@@ -150,18 +143,12 @@ class BcdbClient:
         :param acl: optional acl key
         :returns: new object id
         """
-        _tags = list()
-        for k, v in tags.items():
-            _tags.append(
-                types.Tag(key=k, value=v)
-            )
-
         request = types.SetRequest(
             data=data,
             metadata=types.Metadata(
                 collection=self.collection,
                 acl=None if acl is None else types.AclRef(acl=acl),
-                tags=_tags,
+                tags=tags,
             )
         )
 
@@ -177,11 +164,6 @@ class BcdbClient:
         :param acl: optional override object acl. note that only owner can set this field
                     even if the caller has a write permission on the object
         """
-        _tags = list()
-        for k, v in tags.items():
-            _tags.append(
-                types.Tag(key=k, value=v)
-            )
 
         request = types.UpdateRequest(
             id=id,
@@ -190,7 +172,7 @@ class BcdbClient:
             metadata=types.Metadata(
                 collection=self.collection,
                 acl=None if acl is None else types.AclRef(acl=acl),
-                tags=_tags,
+                tags=tags,
             )
         )
 
@@ -211,15 +193,10 @@ class BcdbClient:
         """
         List all object ids that matches given tags
         """
-        tags = list()
-        for k, v in matches.items():
-            tags.append(
-                types.Tag(key=k, value=v)
-            )
 
         request = types.QueryRequest(
             collection=self.collection,
-            tags=tags,
+            tags=matches,
         )
 
         for result in self.__stub.List(request, metadata=self.__metadata):
@@ -232,22 +209,17 @@ class BcdbClient:
         Note: returned objects from fiend does not include data. so object.data will always be None
               to get the object data you will have to do a separate call to .get(id)
         """
-        tags = list()
-        for k, v in matches.items():
-            tags.append(
-                types.Tag(key=k, value=v)
-            )
 
         request = types.QueryRequest(
             collection=self.collection,
-            tags=tags,
+            tags=matches,
         )
 
         for result in self.__stub.Find(request, metadata=self.__metadata):
             yield Object(
                 id=result.id,
                 data=None,
-                tags=self.__tags_from_meta(result.metadata),
+                tags=result.metadata.tags,
             )
 
 
