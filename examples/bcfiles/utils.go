@@ -28,6 +28,7 @@ const (
 	tagType = "type"
 )
 
+type T = map[string]string
 type Cursor struct {
 	cl bcdb.BCDB_FindClient
 }
@@ -61,10 +62,10 @@ func put(ctx context.Context, cl bcdb.BCDBClient, path string, data []byte) erro
 			Id: info.id,
 			Metadata: &bcdb.Metadata{
 				Collection: Collection,
-				Tags: []*bcdb.Tag{
-					{Key: tagType, Value: string(File)},
-					{Key: tagName, Value: name},
-					{Key: tagDir, Value: dir},
+				Tags: T{
+					tagType: string(File),
+					tagName: name,
+					tagDir:  dir,
 				},
 			},
 			Data: &bcdb.UpdateRequest_UpdateData{
@@ -80,10 +81,10 @@ func put(ctx context.Context, cl bcdb.BCDBClient, path string, data []byte) erro
 		_, err := cl.Set(ctx, &bcdb.SetRequest{
 			Metadata: &bcdb.Metadata{
 				Collection: Collection,
-				Tags: []*bcdb.Tag{
-					{Key: tagType, Value: string(File)},
-					{Key: tagName, Value: name},
-					{Key: tagDir, Value: dir},
+				Tags: T{
+					tagType: string(File),
+					tagName: name,
+					tagDir:  dir,
 				},
 			},
 			Data: data,
@@ -129,10 +130,10 @@ func mkdir(ctx context.Context, cl bcdb.BCDBClient, dir, name string) error {
 	_, err := cl.Set(ctx, &bcdb.SetRequest{
 		Metadata: &bcdb.Metadata{
 			Collection: Collection,
-			Tags: []*bcdb.Tag{
-				{Key: tagType, Value: string(Directory)},
-				{Key: tagName, Value: name},
-				{Key: tagDir, Value: dir},
+			Tags: T{
+				tagType: string(Directory),
+				tagName: name,
+				tagDir:  dir,
 			},
 		},
 	})
@@ -169,10 +170,7 @@ func get(ctx context.Context, cl bcdb.BCDBClient, dir, name string) (Metadata, e
 	}
 	results, err := cl.Find(ctx, &bcdb.QueryRequest{
 		Collection: Collection,
-		Tags: []*bcdb.Tag{
-			{Key: tagDir, Value: dir},
-			{Key: tagName, Value: name},
-		},
+		Tags:       T{tagDir: dir, tagName: name},
 	})
 
 	if err != nil {
@@ -193,9 +191,7 @@ func list(ctx context.Context, cl bcdb.BCDBClient, dir string) (*Cursor, error) 
 
 	results, err := cl.Find(ctx, &bcdb.QueryRequest{
 		Collection: Collection,
-		Tags: []*bcdb.Tag{
-			{Key: tagDir, Value: dir},
-		},
+		Tags:       T{tagDir: dir},
 	})
 
 	if err != nil {
@@ -208,16 +204,13 @@ func list(ctx context.Context, cl bcdb.BCDBClient, dir string) (*Cursor, error) 
 
 type Metadata struct {
 	id   uint32
-	tags map[string]string
+	tags T
 }
 
-func NewMetadata(id uint32, tags []*bcdb.Tag) Metadata {
+func NewMetadata(id uint32, tags T) Metadata {
 	m := Metadata{
 		id:   id,
-		tags: make(map[string]string),
-	}
-	for _, tag := range tags {
-		m.tags[tag.Key] = tag.Value
+		tags: tags,
 	}
 
 	return m

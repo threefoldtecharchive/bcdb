@@ -171,7 +171,7 @@ impl Authenticator {
 
         meta.insert(
             "key-id",
-            AsciiMetadataValue::from_str(format!("{}", header.key_id)).unwrap(),
+            AsciiMetadataValue::from_str(&format!("{}", header.key_id)).unwrap(),
         );
 
         if self.id.id() as u64 == header.key_id {
@@ -181,7 +181,7 @@ impl Authenticator {
         if let Route::Remote(id) = route {
             meta.insert(
                 "remote",
-                AsciiMetadataValue::from_str(format!("{}", id)).unwrap(),
+                AsciiMetadataValue::from_str(&format!("{}", id)).unwrap(),
             );
         }
 

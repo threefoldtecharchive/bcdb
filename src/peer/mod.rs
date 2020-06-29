@@ -9,6 +9,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 
+mod router;
+pub use router::Router;
+
 type Result<T> = std::result::Result<T, Error>;
 
 pub use crate::explorer::{Explorer, Peer};
@@ -18,8 +21,9 @@ pub trait PeersList: Sync + Send + 'static {
     async fn get(&self, id: u32) -> Result<Peer>;
 }
 
+#[derive(Clone)]
 pub struct PeersFile {
-    peers: HashMap<u32, Peer>,
+    peers: Arc<HashMap<u32, Peer>>,
 }
 
 impl PeersFile {
@@ -44,7 +48,9 @@ impl TryFrom<File> for PeersFile {
             map.insert(peer.id, peer);
         }
 
-        Ok(PeersFile { peers: map })
+        Ok(PeersFile {
+            peers: Arc::new(map),
+        })
     }
 }
 
@@ -70,6 +76,7 @@ impl PeersList for Explorer {
 /// and public key. Then it does identity check and cache this identity
 /// for quick access. Tracker is responsible of making sure peer is valid
 /// before it's used by the system
+#[derive(Clone)]
 pub struct Tracker<L>
 where
     L: PeersList,
@@ -121,6 +128,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub enum Either<A, B>
 where
     A: PeersList,

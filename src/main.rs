@@ -17,7 +17,7 @@ mod database;
 mod explorer;
 mod identity;
 mod peer;
-mod rest;
+//mod rest;
 mod storage;
 
 const MEAT_DIR: &str = ".bcdb-meta";
@@ -155,24 +155,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         acl_store.clone(),
     );
 
-    let local_bcdb = bcdb::LocalBcdb::new(db);
+    let peers = if matches.is_present("peers-file") {
+        peer::Either::A(peer::PeersFile::new(
+            matches.value_of("peers-file").unwrap(),
+        )?)
+    } else {
+        peer::Either::B(peer::Explorer::new(matches.value_of("explorer"))?)
+    };
+
+    // tracker cache peers from the given source, and validate their identity
+    let tracker = peer::Tracker::new(std::time::Duration::from_secs(20 * 60), 1000, peers);
+
+    let db = peer::Router::new(db, tracker);
 
     let interceptor = auth::Authenticator::new(matches.value_of("explorer"), identity.clone())?;
     let acl_interceptor = interceptor.clone();
 
-    let peers = if matches.is_present("peers-file") {
-        bcdb::Either::A(bcdb::PeersFile::new(
-            matches.value_of("peers-file").unwrap(),
-        )?)
-    } else {
-        bcdb::Either::B(bcdb::Explorer::new(matches.value_of("explorer"))?)
-    };
+    let bcdb_service = bcdb::BcdbService::new(db);
 
-    // tracker cache peers from the given source, and validate their identity
-    let tracker = bcdb::Tracker::new(std::time::Duration::from_secs(20 * 60), 1000, peers);
-
-    //bcdb storage api
-    let bcdb_service = bcdb::BcdbService::new(identity.id(), local_bcdb, tracker);
+    // //bcdb storage api
+    // let bcdb_service = bcdb::BcdbService::new(identity.id(), local_bcdb, tracker);
 
     //acl api
     let acl_service = bcdb::AclService::new(acl_store);
@@ -181,18 +183,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let identity_service = bcdb::IdentityService::new(identity.clone());
 
     let grpc_address: SocketAddr = matches.value_of("grpc").unwrap().parse()?;
-    let rest_address = matches.value_of("rest").unwrap().into();
+    // TODO: enable rest
+    // let rest_address = matches.value_of("rest").unwrap().into();
 
-    let grpc_port = grpc_address.port();
-    tokio::spawn(async move {
-        match rest::run(identity, rest_address, grpc_port).await {
-            Ok(_) => {}
-            Err(err) => {
-                error!("failed to start rest api: {}", err);
-                std::process::exit(1);
-            }
-        }
-    });
+    // let grpc_port = grpc_address.port();
+    // tokio::spawn(async move {
+    //     match rest::run(identity, rest_address, grpc_port).await {
+    //         Ok(_) => {}
+    //         Err(err) => {
+    //             error!("failed to start rest api: {}", err);
+    //             std::process::exit(1);
+    //         }
+    //     }
+    // });
 
     Server::builder()
         .add_service(bcdb::BcdbServer::with_interceptor(
