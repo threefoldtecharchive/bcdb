@@ -192,18 +192,44 @@ pub enum Route {
     Remote(u32),
 }
 
+impl Default for Route {
+    fn default() -> Self {
+        Route::Local
+    }
+}
+
 pub enum Authorization {
     Invalid,
     Owner,
     User(u32),
 }
 
+impl Default for Authorization {
+    fn default() -> Self {
+        Authorization::Invalid
+    }
+}
+
+#[derive(Default)]
 pub struct Context {
     pub route: Route,
     pub authorization: Authorization,
 }
 
 impl Context {
+    pub fn with_route(mut self, route: Option<u32>) -> Self {
+        match route {
+            Some(r) => self.route = Route::Remote(r),
+            None => self.route = Route::Local,
+        };
+        self
+    }
+
+    pub fn with_auth(mut self, auth: Authorization) -> Self {
+        self.authorization = auth;
+        self
+    }
+
     pub fn is_owner(&self) -> bool {
         match self.authorization {
             Authorization::Owner => true,

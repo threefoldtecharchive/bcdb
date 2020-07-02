@@ -16,8 +16,8 @@ mod database;
 mod explorer;
 mod identity;
 mod peer;
+mod rest;
 mod rpc;
-//mod rest;
 mod storage;
 
 const MEAT_DIR: &str = ".bcdb-meta";
