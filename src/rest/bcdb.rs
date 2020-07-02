@@ -1,6 +1,4 @@
-use crate::auth::header;
 use crate::database::{Authorization, Context, Database, Meta};
-use crate::identity::Identity;
 use anyhow::Error;
 use http::response::Builder as ResponseBuilder;
 use hyper::Body;
@@ -29,21 +27,6 @@ fn tags_from_str(s: &str) -> Result<Meta, Rejection> {
 
 fn tags_to_str(tags: HashMap<String, String>) -> Result<String, Error> {
     Ok(serde_json::to_string(&tags)?)
-}
-
-fn set_headers<T>(request: &mut tonic::Request<T>, id: Identity, route: Option<String>) {
-    // sign request.
-    request.metadata_mut().append(
-        "authorization",
-        tonic::metadata::AsciiMetadataValue::from_str(header(&id, None).as_ref()).unwrap(),
-    );
-
-    if let Some(header) = route {
-        request.metadata_mut().append(
-            HEADER_ROUTE,
-            tonic::metadata::AsciiMetadataValue::from_str(&header).unwrap(),
-        );
-    };
 }
 
 async fn handle_set<D: Database>(
@@ -145,46 +128,35 @@ async fn handle_delete<D: Database>(
     Ok(warp::reply())
 }
 
-async fn handle_update(
-    cl: Client,
-    id: Identity,
-    route: Option<String>,
+async fn handle_update<D: Database>(
+    mut db: D,
+    route: Option<u32>,
     collection: String,
     key: u32,
-    acl: Option<u32>,
+    acl: Option<u64>,
     tags: Option<String>,
     data: bytes::Bytes,
 ) -> Result<impl warp::Reply, Rejection> {
-    let mut cl = cl.clone();
+    let ctx = Context::default()
+        .with_route(route)
+        .with_auth(Authorization::Owner);
 
     let tags = match tags {
         Some(t) => tags_from_str(t.as_ref())?,
-        None => Vec::new(),
+        None => Meta::default(),
     };
 
-    let request = UpdateRequest {
-        id: key,
-        metadata: Some(Metadata {
-            collection: collection,
-            tags: tags,
-            acl: acl.map(|val| AclRef { acl: val as u64 }),
-        }),
-        data: if data.len() > 0 {
-            Some(update_request::UpdateData {
-                data: Vec::from(data.as_ref()),
-            })
-        } else {
-            None
-        },
+    let data = if data.len() > 0 {
+        Some(Vec::from(data.as_ref()))
+    } else {
+        None
     };
 
-    let mut request = tonic::Request::new(request);
-    set_headers(&mut request, id, route);
+    db.update(ctx, key, collection, data, tags, acl)
+        .await
+        .map_err(|e| super::rejection(e))?;
 
-    match cl.update(request).await {
-        Ok(_) => Ok(warp::reply::reply()),
-        Err(status) => Err(super::status_to_rejection(status)),
-    }
+    Ok(warp::reply())
 }
 
 #[derive(Serialize)]
@@ -194,57 +166,40 @@ struct FindResult {
     acl: Option<u64>,
 }
 
-async fn handle_find(
-    cl: Client,
-    id: Identity,
-    route: Option<String>,
+async fn handle_find<D: Database>(
+    mut db: D,
+    route: Option<u32>,
     collection: String,
     query: String,
 ) -> Result<impl warp::Reply, Rejection> {
-    let mut cl = cl.clone();
+    let ctx = Context::default()
+        .with_route(route)
+        .with_auth(Authorization::Owner);
 
     let query = url::Url::parse(&format!("q:///?{}", query)).unwrap();
-    let mut tags = Vec::new();
+    let mut meta = Meta::default();
     for (k, v) in query.query_pairs() {
         if k == "_" {
             // this is a hack because the query::raw()
             // filter does not work if query string is empty
             continue;
         }
-        tags.push(Tag {
-            key: k.into(),
-            value: v.into(),
-        });
+        meta.insert(k, v);
     }
 
-    let request = QueryRequest {
-        collection: collection,
-        tags: tags,
-    };
-
-    let mut request = tonic::Request::new(request);
-    set_headers(&mut request, id, route);
-
-    let response = match cl.find(request).await {
-        Ok(response) => response,
-        Err(status) => return Err(super::status_to_rejection(status)),
-    };
-    let response = response.into_inner();
+    let results = db
+        .find(ctx, meta, Some(collection))
+        .await
+        .map_err(|e| super::rejection(e))?;
 
     use tokio::stream::StreamExt;
-    let response = response.map(|entry| -> Result<String, Error> {
+    let response = results.map(|entry| -> Result<String, Error> {
         let entry = entry?;
-        let meta = entry.metadata.unwrap();
+        //let meta = entry.metadata.unwrap();
         let data = FindResult {
-            id: entry.id,
-            tags: {
-                let mut map = HashMap::new();
-                for tag in meta.tags {
-                    map.insert(tag.key, tag.value);
-                }
-                map
-            },
-            acl: meta.acl.map(|v| v.acl),
+            id: entry.key,
+            acl: entry.meta.acl(),
+            tags: entry.meta.into(),
         };
 
         Ok(serde_json::to_string(&data)?)
@@ -267,7 +222,7 @@ where
     D: Database + Clone,
 {
     let base = warp::any()
-        .and(with_database(db.clone()))
+        .and(with_database(db))
         .and(warp::header::optional::<u32>(HEADER_ROUTE));
 
     let fetch = base
@@ -281,7 +236,7 @@ where
     let set = collection
         .clone()
         .and(warp::post())
-        .and(warp::header::optional::<u32>(HEADER_ACL))
+        .and(warp::header::optional::<u64>(HEADER_ACL))
         .and(warp::header::optional::<String>(HEADER_TAGS))
         .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
         .and(warp::body::bytes())
@@ -303,7 +258,7 @@ where
         .clone()
         .and(warp::path::param::<u32>()) // key
         .and(warp::put())
-        .and(warp::header::optional::<u32>(HEADER_ACL))
+        .and(warp::header::optional::<u64>(HEADER_ACL))
         .and(warp::header::optional::<String>(HEADER_TAGS))
         .and(warp::body::content_length_limit(4 * 1024 * 1024)) // setting a limit of 4MB
         .and(warp::body::bytes())

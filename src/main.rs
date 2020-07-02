@@ -171,7 +171,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let interceptor = auth::Authenticator::new(matches.value_of("explorer"), identity.clone())?;
     let acl_interceptor = interceptor.clone();
 
-    let bcdb_service = rpc::BcdbService::new(db);
+    let bcdb_service = rpc::BcdbService::new(db.clone());
 
     // //bcdb storage api
     // let bcdb_service = rpc::BcdbService::new(identity.id(), local_bcdb, tracker);
@@ -184,18 +184,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let grpc_address: SocketAddr = matches.value_of("grpc").unwrap().parse()?;
     // TODO: enable rest
-    // let rest_address = matches.value_of("rest").unwrap().into();
 
-    // let grpc_port = grpc_address.port();
-    // tokio::spawn(async move {
-    //     match rest::run(identity, rest_address, grpc_port).await {
-    //         Ok(_) => {}
-    //         Err(err) => {
-    //             error!("failed to start rest api: {}", err);
-    //             std::process::exit(1);
-    //         }
-    //     }
-    // });
+    let rest_address = matches.value_of("rest").unwrap().into();
+    tokio::spawn(async move {
+        match rest::run(db, rest_address).await {
+            Ok(_) => {}
+            Err(err) => {
+                error!("failed to start rest api: {}", err);
+                std::process::exit(1);
+            }
+        }
+    });
 
     Server::builder()
         .add_service(rpc::BcdbServer::with_interceptor(
