@@ -30,6 +30,9 @@ pub enum Reason {
     #[error("operation not supported")]
     NotSupported,
 
+    #[error("Cannot get peer: {0}")]
+    CannotGetPeer(String),
+
     #[error("Unknown error: {0}")]
     Unknown(String),
 }
@@ -40,6 +43,7 @@ impl From<tonic::Status> for Reason {
         match s.code() {
             Code::Unauthenticated => Reason::Unauthorized,
             Code::NotFound => Reason::NotFound,
+            Code::Unavailable => Reason::CannotGetPeer(s.message().into()),
             _ => Reason::Unknown(s.message().into()),
         }
     }

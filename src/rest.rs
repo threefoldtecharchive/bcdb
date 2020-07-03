@@ -31,17 +31,18 @@ pub fn rejection(err: Error) -> Rejection {
     warp::reject::custom(BcdbRejection::Error(err))
 }
 
-fn error_to_code(err: &Error) -> StatusCode {
+fn error_to_code(err: &Error) -> (StatusCode, String) {
     if let Some(e) = err.downcast_ref::<Reason>() {
         return match e {
-            Reason::Unauthorized => StatusCode::UNAUTHORIZED,
-            Reason::NotFound => StatusCode::NOT_FOUND,
-            Reason::NotSupported => StatusCode::NOT_IMPLEMENTED,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
+            Reason::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".into()),
+            Reason::NotFound => (StatusCode::NOT_FOUND, "Not Found".into()),
+            Reason::NotSupported => (StatusCode::NOT_IMPLEMENTED, "Not Implemented".into()),
+            Reason::CannotGetPeer(m) => (StatusCode::BAD_REQUEST, m.into()),
+            Reason::Unknown(m) => (StatusCode::INTERNAL_SERVER_ERROR, m.into()),
         };
     }
 
-    StatusCode::INTERNAL_SERVER_ERROR
+    (StatusCode::INTERNAL_SERVER_ERROR, format!("{}", err))
 }
 
 /// An API error serializable to JSON.
@@ -53,25 +54,26 @@ struct ErrorMessage {
 
 async fn handle_rejections(err: Rejection) -> Result<impl warp::Reply, Infallible> {
     let code;
-    let message;
-    let formatted_error = format!("{:?}", err);
+    let message: String;
 
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
-        message = "Not Found";
+        message = "Not Found".into();
     } else if let Some(BcdbRejection::Error(err)) = err.find() {
-        code = error_to_code(&err);
-        message = &formatted_error;
+        let (c, m) = error_to_code(&err);
+        code = c;
+        message = m;
+    //message = &formatted_error;
     } else if let Some(BcdbRejection::InvalidTagsString) = err.find() {
         code = StatusCode::BAD_REQUEST;
-        message = "Invalid tags header";
+        message = "Invalid tags header".into();
     } else if let Some(_) = err.find::<warp::reject::MethodNotAllowed>() {
         code = StatusCode::METHOD_NOT_ALLOWED;
-        message = "Method not allowed";
+        message = "Method not allowed".into();
     } else {
         // We should have expected this... Just log and say its a 500
         code = StatusCode::INTERNAL_SERVER_ERROR;
-        message = &formatted_error;
+        message = format!("{:?}", err);
     }
 
     let json = warp::reply::json(&ErrorMessage {
@@ -90,8 +92,7 @@ where
     let bcdb_api = bcdb::router(db);
     let acl_api = acl::router(acl);
 
-    //let api = bcdb_api.or(acl_api).recover(handle_rejections);
-    let api = acl_api.recover(handle_rejections);
+    let api = bcdb_api.or(acl_api).recover(handle_rejections);
     let _ = std::fs::remove_file(&unx);
     let mut listener = UnixListener::bind(&unx)?;
     let incoming = listener.incoming();

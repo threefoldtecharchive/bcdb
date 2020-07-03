@@ -32,12 +32,12 @@ where
             .peers
             .get(id)
             .await
-            .with_context(|| format!("failed to get peer: {}", id))?;
+            .map_err(|e| Reason::CannotGetPeer(format!("failed to get peer: {}", e)))?;
 
         let con = peer
             .connect()
             .await
-            .with_context(|| format!("failed to connect to peer: {}", id))?;
+            .map_err(|e| Reason::CannotGetPeer(format!("failed to connect to peer: {}", e)))?;
 
         Ok(BcdbClient::new(con))
     }

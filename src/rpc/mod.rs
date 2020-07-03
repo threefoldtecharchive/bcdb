@@ -33,6 +33,7 @@ impl FailureExt for Error {
                 Reason::Unauthorized => Status::unauthenticated("unauthorized"),
                 Reason::NotFound => Status::not_found("object not found"),
                 Reason::NotSupported => Status::unimplemented("operation not supported"),
+                Reason::CannotGetPeer(m) => Status::unavailable(m),
                 Reason::Unknown(m) => Status::internal(format!("{}", m)),
             };
         }

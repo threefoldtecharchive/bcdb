@@ -483,6 +483,10 @@ class HTTPBcdbClient:
 
         response = self.session.get(self.url(key), headers=self.headers())
 
+        if response.status_code != 200:
+            raise Exception("invalid response: %s (%s)" %
+                            (response.reason, response.content))
+
         return Object(
             id=key,
             data=response.content,

@@ -89,7 +89,7 @@ impl Explorer {
         debug!("explorer: getting user info at: {}", url);
         let peer: Peer = match surf::get(url).recv_json().await {
             Ok(u) => u,
-            Err(err) => bail!("failed to get user: {}", err),
+            Err(_) => bail!("failed to get user '{}'", id),
         };
 
         Ok(peer)
