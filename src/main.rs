@@ -3,6 +3,7 @@ use identity::Identity;
 use log::debug;
 use std::net::SocketAddr;
 use storage::{encrypted::EncryptedStorage, zdb::Zdb};
+use tokio::runtime::Builder;
 use tonic::transport::Server;
 
 #[macro_use]
@@ -22,8 +23,28 @@ mod storage;
 
 const MEAT_DIR: &str = ".bcdb-meta";
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut runtime = Builder::default()
+        .threaded_scheduler()
+        .enable_all()
+        .thread_stack_size(10 * 1024 * 1024) //set stack size to 10MB
+        .build()
+        .unwrap();
+
+    runtime.block_on(async {
+        match entry().await {
+            Ok(_) => {}
+            Err(err) => {
+                eprintln!("{}", err);
+                std::process::exit(1);
+            }
+        };
+    });
+
+    Ok(())
+}
+
+async fn entry() -> Result<(), Box<dyn std::error::Error>> {
     let meta_dir = match dirs::home_dir() {
         Some(p) => p.join(".bcdb-meta"),
         None => std::path::PathBuf::from(MEAT_DIR),
@@ -177,7 +198,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let bcdb_service = rpc::BcdbService::new(identity.id(), local_bcdb, tracker);
 
     //acl api
-    let acl_service = rpc::AclService::new(acl_store);
+    let acl_service = rpc::AclService::new(acl_store.clone());
 
     //identity api
     let identity_service = rpc::IdentityService::new(identity.clone());
@@ -187,7 +208,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let rest_address = matches.value_of("rest").unwrap().into();
     tokio::spawn(async move {
-        match rest::run(db, rest_address).await {
+        match rest::run(db, acl_store, rest_address).await {
             Ok(_) => {}
             Err(err) => {
                 error!("failed to start rest api: {}", err);

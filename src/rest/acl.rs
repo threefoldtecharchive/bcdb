@@ -1,15 +1,15 @@
-use crate::auth::header;
-use crate::bcdb::generated::acl_client::AclClient;
-use crate::bcdb::generated::*;
-use crate::identity::Identity;
+use super::BcdbRejection;
+use crate::acl::{ACLStorage, Permissions, ACL as ACLObject};
+use crate::storage::Storage;
 use anyhow::Error;
 use hyper::Body;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::iter::FromIterator;
+use std::str::FromStr;
 use warp::http::StatusCode;
 use warp::reject::Rejection;
 use warp::Filter;
-
-type Client = AclClient<tonic::transport::Channel>;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ACLGetResponse {
@@ -33,143 +33,128 @@ struct ACLUsersRequest {
     users: Vec<u64>,
 }
 
-fn set_headers<T>(request: &mut tonic::Request<T>, id: Identity) {
-    // sign request.
-    request.metadata_mut().append(
-        "authorization",
-        tonic::metadata::AsciiMetadataValue::from_str(header(&id, None).as_ref()).unwrap(),
-    );
-}
-
-async fn handle_create(
-    cl: Client,
-    id: Identity,
+async fn handle_create<S>(
+    mut storage: ACLStorage<S>,
     body: ACLCreateRequest,
-) -> Result<impl warp::Reply, Rejection> {
-    let mut cl = cl.clone();
-
-    let request = AclCreateRequest {
-        acl: Some(Acl {
-            perm: body.perm,
-            users: body.users,
-        }),
+) -> Result<impl warp::Reply, Rejection>
+where
+    S: Storage,
+{
+    let acl = ACLObject {
+        perm: Permissions::from_str(body.perm.as_ref())
+            .map_err(|_| warp::reject::custom(BcdbRejection::InvalidACLPermission))?,
+        users: body.users,
     };
 
-    let mut request = tonic::Request::new(request);
-    set_headers(&mut request, id);
-
-    let response = match cl.create(request).await {
-        Ok(response) => response,
-        Err(status) => return Err(super::status_to_rejection(status)),
-    };
-
-    let response = response.into_inner();
+    let key = storage.create(&acl).map_err(|e| super::rejection(e))?;
 
     Ok(warp::reply::with_status(
-        warp::reply::json(&response.key),
+        warp::reply::json(&key),
         StatusCode::CREATED,
     ))
 }
 
-async fn handle_set(
-    cl: Client,
-    id: Identity,
+async fn handle_set<S>(
+    mut storage: ACLStorage<S>,
     key: u32,
     body: ACLSetRequest,
-) -> Result<impl warp::Reply, Rejection> {
-    let mut cl = cl.clone();
-
-    let request = AclSetRequest {
-        key: key,
-        perm: body.perm,
+) -> Result<impl warp::Reply, Rejection>
+where
+    S: Storage,
+{
+    let acl = storage.get(key).map_err(|e| super::rejection(e))?;
+    let mut acl = match acl {
+        None => return Err(warp::reject::not_found()),
+        Some(acl) => acl,
     };
 
-    let mut request = tonic::Request::new(request);
-    set_headers(&mut request, id);
+    acl.perm = body
+        .perm
+        .parse()
+        .map_err(|_| warp::reject::custom(BcdbRejection::InvalidACLPermission))?;
 
-    match cl.set(request).await {
-        Ok(response) => response,
-        Err(status) => return Err(super::status_to_rejection(status)),
-    };
+    storage.update(key, &acl).map_err(|e| super::rejection(e))?;
 
     Ok(warp::reply::reply())
 }
 
-async fn handle_get(cl: Client, id: Identity, key: u32) -> Result<impl warp::Reply, Rejection> {
-    let mut cl = cl.clone();
+async fn handle_get<S>(mut storage: ACLStorage<S>, key: u32) -> Result<impl warp::Reply, Rejection>
+where
+    S: Storage,
+{
+    let acl = storage.get(key).map_err(|e| super::rejection(e))?;
 
-    let request = AclGetRequest { key: key };
-
-    let mut request = tonic::Request::new(request);
-    set_headers(&mut request, id);
-
-    let response = match cl.get(request).await {
-        Ok(response) => response,
-        Err(status) => return Err(super::status_to_rejection(status)),
+    let acl = match acl {
+        None => return Err(warp::reject::not_found()),
+        Some(acl) => acl,
     };
 
-    let response = response.into_inner();
+    let response = ACLGetResponse {
+        perm: format!("{}", acl.perm),
+        users: acl.users,
+    };
 
-    match response.acl {
-        Some(acl) => {
-            let act_get_response = ACLGetResponse {
-                perm: acl.perm,
-                users: acl.users,
-            };
-            Ok(warp::reply::json(&act_get_response))
-        }
-        None => Err(warp::reject::not_found()),
+    Ok(warp::reply::json(&response))
+}
+
+async fn handle_grant<S>(
+    mut storage: ACLStorage<S>,
+    key: u32,
+    body: ACLUsersRequest,
+) -> Result<impl warp::Reply, Rejection>
+where
+    S: Storage,
+{
+    let acl = storage.get(key).map_err(|e| super::rejection(e))?;
+    let mut acl = match acl {
+        None => return Err(warp::reject::not_found()),
+        Some(acl) => acl,
+    };
+
+    let mut set: HashSet<u64> = HashSet::from_iter(acl.users);
+    let len = set.len();
+    body.users.iter().for_each(|u| {
+        set.insert(*u);
+    });
+
+    let updated = set.len() - len;
+    if updated > 0 {
+        acl.users = Vec::from_iter(set.into_iter());
+
+        storage.update(key, &acl).map_err(|e| super::rejection(e))?;
     }
+
+    Ok(warp::reply::json(&updated))
 }
 
-async fn handle_grant(
-    cl: Client,
-    id: Identity,
+async fn handle_revoke<S>(
+    mut storage: ACLStorage<S>,
     key: u32,
     body: ACLUsersRequest,
-) -> Result<impl warp::Reply, Rejection> {
-    let mut cl = cl.clone();
-
-    let request = AclUsersRequest {
-        key: key,
-        users: body.users,
+) -> Result<impl warp::Reply, Rejection>
+where
+    S: Storage,
+{
+    let acl = storage.get(key).map_err(|e| super::rejection(e))?;
+    let mut acl = match acl {
+        None => return Err(warp::reject::not_found()),
+        Some(acl) => acl,
     };
 
-    let mut request = tonic::Request::new(request);
-    set_headers(&mut request, id);
+    let mut set: HashSet<u64> = HashSet::from_iter(acl.users);
+    let len = set.len();
+    body.users.iter().for_each(|u| {
+        set.remove(u);
+    });
 
-    let response = match cl.grant(request).await {
-        Ok(response) => response,
-        Err(status) => return Err(super::status_to_rejection(status)),
-    };
+    let updated = len - set.len();
+    if updated > 0 {
+        acl.users = Vec::from_iter(set.into_iter());
 
-    let response = response.into_inner();
-    Ok(warp::reply::json(&response.updated))
-}
+        storage.update(key, &acl).map_err(|e| super::rejection(e))?;
+    }
 
-async fn handle_revoke(
-    cl: Client,
-    id: Identity,
-    key: u32,
-    body: ACLUsersRequest,
-) -> Result<impl warp::Reply, Rejection> {
-    let mut cl = cl.clone();
-
-    let request = AclUsersRequest {
-        key: key,
-        users: body.users,
-    };
-
-    let mut request = tonic::Request::new(request);
-    set_headers(&mut request, id);
-
-    let response = match cl.revoke(request).await {
-        Ok(response) => response,
-        Err(status) => return Err(super::status_to_rejection(status)),
-    };
-
-    let response = response.into_inner();
-    Ok(warp::reply::json(&response.updated))
+    Ok(warp::reply::json(&updated))
 }
 
 #[derive(Serialize)]
@@ -184,56 +169,52 @@ struct ListResult {
     acl: ACL,
 }
 
-async fn handle_list(cl: Client, id: Identity) -> Result<impl warp::Reply, Rejection> {
-    let mut cl = cl.clone();
+async fn handle_list<S>(mut storage: ACLStorage<S>) -> Result<impl warp::Reply, Rejection>
+where
+    S: Storage + Send + Clone,
+{
+    //let mut storage = storage.clone();
+    let response = storage.list().map_err(|e| super::rejection(e))?;
+    let response: Vec<Result<String, Error>> = response
+        .map(|item| -> Result<String, Error> {
+            let (key, acl) = item?;
+            let data = ListResult {
+                key: key,
+                acl: ACL {
+                    perm: format!("{}", acl.perm),
+                    users: acl.users,
+                },
+            };
+            Ok(serde_json::to_string(&data)?)
+        })
+        .collect();
 
-    let mut request = tonic::Request::new(AclListRequest {});
-    set_headers(&mut request, id);
+    //TODO: doing a collect here will load all the list from the db.
+    //we need to figure out another way to not have to do this and
+    //convert this to a stream
 
-    let response = match cl.list(request).await {
-        Ok(response) => response,
-        Err(status) => return Err(super::status_to_rejection(status)),
-    };
-    let response = response.into_inner();
-
-    use tokio::stream::StreamExt;
-    let response = response.map(|entry| -> Result<String, Error> {
-        let entry = entry?;
-        let acl = entry.acl.unwrap();
-        let data = ListResult {
-            key: entry.key,
-            acl: ACL {
-                perm: acl.perm,
-                users: acl.users,
-            },
-        };
-        Ok(serde_json::to_string(&data)?)
-    });
-
-    let body = Body::wrap_stream(response);
+    let stream = tokio::stream::iter(response);
+    let body = Body::wrap_stream(stream);
 
     Ok(warp::reply::Response::new(body))
 }
 
-fn with_client(
-    cl: Client,
-) -> impl Filter<Extract = (Client,), Error = std::convert::Infallible> + Clone {
-    warp::any().map(move || cl.clone())
+fn with_storage<S>(
+    storage: ACLStorage<S>,
+) -> impl Filter<Extract = (ACLStorage<S>,), Error = std::convert::Infallible> + Clone
+where
+    S: Storage + Clone + Send + Sync,
+{
+    warp::any().map(move || storage.clone())
 }
 
-fn with_identity(
-    id: Identity,
-) -> impl Filter<Extract = (Identity,), Error = std::convert::Infallible> + Clone {
-    warp::any().map(move || id.clone())
-}
-
-pub fn router(
-    id: Identity,
-    cl: Client,
-) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
-    let base = warp::any()
-        .and(with_client(cl.clone()))
-        .and(with_identity(id.clone()));
+pub fn router<S>(
+    storage: ACLStorage<S>,
+) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone
+where
+    S: Storage + Clone + Send + Sync,
+{
+    let base = warp::any().and(with_storage(storage.clone()));
 
     let create = base
         .clone()
@@ -274,5 +255,5 @@ pub fn router(
         .and(warp::body::json())
         .and_then(handle_revoke);
 
-    warp::path("acl").and(set.or(grant).or(revoke).or(get).or(list).or(create))
+    warp::path("acl").and(set.or(grant).or(revoke).or(get).or(create).or(list))
 }

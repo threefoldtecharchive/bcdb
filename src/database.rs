@@ -187,6 +187,7 @@ pub trait Index: Send + Sync + 'static {
     async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>>;
 }
 
+#[derive(Debug)]
 pub enum Route {
     Local,
     Remote(u32),
@@ -198,6 +199,7 @@ impl Default for Route {
     }
 }
 
+#[derive(Debug)]
 pub enum Authorization {
     Invalid,
     Owner,
@@ -210,7 +212,7 @@ impl Default for Authorization {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Context {
     pub route: Route,
     pub authorization: Authorization,

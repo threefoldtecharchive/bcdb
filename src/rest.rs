@@ -4,7 +4,9 @@ and forward all calls from the HTTP interface to the official grpc interface.
 
 This might change in the future to directly access the data layer
 */
+use crate::acl::ACLStorage;
 use crate::database::{Database, Reason};
+use crate::storage::Storage;
 use anyhow::Error;
 use serde::Serialize;
 use std::convert::Infallible;
@@ -13,13 +15,14 @@ use warp::http::StatusCode;
 use warp::reject::{Reject, Rejection};
 use warp::Filter;
 
-//mod acl;
+mod acl;
 mod bcdb;
 
 #[derive(Debug)]
 enum BcdbRejection {
     Error(Error),
     InvalidTagsString,
+    InvalidACLPermission,
 }
 
 impl Reject for BcdbRejection {}
@@ -79,36 +82,21 @@ async fn handle_rejections(err: Rejection) -> Result<impl warp::Reply, Infallibl
     Ok(warp::reply::with_status(json, code))
 }
 
-pub async fn run<D>(db: D, unx: String) -> Result<(), Error>
+pub async fn run<D, S>(db: D, acl: ACLStorage<S>, unx: String) -> Result<(), Error>
 where
     D: Database + Clone,
+    S: Storage + Clone + Send + Sync + 'static,
 {
-    // let u = format!("http://127.0.0.1:{}", grpc);
+    let bcdb_api = bcdb::router(db);
+    let acl_api = acl::router(acl);
 
-    // let channel = loop {
-    //     let channel = tonic::transport::Endpoint::new(u.clone())?.connect().await;
-    //     match channel {
-    //         Ok(channel) => break channel,
-    //         Err(err) => {
-    //             debug!("failed to establish connection to grpc interface: {}", err);
-    //             debug!("retrying");
-    //             tokio::time::delay_for(std::time::Duration::from_millis(300)).await;
-    //             continue;
-    //         }
-    //     };
-    // };
-
-    // let channel = tonic::transport::Endpoint::new(u)?.connect().await;
-    let bcdb_api = bcdb::router(db).recover(handle_rejections);
-    //let acl_api = acl::router(id.clone(), AclClient::new(channel));
-
-    //let api = bcdb_api.recover(handle_rejections);
-
+    //let api = bcdb_api.or(acl_api).recover(handle_rejections);
+    let api = acl_api.recover(handle_rejections);
     let _ = std::fs::remove_file(&unx);
     let mut listener = UnixListener::bind(&unx)?;
     let incoming = listener.incoming();
     info!("starting the rest api on {}", unx);
-    warp::serve(bcdb_api).run_incoming(incoming).await;
+    warp::serve(api).run_incoming(incoming).await;
 
     Ok(())
 }
