@@ -87,11 +87,6 @@ impl Authenticator {
     pub async fn authenticate<T>(&self, request: Request<T>) -> Result<Request<T>, Status> {
         let meta = request.metadata();
 
-        // if let Route::Remote(_) = meta.route(self.id.id())? {
-        //     // this is a proxy call, no authentication is needed
-        //     return Ok(request);
-        // }
-
         let header_str: String = match meta.get("authorization") {
             None => return Err(Status::unauthenticated("missing authorization header")),
             Some(v) => v.to_str().unwrap().into(),
