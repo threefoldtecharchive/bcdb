@@ -194,9 +194,6 @@ async fn entry() -> Result<(), Box<dyn std::error::Error>> {
 
     let bcdb_service = rpc::BcdbService::new(db.clone());
 
-    // //bcdb storage api
-    // let bcdb_service = rpc::BcdbService::new(identity.id(), local_bcdb, tracker);
-
     //acl api
     let acl_service = rpc::AclService::new(acl_store.clone());
 
