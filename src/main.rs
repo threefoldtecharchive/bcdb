@@ -1,4 +1,4 @@
-use clap::{App, Arg};
+use clap::{App, Arg, SubCommand};
 use identity::Identity;
 use log::debug;
 use std::net::SocketAddr;
@@ -132,6 +132,7 @@ async fn entry() -> Result<(), Box<dyn std::error::Error>> {
                 .required(false)
                 .env("PEERS_FILE"),
         )
+        .subcommand(SubCommand::with_name("rebuild").about("rebuild index from zdb"))
         .get_matches();
 
     let level = if matches.is_present("debug") {
@@ -171,6 +172,12 @@ async fn entry() -> Result<(), Box<dyn std::error::Error>> {
         index,
         EncryptedStorage::new(identity.as_sk_bytes(), zdb.collection("metadata")),
     );
+
+    if let Some(_) = matches.subcommand_matches("rebuild") {
+        let mut index = index;
+        index.rebuild().await?;
+        return Ok(());
+    }
 
     // the acl_store
     let acl_store = acl::ACLStorage::new(EncryptedStorage::new(

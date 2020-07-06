@@ -2,7 +2,7 @@ use super::*;
 use crate::storage::Storage;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json;
 use sqlx::prelude::*;
 use sqlx::SqlitePool;
@@ -193,9 +193,15 @@ impl Schema {
 }
 
 #[derive(Serialize)]
-struct ZdbMeta<'a> {
+struct ZdbMetaSer<'a> {
     key: Key,
     tags: &'a HashMap<String, String>,
+}
+
+#[derive(Deserialize)]
+struct ZdbMetaDe {
+    key: Key,
+    tags: HashMap<String, String>,
 }
 
 /// An index interceptor that also stores the metadata in
@@ -224,6 +230,33 @@ where
     }
 }
 
+impl<I, S> MetaInterceptor<I, S>
+where
+    I: Index,
+    S: Storage,
+{
+    /// rebuild index by scanning the storage database for entries,
+    /// and calling set on the index store. Optionally start scanning from
+    /// from.
+    pub async fn rebuild(&mut self) -> Result<()> {
+        for k in self.storage.keys()? {
+            let data = match self.storage.get(k)? {
+                Some(data) => data,
+                None => {
+                    warn!("metadata with key '{}' not found", k);
+                    continue;
+                }
+            };
+
+            let obj = serde_json::from_slice::<ZdbMetaDe>(&data)?;
+
+            self.inner.set(obj.key, Meta::from(obj.tags)).await?;
+        }
+
+        Ok(())
+    }
+}
+
 #[async_trait]
 impl<I, S> Index for MetaInterceptor<I, S>
 where
@@ -231,7 +264,7 @@ where
     S: Storage + Send + Sync + 'static,
 {
     async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
-        let m = ZdbMeta {
+        let m = ZdbMetaSer {
             key: key,
             tags: &meta.0,
         };
