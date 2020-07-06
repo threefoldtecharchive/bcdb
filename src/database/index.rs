@@ -1,9 +1,13 @@
 use super::*;
+use crate::storage::Storage;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use serde::Serialize;
+use serde_json;
 use sqlx::prelude::*;
 use sqlx::SqlitePool;
 use tokio::sync::mpsc;
+use tokio::task::spawn_blocking;
 
 pub struct SqliteIndexBuilder {
     root: String,
@@ -185,6 +189,68 @@ impl Schema {
         });
 
         Ok(rx)
+    }
+}
+
+#[derive(Serialize)]
+struct ZdbMeta<'a> {
+    key: Key,
+    tags: &'a HashMap<String, String>,
+}
+
+/// An index interceptor that also stores the metadata in
+/// a Storage.
+#[derive(Clone)]
+pub struct MetaInterceptor<I, S>
+where
+    I: Index,
+    S: Storage,
+{
+    inner: I,
+    storage: S,
+}
+
+impl<I, S> MetaInterceptor<I, S>
+where
+    I: Index,
+    S: Storage,
+{
+    /// creates a new instance of the zdb interceptor
+    pub fn new(index: I, storage: S) -> Self {
+        MetaInterceptor {
+            inner: index,
+            storage: storage,
+        }
+    }
+}
+
+#[async_trait]
+impl<I, S> Index for MetaInterceptor<I, S>
+where
+    I: Index,
+    S: Storage + Send + Sync + 'static,
+{
+    async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
+        let m = ZdbMeta {
+            key: key,
+            tags: &meta.0,
+        };
+
+        let bytes = serde_json::to_vec(&m)?;
+        let mut db = self.storage.clone();
+        spawn_blocking(move || db.set(None, &bytes).expect("failed to set metadata"))
+            .await
+            .context("failed to run blocking task")?;
+
+        self.inner.set(key, meta).await
+    }
+
+    async fn get(&mut self, key: Key) -> Result<Meta> {
+        self.inner.get(key).await
+    }
+
+    async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
+        self.inner.find(meta).await
     }
 }
 

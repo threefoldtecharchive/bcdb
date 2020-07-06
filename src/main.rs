@@ -161,8 +161,16 @@ async fn entry() -> Result<(), Box<dyn std::error::Error>> {
 
     let zdb = Zdb::new(matches.value_of("zdb").unwrap().parse()?);
 
-    // use sqlite meta data factory
-    let meta_factory = database::index::SqliteIndexBuilder::new(matches.value_of("meta").unwrap())?;
+    // use sqlite meta data factory, to build a sqlite index
+    let index = database::index::SqliteIndexBuilder::new(matches.value_of("meta").unwrap())?
+        .build("metadata")
+        .await?;
+
+    // intercept the index to also store the metadata in zdb as well
+    let index = database::index::MetaInterceptor::new(
+        index,
+        EncryptedStorage::new(identity.as_sk_bytes(), zdb.collection("metadata")),
+    );
 
     // the acl_store
     let acl_store = acl::ACLStorage::new(EncryptedStorage::new(
@@ -172,7 +180,7 @@ async fn entry() -> Result<(), Box<dyn std::error::Error>> {
 
     let db = database::BcdbDatabase::new(
         EncryptedStorage::new(identity.as_sk_bytes(), zdb.collection("objects")),
-        meta_factory.build("metadata").await?,
+        index,
         acl_store.clone(),
     );
 
