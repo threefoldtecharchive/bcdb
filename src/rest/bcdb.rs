@@ -67,7 +67,6 @@ async fn handle_get<D: Database>(
         .with_route(route)
         .with_auth(Authorization::Owner);
 
-    info!("context: {:?}", ctx);
     let object = db
         .get(ctx, key, collection)
         .await
