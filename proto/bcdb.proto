@@ -42,7 +42,7 @@ message AclRef { uint64 acl = 1; }
 // Metadata represents a set of tags (also known as Metadata)
 message Metadata {
   // set of searchable tags.
-  repeated Tag tags = 1;
+  map<string, string> tags = 1;
   // required collection
   string collection = 2;
   // acl is a ref to the acl key (optional)
@@ -88,7 +88,7 @@ message UpdateResponse {}
 // Query request for finding entries
 message QueryRequest {
   string collection = 1;
-  repeated Tag tags = 2;
+  map<string, string> tags = 2;
 }
 
 // List response

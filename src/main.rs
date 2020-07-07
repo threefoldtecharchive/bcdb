@@ -1,28 +1,50 @@
-use clap::{App, Arg};
+use clap::{App, Arg, SubCommand};
 use identity::Identity;
 use log::debug;
 use std::net::SocketAddr;
 use storage::{encrypted::EncryptedStorage, zdb::Zdb};
+use tokio::runtime::Builder;
 use tonic::transport::Server;
 
 #[macro_use]
-extern crate failure;
+extern crate anyhow;
 #[macro_use]
 extern crate log;
 
 mod acl;
 mod auth;
-mod bcdb;
+mod database;
 mod explorer;
 mod identity;
-mod meta;
+mod peer;
 mod rest;
+mod rpc;
 mod storage;
 
 const MEAT_DIR: &str = ".bcdb-meta";
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut runtime = Builder::default()
+        .threaded_scheduler()
+        .enable_all()
+        .thread_stack_size(10 * 1024 * 1024) //set stack size to 10MB
+        .build()
+        .unwrap();
+
+    runtime.block_on(async {
+        match entry().await {
+            Ok(_) => {}
+            Err(err) => {
+                eprintln!("{}", err);
+                std::process::exit(1);
+            }
+        };
+    });
+
+    Ok(())
+}
+
+async fn entry() -> Result<(), Box<dyn std::error::Error>> {
     let meta_dir = match dirs::home_dir() {
         Some(p) => p.join(".bcdb-meta"),
         None => std::path::PathBuf::from(MEAT_DIR),
@@ -110,6 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .required(false)
                 .env("PEERS_FILE"),
         )
+        .subcommand(SubCommand::with_name("rebuild").about("rebuild index from zdb"))
         .get_matches();
 
     let level = if matches.is_present("debug") {
@@ -139,9 +162,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let zdb = Zdb::new(matches.value_of("zdb").unwrap().parse()?);
 
-    // use sqlite meta data factory
-    let meta_factory =
-        meta::sqlite::SqliteMetaStoreBuilder::new(matches.value_of("meta").unwrap())?;
+    // use sqlite meta data factory, to build a sqlite index
+    let index = database::index::SqliteIndexBuilder::new(matches.value_of("meta").unwrap())?
+        .build("metadata")
+        .await?;
+
+    // intercept the index to also store the metadata in zdb as well
+    let index = database::index::MetaInterceptor::new(
+        index,
+        EncryptedStorage::new(identity.as_sk_bytes(), zdb.collection("metadata")),
+    );
+
+    if let Some(_) = matches.subcommand_matches("rebuild") {
+        let mut index = index;
+        index.rebuild().await?;
+        return Ok(());
+    }
 
     // the acl_store
     let acl_store = acl::ACLStorage::new(EncryptedStorage::new(
@@ -149,41 +185,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         zdb.collection("acl"),
     ));
 
-    let local_bcdb = bcdb::LocalBcdb::new(
+    let db = database::BcdbDatabase::new(
         EncryptedStorage::new(identity.as_sk_bytes(), zdb.collection("objects")),
-        meta_factory.build("metadata").await?,
+        index,
         acl_store.clone(),
     );
+
+    let peers = if matches.is_present("peers-file") {
+        peer::Either::A(peer::PeersFile::new(
+            matches.value_of("peers-file").unwrap(),
+        )?)
+    } else {
+        peer::Either::B(peer::Explorer::new(matches.value_of("explorer"))?)
+    };
+
+    // tracker cache peers from the given source, and validate their identity
+    let tracker = peer::Tracker::new(std::time::Duration::from_secs(20 * 60), 1000, peers);
+
+    let db = peer::Router::new(identity.clone(), db, tracker);
 
     let interceptor = auth::Authenticator::new(matches.value_of("explorer"), identity.clone())?;
     let acl_interceptor = interceptor.clone();
 
-    let peers = if matches.is_present("peers-file") {
-        bcdb::Either::A(bcdb::PeersFile::new(
-            matches.value_of("peers-file").unwrap(),
-        )?)
-    } else {
-        bcdb::Either::B(bcdb::Explorer::new(matches.value_of("explorer"))?)
-    };
-
-    // tracker cache peers from the given source, and validate their identity
-    let tracker = bcdb::Tracker::new(std::time::Duration::from_secs(20 * 60), 1000, peers);
-
-    //bcdb storage api
-    let bcdb_service = bcdb::BcdbService::new(identity.id(), local_bcdb, tracker);
+    let bcdb_service = rpc::BcdbService::new(db.clone());
 
     //acl api
-    let acl_service = bcdb::AclService::new(acl_store);
+    let acl_service = rpc::AclService::new(acl_store.clone());
 
     //identity api
-    let identity_service = bcdb::IdentityService::new(identity.clone());
+    let identity_service = rpc::IdentityService::new(identity.clone());
 
     let grpc_address: SocketAddr = matches.value_of("grpc").unwrap().parse()?;
-    let rest_address = matches.value_of("rest").unwrap().into();
+    // TODO: enable rest
 
-    let grpc_port = grpc_address.port();
+    let rest_address = matches.value_of("rest").unwrap().into();
     tokio::spawn(async move {
-        match rest::run(identity, rest_address, grpc_port).await {
+        match rest::run(db, acl_store, rest_address).await {
             Ok(_) => {}
             Err(err) => {
                 error!("failed to start rest api: {}", err);
@@ -193,15 +230,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     Server::builder()
-        .add_service(bcdb::BcdbServer::with_interceptor(
+        .add_service(rpc::BcdbServer::with_interceptor(
             bcdb_service,
             move |request| interceptor.authenticate_blocking(request),
         ))
-        .add_service(bcdb::AclServer::with_interceptor(
+        .add_service(rpc::AclServer::with_interceptor(
             acl_service,
             move |request| acl_interceptor.authenticate_blocking(request),
         ))
-        .add_service(bcdb::IdentityServer::new(identity_service))
+        .add_service(rpc::IdentityServer::new(identity_service))
         .serve(grpc_address)
         .await?;
 

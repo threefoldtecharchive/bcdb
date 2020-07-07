@@ -1,7 +1,7 @@
-use crate::bcdb::generated::identity_client::IdentityClient;
-use crate::bcdb::generated::SignRequest;
 use crate::identity::{PublicKey, Signature};
-use failure::Error;
+use crate::rpc::generated::identity_client::IdentityClient;
+use crate::rpc::generated::SignRequest;
+use anyhow::Result;
 use serde::Deserialize;
 use surf;
 use url::Url;
@@ -28,7 +28,7 @@ pub struct Peer {
 }
 
 impl Peer {
-    pub async fn connect(&self) -> Result<tonic::transport::Channel, Error> {
+    pub async fn connect(&self) -> Result<tonic::transport::Channel> {
         debug!("connecting to peer: {}", self.host);
         let con = tonic::transport::Endpoint::new(self.host.clone())?
             .connect()
@@ -37,7 +37,7 @@ impl Peer {
         Ok(con)
     }
 
-    async fn verify(&self) -> Result<(), Error> {
+    async fn verify(&self) -> Result<()> {
         // this need to make a grpc call to the peer
         // identity grpc service.
         // and validate it indeed owns the sk associated
@@ -68,7 +68,7 @@ pub struct Explorer {
 }
 
 impl Explorer {
-    pub fn new(base: Option<&str>) -> Result<Explorer, Error> {
+    pub fn new(base: Option<&str>) -> Result<Explorer> {
         let base: Url = match base {
             Some(base) => {
                 // we need to make sure that the url always end up in /
@@ -84,12 +84,12 @@ impl Explorer {
         Ok(Explorer { base })
     }
 
-    pub async fn get(&self, id: u32) -> Result<Peer, Error> {
+    pub async fn get(&self, id: u32) -> Result<Peer> {
         let url = self.base.join(&format!("users/{}", id))?;
         debug!("explorer: getting user info at: {}", url);
         let peer: Peer = match surf::get(url).recv_json().await {
             Ok(u) => u,
-            Err(err) => bail!("failed to get user: {}", err),
+            Err(_) => bail!("failed to get user '{}'", id),
         };
 
         Ok(peer)

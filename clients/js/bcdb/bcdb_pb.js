@@ -97,7 +97,7 @@ if (goog.DEBUG && !COMPILED) {
  * @constructor
  */
 proto.bcdb.Metadata = function(opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, proto.bcdb.Metadata.repeatedFields_, null);
+  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
 goog.inherits(proto.bcdb.Metadata, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
@@ -286,7 +286,7 @@ if (goog.DEBUG && !COMPILED) {
  * @constructor
  */
 proto.bcdb.QueryRequest = function(opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, proto.bcdb.QueryRequest.repeatedFields_, null);
+  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
 goog.inherits(proto.bcdb.QueryRequest, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
@@ -1007,13 +1007,6 @@ proto.bcdb.AclRef.prototype.setAcl = function(value) {
 
 
 
-/**
- * List of repeated fields within this message type.
- * @private {!Array<number>}
- * @const
- */
-proto.bcdb.Metadata.repeatedFields_ = [1];
-
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
@@ -1045,8 +1038,7 @@ proto.bcdb.Metadata.prototype.toObject = function(opt_includeInstance) {
  */
 proto.bcdb.Metadata.toObject = function(includeInstance, msg) {
   var f, obj = {
-    tagsList: jspb.Message.toObjectList(msg.getTagsList(),
-    proto.bcdb.Tag.toObject, includeInstance),
+    tagsMap: (f = msg.getTagsMap()) ? f.toObject(includeInstance, undefined) : [],
     collection: jspb.Message.getFieldWithDefault(msg, 2, ""),
     acl: (f = msg.getAcl()) && proto.bcdb.AclRef.toObject(includeInstance, f)
   };
@@ -1086,9 +1078,10 @@ proto.bcdb.Metadata.deserializeBinaryFromReader = function(msg, reader) {
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
-      var value = new proto.bcdb.Tag;
-      reader.readMessage(value,proto.bcdb.Tag.deserializeBinaryFromReader);
-      msg.addTags(value);
+      var value = msg.getTagsMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readString, null, "", "");
+         });
       break;
     case 2:
       var value = /** @type {string} */ (reader.readString());
@@ -1128,13 +1121,9 @@ proto.bcdb.Metadata.prototype.serializeBinary = function() {
  */
 proto.bcdb.Metadata.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getTagsList();
-  if (f.length > 0) {
-    writer.writeRepeatedMessage(
-      1,
-      f,
-      proto.bcdb.Tag.serializeBinaryToWriter
-    );
+  f = message.getTagsMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(1, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeString);
   }
   f = message.getCollection();
   if (f.length > 0) {
@@ -1155,41 +1144,25 @@ proto.bcdb.Metadata.serializeBinaryToWriter = function(message, writer) {
 
 
 /**
- * repeated Tag tags = 1;
- * @return {!Array<!proto.bcdb.Tag>}
+ * map<string, string> tags = 1;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,string>}
  */
-proto.bcdb.Metadata.prototype.getTagsList = function() {
-  return /** @type{!Array<!proto.bcdb.Tag>} */ (
-    jspb.Message.getRepeatedWrapperField(this, proto.bcdb.Tag, 1));
+proto.bcdb.Metadata.prototype.getTagsMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,string>} */ (
+      jspb.Message.getMapField(this, 1, opt_noLazyCreate,
+      null));
 };
 
 
 /**
- * @param {!Array<!proto.bcdb.Tag>} value
- * @return {!proto.bcdb.Metadata} returns this
-*/
-proto.bcdb.Metadata.prototype.setTagsList = function(value) {
-  return jspb.Message.setRepeatedWrapperField(this, 1, value);
-};
-
-
-/**
- * @param {!proto.bcdb.Tag=} opt_value
- * @param {number=} opt_index
- * @return {!proto.bcdb.Tag}
- */
-proto.bcdb.Metadata.prototype.addTags = function(opt_value, opt_index) {
-  return jspb.Message.addToRepeatedWrapperField(this, 1, opt_value, proto.bcdb.Tag, opt_index);
-};
-
-
-/**
- * Clears the list making it empty but non-null.
+ * Clears values from the map. The map will be non-null.
  * @return {!proto.bcdb.Metadata} returns this
  */
-proto.bcdb.Metadata.prototype.clearTagsList = function() {
-  return this.setTagsList([]);
-};
+proto.bcdb.Metadata.prototype.clearTagsMap = function() {
+  this.getTagsMap().clear();
+  return this;};
 
 
 /**
@@ -2565,13 +2538,6 @@ proto.bcdb.UpdateResponse.serializeBinaryToWriter = function(message, writer) {
 
 
 
-/**
- * List of repeated fields within this message type.
- * @private {!Array<number>}
- * @const
- */
-proto.bcdb.QueryRequest.repeatedFields_ = [2];
-
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
@@ -2604,8 +2570,7 @@ proto.bcdb.QueryRequest.prototype.toObject = function(opt_includeInstance) {
 proto.bcdb.QueryRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
     collection: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    tagsList: jspb.Message.toObjectList(msg.getTagsList(),
-    proto.bcdb.Tag.toObject, includeInstance)
+    tagsMap: (f = msg.getTagsMap()) ? f.toObject(includeInstance, undefined) : []
   };
 
   if (includeInstance) {
@@ -2647,9 +2612,10 @@ proto.bcdb.QueryRequest.deserializeBinaryFromReader = function(msg, reader) {
       msg.setCollection(value);
       break;
     case 2:
-      var value = new proto.bcdb.Tag;
-      reader.readMessage(value,proto.bcdb.Tag.deserializeBinaryFromReader);
-      msg.addTags(value);
+      var value = msg.getTagsMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readString, null, "", "");
+         });
       break;
     default:
       reader.skipField();
@@ -2687,13 +2653,9 @@ proto.bcdb.QueryRequest.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
-  f = message.getTagsList();
-  if (f.length > 0) {
-    writer.writeRepeatedMessage(
-      2,
-      f,
-      proto.bcdb.Tag.serializeBinaryToWriter
-    );
+  f = message.getTagsMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(2, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeString);
   }
 };
 
@@ -2717,41 +2679,25 @@ proto.bcdb.QueryRequest.prototype.setCollection = function(value) {
 
 
 /**
- * repeated Tag tags = 2;
- * @return {!Array<!proto.bcdb.Tag>}
+ * map<string, string> tags = 2;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,string>}
  */
-proto.bcdb.QueryRequest.prototype.getTagsList = function() {
-  return /** @type{!Array<!proto.bcdb.Tag>} */ (
-    jspb.Message.getRepeatedWrapperField(this, proto.bcdb.Tag, 2));
+proto.bcdb.QueryRequest.prototype.getTagsMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,string>} */ (
+      jspb.Message.getMapField(this, 2, opt_noLazyCreate,
+      null));
 };
 
 
 /**
- * @param {!Array<!proto.bcdb.Tag>} value
- * @return {!proto.bcdb.QueryRequest} returns this
-*/
-proto.bcdb.QueryRequest.prototype.setTagsList = function(value) {
-  return jspb.Message.setRepeatedWrapperField(this, 2, value);
-};
-
-
-/**
- * @param {!proto.bcdb.Tag=} opt_value
- * @param {number=} opt_index
- * @return {!proto.bcdb.Tag}
- */
-proto.bcdb.QueryRequest.prototype.addTags = function(opt_value, opt_index) {
-  return jspb.Message.addToRepeatedWrapperField(this, 2, opt_value, proto.bcdb.Tag, opt_index);
-};
-
-
-/**
- * Clears the list making it empty but non-null.
+ * Clears values from the map. The map will be non-null.
  * @return {!proto.bcdb.QueryRequest} returns this
  */
-proto.bcdb.QueryRequest.prototype.clearTagsList = function() {
-  return this.setTagsList([]);
-};
+proto.bcdb.QueryRequest.prototype.clearTagsMap = function() {
+  this.getTagsMap().clear();
+  return this;};
 
 
 

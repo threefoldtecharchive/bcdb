@@ -57,11 +57,15 @@ impl Identity {
     }
 
     pub fn from_mnemonic<S: Into<String>>(id: u32, mnemonic: S) -> Result<Identity, Error> {
-        let phrase = Mnemonic::from_phrase(mnemonic, Language::English)?;
+        let phrase = match Mnemonic::from_phrase(mnemonic, Language::English) {
+            Ok(phrase) => phrase,
+            Err(err) => return Err(Error::MalformedPrivateKey),
+        };
+
         Self::from_sk_bytes(id, phrase.entropy())
     }
 
-    pub fn from_identity_file<P: AsRef<Path>>(path: P) -> Result<Identity, failure::Error> {
+    pub fn from_identity_file<P: AsRef<Path>>(path: P) -> Result<Identity, anyhow::Error> {
         let f = std::fs::File::open(path)?;
         use serde_json::{Deserializer, Value};
         let mut stream = Deserializer::from_reader(f).into_iter::<Value>();

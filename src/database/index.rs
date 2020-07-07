@@ -1,28 +1,30 @@
-use crate::meta::{Key, Meta, Storage, Tag};
+use super::*;
+use crate::storage::Storage;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
-use failure::Error;
+use serde::{Deserialize, Serialize};
+use serde_json;
 use sqlx::prelude::*;
 use sqlx::SqlitePool;
 use tokio::sync::mpsc;
+use tokio::task::spawn_blocking;
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-pub struct SqliteMetaStoreBuilder {
+pub struct SqliteIndexBuilder {
     root: String,
 }
 
-impl SqliteMetaStoreBuilder {
-    pub fn new<P>(root: P) -> Result<SqliteMetaStoreBuilder>
+impl SqliteIndexBuilder {
+    pub fn new<P>(root: P) -> Result<SqliteIndexBuilder>
     where
         P: Into<String>,
     {
         let root = root.into();
         std::fs::create_dir_all(&root)?;
 
-        Ok(SqliteMetaStoreBuilder { root: root })
+        Ok(SqliteIndexBuilder { root: root })
     }
 
-    pub async fn build(&self, collection: &str) -> Result<SqliteMetaStore> {
+    pub async fn build(&self, collection: &str) -> Result<SqliteIndex> {
         if collection.len() == 0 {
             bail!("collection name must not be empty");
         }
@@ -33,39 +35,38 @@ impl SqliteMetaStoreBuilder {
             None => bail!("empty path to db"),
         };
 
-        let store = SqliteMetaStore::new(&format!("sqlite://{}", p)).await?;
+        let store = SqliteIndex::new(&format!("sqlite://{}", p)).await?;
         Ok(store)
     }
 }
 
 #[derive(Clone)]
-pub struct SqliteMetaStore {
+pub struct SqliteIndex {
     schema: Schema,
 }
 
-impl SqliteMetaStore {
-    async fn new(collection: &str) -> Result<SqliteMetaStore> {
+impl SqliteIndex {
+    async fn new(collection: &str) -> Result<Self> {
         let pool = SqlitePool::new(collection).await?;
         let mut schema = Schema::new(pool);
         schema.setup().await?;
 
-        Ok(SqliteMetaStore { schema })
+        Ok(SqliteIndex { schema })
     }
 }
 
 #[async_trait]
-impl Storage for SqliteMetaStore {
+impl Index for SqliteIndex {
     async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
-        self.schema.insert(key, meta.tags).await
+        self.schema.insert(key, meta).await
     }
 
     async fn get(&mut self, key: Key) -> Result<Meta> {
-        let tags = self.schema.get(key).await?;
-        Ok(Meta { tags: tags })
+        self.schema.get(key).await
     }
 
-    async fn find(&mut self, tags: Vec<Tag>) -> Result<mpsc::Receiver<Result<Key>>> {
-        self.schema.find(tags).await
+    async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
+        self.schema.find(meta).await
     }
 }
 
@@ -98,9 +99,9 @@ impl Schema {
         Ok(())
     }
 
-    async fn insert(&mut self, key: Key, tags: Vec<Tag>) -> Result<()> {
+    async fn insert(&mut self, key: Key, tags: Meta) -> Result<()> {
         let mut tx: sqlx::Transaction<_> = self.c.begin().await?;
-        for tag in tags {
+        for (k, v) in tags {
             sqlx::query(
                 "
                 INSERT INTO metadata (key, tag, value) values
@@ -110,18 +111,19 @@ impl Schema {
                 ",
             )
             .bind(key as f64) // only f64 is supported by sqlite.
-            .bind(&tag.key)
-            .bind(&tag.value)
-            .bind(&tag.value)
+            .bind(&k)
+            .bind(&v)
+            .bind(&v)
             .execute(&mut tx)
-            .await?;
+            .await
+            .context("failed to insert data to index")?;
         }
 
         tx.commit().await?;
         Ok(())
     }
 
-    async fn get(&mut self, key: Key) -> Result<Vec<Tag>> {
+    async fn get(&mut self, key: Key) -> Result<Meta> {
         let mut cur = sqlx::query("SELECT tag, value FROM metadata WHERE key = ?")
             .bind(key as f64)
             .fetch(&self.c);
@@ -132,20 +134,20 @@ impl Schema {
             value: String,
         }
 
-        let mut tags: Vec<Tag> = vec![];
+        let mut meta = Meta::default();
         while let Some(row) = cur.next().await? {
             let row = Row::from_row(&row)?;
-            tags.push(Tag::new(row.tag, row.value));
+            meta.insert(row.tag, row.value);
         }
 
-        Ok(tags)
+        Ok(meta)
     }
 
-    async fn find<'a>(&'a mut self, tags: Vec<Tag>) -> Result<mpsc::Receiver<Result<Key>>> {
+    async fn find<'a>(&'a mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
         let q = "SELECT key FROM metadata WHERE tag = ? AND value = ?";
         let mut query_str = String::new();
 
-        for _ in 0..tags.len() {
+        for _ in 0..meta.count() {
             if query_str.len() > 0 {
                 query_str.push_str(" intersect ");
             }
@@ -164,8 +166,8 @@ impl Schema {
         let pool = self.c.clone();
         tokio::spawn(async move {
             let mut query = sqlx::query(&query_str);
-            for tag in tags {
-                query = query.bind(tag.key).bind(tag.value);
+            for (k, v) in meta {
+                query = query.bind(k).bind(v);
             }
 
             let mut cur = query.fetch(&pool);
@@ -190,6 +192,101 @@ impl Schema {
     }
 }
 
+#[derive(Serialize)]
+struct ZdbMetaSer<'a> {
+    key: Key,
+    tags: &'a HashMap<String, String>,
+}
+
+#[derive(Deserialize)]
+struct ZdbMetaDe {
+    key: Key,
+    tags: HashMap<String, String>,
+}
+
+/// An index interceptor that also stores the metadata in
+/// a Storage.
+#[derive(Clone)]
+pub struct MetaInterceptor<I, S>
+where
+    I: Index,
+    S: Storage,
+{
+    inner: I,
+    storage: S,
+}
+
+impl<I, S> MetaInterceptor<I, S>
+where
+    I: Index,
+    S: Storage,
+{
+    /// creates a new instance of the zdb interceptor
+    pub fn new(index: I, storage: S) -> Self {
+        MetaInterceptor {
+            inner: index,
+            storage: storage,
+        }
+    }
+}
+
+impl<I, S> MetaInterceptor<I, S>
+where
+    I: Index,
+    S: Storage,
+{
+    /// rebuild index by scanning the storage database for entries,
+    /// and calling set on the index store. Optionally start scanning from
+    /// from.
+    pub async fn rebuild(&mut self) -> Result<()> {
+        for k in self.storage.keys()? {
+            let data = match self.storage.get(k)? {
+                Some(data) => data,
+                None => {
+                    warn!("metadata with key '{}' not found", k);
+                    continue;
+                }
+            };
+
+            let obj = serde_json::from_slice::<ZdbMetaDe>(&data)?;
+
+            self.inner.set(obj.key, Meta::from(obj.tags)).await?;
+        }
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<I, S> Index for MetaInterceptor<I, S>
+where
+    I: Index,
+    S: Storage + Send + Sync + 'static,
+{
+    async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
+        let m = ZdbMetaSer {
+            key: key,
+            tags: &meta.0,
+        };
+
+        let bytes = serde_json::to_vec(&m)?;
+        let mut db = self.storage.clone();
+        spawn_blocking(move || db.set(None, &bytes).expect("failed to set metadata"))
+            .await
+            .context("failed to run blocking task")?;
+
+        self.inner.set(key, meta).await
+    }
+
+    async fn get(&mut self, key: Key) -> Result<Meta> {
+        self.inner.get(key).await
+    }
+
+    async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
+        self.inner.find(meta).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -205,31 +302,28 @@ mod tests {
         let c = SqlitePool::new(&constr).await.expect("failed to connect");
         let mut schema = Schema::new(c);
         schema.setup().await.expect("failed to create table");
+        let mut meta = Meta::default();
+        meta.insert("name", "filename");
+        meta.insert("type", "file");
+        meta.insert("parent", "/root/dir");
+
         schema
-            .insert(
-                100,
-                vec![
-                    Tag::new("name", "filename"),
-                    Tag::new("type", "file"),
-                    Tag::new("parent", "/root/dir"),
-                ],
-            )
+            .insert(100, meta)
             .await
             .expect("failed to insert object");
 
         let mut getter = schema.clone();
-        let mut cur = schema
-            .find(vec![Tag::new("name", "filename")])
-            .await
-            .expect("failed to do fine");
+        let mut filter = Meta::default();
+        filter.insert("name", "filename");
+        let mut cur = schema.find(filter).await.expect("failed to do fine");
         loop {
             let key = match cur.recv().await {
                 Some(key) => key,
                 None => break,
             };
             let tags = getter.get(key.unwrap()).await.expect("object not found");
-            for t in tags {
-                println!("{}: {}", t.key, t.value);
+            for (k, v) in tags {
+                println!("{}: {}", k, v);
             }
         }
     }

@@ -16,7 +16,7 @@ pub enum Error {
     /// IOError
     IOError(std::io::Error),
 
-    Other(failure::Error),
+    Other(anyhow::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -37,8 +37,8 @@ impl From<std::io::Error> for Error {
         Error::IOError(err)
     }
 }
-impl From<failure::Error> for Error {
-    fn from(err: failure::Error) -> Error {
+impl From<anyhow::Error> for Error {
+    fn from(err: anyhow::Error) -> Error {
         Error::Other(err)
     }
 }
