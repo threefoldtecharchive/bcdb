@@ -240,10 +240,10 @@ where
     /// from.
     pub async fn rebuild(&mut self) -> Result<()> {
         for k in self.storage.keys()? {
-            let data = match self.storage.get(k)? {
+            let data = match self.storage.get(k.key)? {
                 Some(data) => data,
                 None => {
-                    warn!("metadata with key '{}' not found", k);
+                    warn!("metadata with key '{}' not found", k.key);
                     continue;
                 }
             };

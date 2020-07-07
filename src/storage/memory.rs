@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use super::{Error, Key, Storage};
+use super::{Error, Key, Record, Storage};
 
 #[derive(Debug, Clone)]
 pub struct MemoryStorage {
@@ -50,7 +50,7 @@ impl Storage for MemoryStorage {
         }
     }
 
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key> + Send>, Error> {
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error> {
         let handle = self.internal.read().unwrap();
         Ok(Box::new(
             handle
@@ -58,7 +58,30 @@ impl Storage for MemoryStorage {
                 .keys()
                 .copied()
                 .collect::<Vec<Key>>()
-                .into_iter(),
+                .into_iter()
+                .map(|v| Record {
+                    key: v,
+                    timestamp: None,
+                    size: None,
+                }),
+        ))
+    }
+
+    fn rev(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error> {
+        let handle = self.internal.read().unwrap();
+        Ok(Box::new(
+            handle
+                .backend
+                .keys()
+                .copied()
+                .collect::<Vec<Key>>()
+                .into_iter()
+                .map(|v| Record {
+                    key: v,
+                    timestamp: None,
+                    size: None,
+                })
+                .rev(),
         ))
     }
 }

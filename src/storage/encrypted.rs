@@ -3,7 +3,7 @@ use aes_gcm::{aead, Aes256Gcm};
 use rand::prelude::*;
 use rand::rngs::OsRng;
 
-use super::{Error as StorageError, Key, Storage};
+use super::{Error as StorageError, Key, Record, Storage};
 
 const ENCRYPTION_KEY_SIZE: usize = 32;
 const NONCE_SIZE: usize = 12;
@@ -64,8 +64,12 @@ where
         Ok(Some(plaintext))
     }
 
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key> + Send>, StorageError> {
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
         self.backend.keys()
+    }
+
+    fn rev(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
+        self.backend.rev()
     }
 }
 

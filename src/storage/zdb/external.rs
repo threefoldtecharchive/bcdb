@@ -1,7 +1,7 @@
 //! This crate provides a wrapper for a client to a 0-db running as a separate process on the same
 //! system. The 0-db must be running in sequential mode
 
-use crate::storage::{Error as StorageError, Key, Storage};
+use crate::storage::{Error as StorageError, Key, Record, Storage};
 
 use redis::ConnectionLike;
 use redis::RedisError;
@@ -25,6 +25,10 @@ pub struct Collection {
     pool: r2d2::Pool<ZdbConnectionManager>,
 }
 
+enum Direction {
+    Forward,
+    Backward,
+}
 /// An iterator over all keys in a collection.
 /// Leaking this value will cause the underlying connection to leak.
 pub struct CollectionKeys {
@@ -35,6 +39,8 @@ pub struct CollectionKeys {
     buffer: Vec<ScanEntry>,
     /// keep track of which entry in the buffer we are at
     buffer_idx: usize,
+    /// direction of iteration
+    direction: Direction,
 }
 
 // Yes, this is a vec, and yes, this only represents a single element. It is what it is.
@@ -80,8 +86,12 @@ impl Storage for Zdb {
         self.default_namespace.get(key)
     }
 
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key> + Send>, StorageError> {
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
         self.default_namespace.keys()
+    }
+
+    fn rev(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
+        self.default_namespace.rev()
     }
 }
 
@@ -151,28 +161,48 @@ impl Storage for Collection {
             .query(&mut *self.pool.get()?)?)
     }
 
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key> + Send>, StorageError> {
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
         Ok(Box::new(CollectionKeys {
             conn: self.pool.get()?,
             cursor: None,
             buffer: Vec::new(),
             buffer_idx: 0,
+            direction: Direction::Forward,
+        }))
+    }
+
+    fn rev(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
+        Ok(Box::new(CollectionKeys {
+            conn: self.pool.get()?,
+            cursor: None,
+            buffer: Vec::new(),
+            buffer_idx: 0,
+            direction: Direction::Backward,
         }))
     }
 }
 
 impl Iterator for CollectionKeys {
-    type Item = Key;
+    type Item = Record;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Note that entries are actually single element vectors of tuples, not regular tuples.
         // If we have a buffer from a previous cmd execution, check for an entry there first
         if self.buffer_idx < self.buffer.len() {
             self.buffer_idx += 1;
-            return Some(read_le_key(&self.buffer[self.buffer_idx - 1][0].0));
+            let rec = &self.buffer[self.buffer_idx - 1][0];
+            let key = read_le_key(&rec.0);
+            return Some(Record {
+                key: key,
+                timestamp: Some(rec.1),
+                size: Some(rec.2),
+            });
         }
         // No more keys in buffer, fetch a new buffer from the remote
-        let mut scan_cmd = redis::cmd("SCAN");
+        let mut scan_cmd = match self.direction {
+            Direction::Forward => redis::cmd("SCAN"),   //forward scan
+            Direction::Backward => redis::cmd("RSCAN"), //backward scan
+        };
         // If we have a cursor (from a previous execution), set it
         // Annoyingly, the redis lib does not allow to set a reference to a vec as argument, so
         // we take here, but that's fine, since a result will update the cursor anyway.
@@ -191,7 +221,13 @@ impl Iterator for CollectionKeys {
         // reset buffer pointer, set it to one as we will return the first element
         self.buffer_idx = 1;
 
-        Some(read_le_key(&self.buffer[0][0].0))
+        let rec = &self.buffer[0][0];
+        let key = read_le_key(&rec.0);
+        Some(Record {
+            key: key,
+            timestamp: Some(rec.1),
+            size: Some(rec.2),
+        })
     }
 }
 
