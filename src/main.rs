@@ -175,7 +175,7 @@ async fn entry() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(_) = matches.subcommand_matches("rebuild") {
         let mut index = index;
-        index.rebuild().await?;
+        index.rebuild(None).await?;
         return Ok(());
     }
 
