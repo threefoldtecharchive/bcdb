@@ -178,13 +178,16 @@ where
 
     /// iterates over all configured ACLs
     pub fn list<'a>(&'a mut self) -> Result<impl Iterator<Item = Result<(Key, ACL)>> + 'a> {
-        Ok(self.inner.keys()?.filter_map(move |k| match self.get(k) {
-            Ok(acl) => match acl {
-                Some(acl) => Some(Ok((k, acl))),
-                None => None,
-            },
-            Err(err) => Some(Err(err)),
-        }))
+        Ok(self
+            .inner
+            .keys()?
+            .filter_map(move |r| match self.get(r.key) {
+                Ok(acl) => match acl {
+                    Some(acl) => Some(Ok((r.key, acl))),
+                    None => None,
+                },
+                Err(err) => Some(Err(err)),
+            }))
     }
 }
 

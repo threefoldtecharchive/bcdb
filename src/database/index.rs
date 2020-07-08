@@ -238,12 +238,62 @@ where
     /// rebuild index by scanning the storage database for entries,
     /// and calling set on the index store. Optionally start scanning from
     /// from.
-    pub async fn rebuild(&mut self) -> Result<()> {
-        for k in self.storage.keys()? {
-            let data = match self.storage.get(k)? {
+    pub async fn rebuild(&mut self, from: Option<u32>) -> Result<()> {
+        match from {
+            None => self.rebuild_all().await,
+            Some(ts) => self.rebuild_from(ts).await,
+        }
+    }
+
+    async fn rebuild_from(&mut self, from: u32) -> Result<()> {
+        let mut start = None;
+        // we try to find the first KEY that is created after this timestamp
+        // we iterate backwards, check each key insertion time, until we hit a key
+        // that was created before this time. Once we have found the one, we use the
+        // first key after this one, and continue scanning from there.
+        for r in self.storage.rev()? {
+            let ts = match r.timestamp {
+                Some(ts) => ts,
+                None => {
+                    bail!("rebuild from storage is not supported for this storage implementation")
+                }
+            };
+
+            if ts < from {
+                break;
+            }
+
+            start = Some(r.key);
+        }
+
+        if start.is_none() {
+            return Ok(());
+        }
+
+        let mut key = start.unwrap();
+
+        loop {
+            let data = match self.storage.get(key)? {
                 Some(data) => data,
                 None => {
-                    warn!("metadata with key '{}' not found", k);
+                    break; // we hit the end
+                }
+            };
+
+            let obj = serde_json::from_slice::<ZdbMetaDe>(&data)?;
+            self.inner.set(obj.key, Meta::from(obj.tags)).await?;
+            key += 1;
+        }
+
+        Ok(())
+    }
+
+    async fn rebuild_all(&mut self) -> Result<()> {
+        for k in self.storage.keys()? {
+            let data = match self.storage.get(k.key)? {
+                Some(data) => data,
+                None => {
+                    warn!("metadata with key '{}' not found", k.key);
                     continue;
                 }
             };

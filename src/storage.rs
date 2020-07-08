@@ -4,10 +4,37 @@ pub mod zdb;
 #[cfg(test)]
 pub mod memory;
 
+use std::cmp::{Ord, Ordering, PartialEq, PartialOrd};
 use std::{fmt, io};
 
 /// Key as they are expected by the Storage interface. For now, the key is expect to be 4 bytes
 pub type Key = u32;
+
+/// Iteration record
+#[derive(Eq)]
+pub struct Record {
+    pub key: Key,
+    pub timestamp: Option<u32>,
+    pub size: Option<u32>,
+}
+
+impl Ord for Record {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.key.cmp(&other.key)
+    }
+}
+
+impl PartialOrd for Record {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Record {
+    fn eq(&self, other: &Self) -> bool {
+        self.key == other.key
+    }
+}
 
 /// The generic set op instructions that are suported by storage implementations
 pub trait Storage: Clone {
@@ -18,7 +45,9 @@ pub trait Storage: Clone {
     /// Get data which has been set previously.
     fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, Error>;
     /// Get an iterator over all keys in a collection
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Key> + Send>, Error>;
+    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error>;
+    /// Get an iterator over all keys in a collection, in reverse order
+    fn rev(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error>;
 }
 
 #[derive(Debug)]
