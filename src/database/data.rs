@@ -297,3 +297,12 @@ where
         Ok(rx)
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use crate::storage::memory::MemoryStorage;
+
+    #[tokio::test]
+    async fn get_auth() {}
+}

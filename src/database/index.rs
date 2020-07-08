@@ -338,8 +338,145 @@ where
 }
 
 #[cfg(test)]
+mod memory {
+    use crate::database::{Index, Meta};
+    use crate::storage::Key;
+    use anyhow::Result;
+    use async_trait::async_trait;
+    use std::collections::{HashMap, HashSet};
+    use std::sync::Arc;
+    use tokio::sync::{mpsc, Mutex};
+
+    // pub struct MemoryIndex {
+    //     data: Arc<Mutex<HashMap<(String, String), HashSet<u32>>>>,
+    // }
+
+    pub struct MemoryIndex {
+        data: HashMap<(String, String), HashSet<u32>>,
+    }
+
+    impl MemoryIndex {
+        pub fn new() -> Self {
+            MemoryIndex {
+                data: HashMap::default(),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Index for MemoryIndex {
+        async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
+            for pair in meta {
+                let set = self.data.get_mut(&pair);
+                match set {
+                    Some(set) => {
+                        set.insert(key);
+                    }
+                    None => {
+                        let mut set = HashSet::default();
+                        set.insert(key);
+                        self.data.insert(pair, set);
+                    }
+                };
+            }
+            Ok(())
+        }
+
+        async fn get(&mut self, key: Key) -> Result<Meta> {
+            let mut meta = Meta::default();
+            for ((k, v), s) in self.data.iter() {
+                if !s.get(&key).is_none() {
+                    meta.insert::<String, String>(k.into(), v.into())
+                }
+            }
+
+            Ok(meta)
+        }
+
+        async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
+            let mut results: Option<HashSet<u32>> = None;
+            for pair in meta {
+                let set = self.data.get(&pair);
+                match set {
+                    None => break,
+                    Some(data) => {
+                        results = match results {
+                            None => Some(data.clone()),
+                            Some(results) => {
+                                results.intersection(data);
+                                Some(results)
+                            }
+                        }
+                    }
+                }
+            }
+
+            let (mut tx, rx) = mpsc::channel(10);
+            tokio::spawn(async move {
+                let results = match results {
+                    None => return,
+                    Some(results) => results,
+                };
+
+                for result in results {
+                    tx.send(Ok(result)).await.unwrap();
+                }
+            });
+            Ok(rx)
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
+    use super::memory::MemoryIndex;
     use super::*;
+    use crate::database::Meta;
+
+    #[tokio::test]
+    async fn memory_index() {
+        let mut index = MemoryIndex::new();
+        let mut meta1 = Meta::default();
+        meta1.insert("name", "user1");
+        meta1.insert("age", "38");
+        let results = index.set(1, meta1).await;
+
+        assert_eq!(results.is_ok(), true);
+
+        let mut meta2 = Meta::default();
+        meta2.insert("name", "user2");
+        meta2.insert("age", "38");
+        let results = index.set(2, meta2).await;
+
+        assert_eq!(results.is_ok(), true);
+
+        let loaded = index.get(1).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user1");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        let loaded = index.get(2).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user2");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        let mut find = Meta::default();
+        find.insert("age", "38");
+
+        use tokio::stream::StreamExt;
+        let found = index.find(find).await.unwrap();
+        let results: Vec<Result<Key>> = found.collect().await;
+
+        assert_eq!(results.len(), 2);
+
+        let mut find = Meta::default();
+        find.insert("name", "user1");
+
+        let found = index.find(find).await.unwrap();
+        let results: Vec<Result<Key>> = found.collect().await;
+
+        assert_eq!(results.len(), 1);
+    }
 
     #[tokio::test]
     async fn schema() {
