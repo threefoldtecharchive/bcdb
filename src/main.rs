@@ -1,3 +1,4 @@
+use anyhow::Context;
 use clap::{App, Arg, SubCommand};
 use identity::Identity;
 use log::debug;
@@ -132,7 +133,18 @@ async fn entry() -> Result<(), Box<dyn std::error::Error>> {
                 .required(false)
                 .env("PEERS_FILE"),
         )
-        .subcommand(SubCommand::with_name("rebuild").about("rebuild index from zdb"))
+        .subcommand(
+            SubCommand::with_name("rebuild")
+                .about("rebuild index from zdb")
+                .arg(
+                    Arg::with_name("from")
+                        .long("from")
+                        .short("f")
+                        .help("only rebuild index with records after given timestamp")
+                        .takes_value(true)
+                        .required(false),
+                ),
+        )
         .get_matches();
 
     let level = if matches.is_present("debug") {
@@ -173,9 +185,16 @@ async fn entry() -> Result<(), Box<dyn std::error::Error>> {
         EncryptedStorage::new(identity.as_sk_bytes(), zdb.collection("metadata")),
     );
 
-    if let Some(_) = matches.subcommand_matches("rebuild") {
+    if let Some(matches) = matches.subcommand_matches("rebuild") {
         let mut index = index;
-        index.rebuild(None).await?;
+        let from = match matches.value_of("from") {
+            Some(s) => Some(
+                s.parse()
+                    .context("failed to parse 'from' value expecting timestamp")?,
+            ),
+            None => None,
+        };
+        index.rebuild(from).await?;
         return Ok(());
     }
 

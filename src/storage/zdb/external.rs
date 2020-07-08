@@ -194,8 +194,8 @@ impl Iterator for CollectionKeys {
             let key = read_le_key(&rec.0);
             return Some(Record {
                 key: key,
-                timestamp: Some(rec.1),
-                size: Some(rec.2),
+                size: Some(rec.1),
+                timestamp: Some(rec.2),
             });
         }
         // No more keys in buffer, fetch a new buffer from the remote
@@ -225,8 +225,8 @@ impl Iterator for CollectionKeys {
         let key = read_le_key(&rec.0);
         Some(Record {
             key: key,
-            timestamp: Some(rec.1),
-            size: Some(rec.2),
+            size: Some(rec.1),
+            timestamp: Some(rec.2),
         })
     }
 }
