@@ -344,12 +344,7 @@ mod memory {
     use anyhow::Result;
     use async_trait::async_trait;
     use std::collections::{HashMap, HashSet};
-    use std::sync::Arc;
-    use tokio::sync::{mpsc, Mutex};
-
-    // pub struct MemoryIndex {
-    //     data: Arc<Mutex<HashMap<(String, String), HashSet<u32>>>>,
-    // }
+    use tokio::sync::mpsc;
 
     pub struct MemoryIndex {
         data: HashMap<(String, String), HashSet<u32>>,
