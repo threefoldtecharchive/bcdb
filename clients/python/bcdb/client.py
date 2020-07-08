@@ -462,14 +462,16 @@ class HTTPBcdbClient:
         :returns: new object id
         """
 
-        return self.session.post(
+        response = self.session.post(
             self.url(),
             data=data,
             headers=self.headers(
                 x_acl=acl,
                 x_tags=json.dumps(tags) if tags else None,
             ),
-        ).json()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def get(self, key):
         """

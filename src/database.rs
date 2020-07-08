@@ -2,6 +2,7 @@ pub use crate::storage::Key;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::iter::{FromIterator, IntoIterator};
 use thiserror::Error;
 use tokio::sync::mpsc;
@@ -30,6 +31,9 @@ pub enum Reason {
     #[error("operation not supported")]
     NotSupported,
 
+    #[error("invalid tag")]
+    InvalidTag,
+
     #[error("Cannot get peer: {0}")]
     CannotGetPeer(String),
 
@@ -57,6 +61,10 @@ pub fn is_reserved(tag: &str) -> bool {
 pub struct Meta(HashMap<String, String>);
 
 impl Meta {
+    pub fn new(tags: HashMap<String, String>) -> Self {
+        Meta(tags)
+    }
+
     pub fn insert<K, V>(&mut self, key: K, value: V)
     where
         K: Into<String>,
@@ -157,23 +165,19 @@ impl IntoIterator for Meta {
     }
 }
 
-impl From<HashMap<String, String>> for Meta {
-    fn from(m: HashMap<String, String>) -> Self {
-        Meta(m)
-    }
-}
+impl TryFrom<HashMap<String, String>> for Meta {
+    type Error = anyhow::Error;
 
-impl FromIterator<(String, String)> for Meta {
-    fn from_iter<T: IntoIterator<Item = (String, String)>>(iter: T) -> Self {
-        let mut map = HashMap::default();
-        for (k, v) in iter.into_iter() {
-            // if is_reserved(&k) {
-            //     continue;
-            // }
-            map.insert(k, v);
+    /// try_from should be used when converting user input to meta object
+    /// it makes sure that no internal tags are used by the user.
+    fn try_from(m: HashMap<String, String>) -> Result<Self> {
+        for (k, _) in m.iter() {
+            if is_reserved(k) {
+                bail!(Reason::InvalidTag);
+            }
         }
 
-        Meta(map)
+        Ok(Meta(m))
     }
 }
 
@@ -258,7 +262,7 @@ pub trait Database: Send + Sync + 'static {
         ctx: Context,
         collection: String,
         data: Vec<u8>,
-        meta: Meta,
+        meta: HashMap<String, String>,
         acl: Option<u64>,
     ) -> Result<Key>;
 
@@ -274,21 +278,21 @@ pub trait Database: Send + Sync + 'static {
         key: Key,
         collection: String,
         data: Option<Vec<u8>>,
-        meta: Meta,
+        tags: HashMap<String, String>,
         acl: Option<u64>,
     ) -> Result<()>;
 
     async fn list(
         &mut self,
         ctx: Context,
-        meta: Meta,
+        tags: HashMap<String, String>,
         collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Key>>>;
 
     async fn find(
         &mut self,
         ctx: Context,
-        meta: Meta,
+        tags: HashMap<String, String>,
         collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Object>>>;
 }

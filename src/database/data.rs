@@ -1,10 +1,10 @@
+use super::*;
 use crate::acl::*;
+use crate::storage::Storage;
 use anyhow::Context as ErrorContext;
+use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
-
-use super::*;
-use crate::storage::Storage;
 
 //TODO: use generics for both object store type and meta factory type.
 #[derive(Clone)]
@@ -78,14 +78,14 @@ where
         ctx: Context,
         collection: String,
         data: Vec<u8>,
-        meta: Meta,
+        tags: HashMap<String, String>,
         acl: Option<u64>,
     ) -> Result<Key> {
         if !ctx.is_owner() {
             bail!(Reason::Unauthorized)
         }
 
-        let mut meta = meta;
+        let mut meta = Meta::try_from(tags)?;
         if let Some(acl) = acl {
             meta = meta.with_acl(acl);
         }
@@ -178,7 +178,7 @@ where
         key: Key,
         collection: String,
         data: Option<Vec<u8>>,
-        meta: Meta,
+        tags: HashMap<String, String>,
         acl: Option<u64>,
     ) -> Result<()> {
         let current = self.meta.get(key).await?;
@@ -189,7 +189,7 @@ where
             bail!(Reason::NotFound);
         }
 
-        let mut meta = meta;
+        let mut meta = Meta::try_from(tags)?;
         if let Some(acl) = acl {
             if !ctx.is_owner() {
                 bail!(Reason::Unauthorized);
@@ -222,14 +222,14 @@ where
     async fn list(
         &mut self,
         ctx: Context,
-        meta: Meta,
+        tags: HashMap<String, String>,
         collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Key>>> {
         if !ctx.is_owner() {
             bail!(Reason::Unauthorized);
         }
 
-        let mut meta = meta;
+        let mut meta = Meta::new(tags);
 
         if let Some(collection) = collection {
             meta.insert(TAG_COLLECTION, collection);
@@ -242,14 +242,14 @@ where
     async fn find(
         &mut self,
         ctx: Context,
-        meta: Meta,
+        tags: HashMap<String, String>,
         collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Object>>> {
         if !ctx.is_owner() {
             bail!(Reason::Unauthorized);
         }
 
-        let mut meta = meta;
+        let mut meta = Meta::new(tags);
 
         if let Some(collection) = collection {
             meta.insert(TAG_COLLECTION, collection);

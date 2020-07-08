@@ -7,6 +7,7 @@ use generated::bcdb_server::Bcdb as BcdbServiceTrait;
 use generated::identity_server::Identity as IdentityTrait;
 use generated::*;
 use std::collections::HashSet;
+use std::convert::TryFrom;
 use std::iter::FromIterator;
 use tokio::sync::mpsc;
 use tonic::{Code, Request, Response, Status};
@@ -33,6 +34,9 @@ impl FailureExt for Error {
                 Reason::Unauthorized => Status::unauthenticated("unauthorized"),
                 Reason::NotFound => Status::not_found("object not found"),
                 Reason::NotSupported => Status::unimplemented("operation not supported"),
+                Reason::InvalidTag => Status::invalid_argument(
+                    "use of invalid tag string (':' prefix is for internal use)",
+                ),
                 Reason::CannotGetPeer(m) => Status::unavailable(m),
                 Reason::Unknown(m) => Status::internal(format!("{}", m)),
             };
@@ -93,13 +97,7 @@ where
 
         let mut db = self.db.clone();
         let id = db
-            .set(
-                context,
-                metadata.collection,
-                data,
-                Meta::from(metadata.tags),
-                acl,
-            )
+            .set(context, metadata.collection, data, metadata.tags, acl)
             .await
             .map_err(|e| e.status())?;
 
@@ -170,13 +168,13 @@ where
         let acl = metadata.acl.map(|a| a.acl);
 
         let mut db = self.db.clone();
-        let id = db
+        let _ = db
             .update(
                 ctx,
                 id,
                 metadata.collection,
                 data.map(|d| d.data),
-                Meta::from(metadata.tags),
+                metadata.tags,
                 acl,
             )
             .await
@@ -194,7 +192,7 @@ where
         let mut db = self.db.clone();
 
         let mut results = db
-            .list(ctx, Meta::from(request.tags), Some(request.collection))
+            .list(ctx, request.tags, Some(request.collection))
             .await
             .map_err(|e| e.status())?;
 
@@ -223,7 +221,7 @@ where
         let mut db = self.db.clone();
 
         let mut results = db
-            .find(ctx, Meta::from(request.tags), Some(request.collection))
+            .find(ctx, request.tags, Some(request.collection))
             .await
             .map_err(|e| e.status())?;
 

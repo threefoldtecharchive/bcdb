@@ -281,7 +281,7 @@ where
             };
 
             let obj = serde_json::from_slice::<ZdbMetaDe>(&data)?;
-            self.inner.set(obj.key, Meta::from(obj.tags)).await?;
+            self.inner.set(obj.key, Meta::new(obj.tags)).await?;
             key += 1;
         }
 
@@ -300,7 +300,7 @@ where
 
             let obj = serde_json::from_slice::<ZdbMetaDe>(&data)?;
 
-            self.inner.set(obj.key, Meta::from(obj.tags)).await?;
+            self.inner.set(obj.key, Meta::new(obj.tags)).await?;
         }
 
         Ok(())

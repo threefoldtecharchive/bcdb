@@ -3,8 +3,9 @@ use crate::database::*;
 use crate::identity::Identity;
 use crate::rpc::generated::bcdb_client::BcdbClient;
 use crate::rpc::generated::*;
-use anyhow::{Context as ErrorContext, Result};
+use anyhow::Result;
 use async_trait::async_trait;
+use std::collections::HashMap;
 use tokio::sync::mpsc;
 
 #[derive(Clone)]
@@ -57,7 +58,7 @@ where
         _id: u32,
         _collection: String,
         _data: Vec<u8>,
-        _meta: Meta,
+        _tags: HashMap<String, String>,
         _acl: Option<u64>,
     ) -> Result<Key> {
         bail!(Reason::NotSupported)
@@ -78,7 +79,7 @@ where
 
         let response = response.into_inner();
         let meta = match response.metadata {
-            Some(meta) => Meta::from(meta.tags),
+            Some(meta) => Meta::new(meta.tags),
             None => Meta::default(),
         };
 
@@ -101,7 +102,7 @@ where
 
         let response = response.into_inner();
         let meta = match response.metadata {
-            Some(meta) => Meta::from(meta.tags),
+            Some(meta) => Meta::new(meta.tags),
             None => Meta::default(),
         };
 
@@ -134,13 +135,13 @@ where
         key: Key,
         collection: String,
         data: Option<Vec<u8>>,
-        meta: Meta,
+        tags: HashMap<String, String>,
         acl: Option<u64>,
     ) -> Result<()> {
         let request = UpdateRequest {
             id: key,
             metadata: Some(Metadata {
-                tags: meta.into(),
+                tags: tags,
                 collection: collection,
                 acl: acl.map(|acl| AclRef { acl }),
             }),
@@ -160,7 +161,7 @@ where
     async fn remote_list(
         &self,
         _id: u32,
-        _meta: Meta,
+        _tags: HashMap<String, String>,
         _collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Key>>> {
         bail!(Reason::NotSupported);
@@ -169,7 +170,7 @@ where
     async fn remote_find(
         &self,
         _id: u32,
-        _meta: Meta,
+        _tags: HashMap<String, String>,
         _collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Object>>> {
         bail!(Reason::NotSupported);
@@ -187,12 +188,12 @@ where
         ctx: Context,
         collection: String,
         data: Vec<u8>,
-        meta: Meta,
+        tags: HashMap<String, String>,
         acl: Option<u64>,
     ) -> Result<Key> {
         match ctx.route {
-            Route::Local => self.local.set(ctx, collection, data, meta, acl).await,
-            Route::Remote(id) => self.remote_set(id, collection, data, meta, acl).await,
+            Route::Local => self.local.set(ctx, collection, data, tags, acl).await,
+            Route::Remote(id) => self.remote_set(id, collection, data, tags, acl).await,
         }
     }
 
@@ -223,17 +224,17 @@ where
         key: Key,
         collection: String,
         data: Option<Vec<u8>>,
-        meta: Meta,
+        tags: HashMap<String, String>,
         acl: Option<u64>,
     ) -> Result<()> {
         match ctx.route {
             Route::Local => {
                 self.local
-                    .update(ctx, key, collection, data, meta, acl)
+                    .update(ctx, key, collection, data, tags, acl)
                     .await
             }
             Route::Remote(id) => {
-                self.remote_update(id, key, collection, data, meta, acl)
+                self.remote_update(id, key, collection, data, tags, acl)
                     .await
             }
         }
@@ -242,24 +243,24 @@ where
     async fn list(
         &mut self,
         ctx: Context,
-        meta: Meta,
+        tags: HashMap<String, String>,
         collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Key>>> {
         match ctx.route {
-            Route::Local => self.local.list(ctx, meta, collection).await,
-            Route::Remote(id) => self.remote_list(id, meta, collection).await,
+            Route::Local => self.local.list(ctx, tags, collection).await,
+            Route::Remote(id) => self.remote_list(id, tags, collection).await,
         }
     }
 
     async fn find(
         &mut self,
         ctx: Context,
-        meta: Meta,
+        tags: HashMap<String, String>,
         collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Object>>> {
         match ctx.route {
-            Route::Local => self.local.find(ctx, meta, collection).await,
-            Route::Remote(id) => self.remote_find(id, meta, collection).await,
+            Route::Local => self.local.find(ctx, tags, collection).await,
+            Route::Remote(id) => self.remote_find(id, tags, collection).await,
         }
     }
 }
