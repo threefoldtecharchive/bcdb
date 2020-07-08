@@ -117,7 +117,7 @@ mod tests {
         assert_eq!(None, storage.get(17).unwrap());
 
         // key equality
-        let mut keys = storage.keys().unwrap().collect::<Vec<_>>();
+        let mut keys = storage.keys().unwrap().map(|r| r.key).collect::<Vec<_>>();
         keys.sort();
         assert_eq!(keys, vec![key1, key2, key3]);
     }
