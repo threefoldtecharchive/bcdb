@@ -17,7 +17,7 @@ const TAG_COLLECTION: &str = ":collection";
 const TAG_ACL: &str = ":acl";
 const TAG_CREATED: &str = ":created";
 const TAG_UPDATED: &str = ":updated";
-const TAG_DELETE: &str = ":deleted";
+const TAG_DELETED: &str = ":deleted";
 const TAG_SIZE: &str = ":size";
 
 #[derive(Error, Debug)]
@@ -48,6 +48,7 @@ impl From<tonic::Status> for Reason {
             Code::Unauthenticated => Reason::Unauthorized,
             Code::NotFound => Reason::NotFound,
             Code::Unavailable => Reason::CannotGetPeer(s.message().into()),
+            Code::InvalidArgument => Reason::InvalidTag,
             _ => Reason::Unknown(s.message().into()),
         }
     }
@@ -112,11 +113,11 @@ impl Meta {
     }
 
     pub fn updated(&self) -> Option<u64> {
-        self.get_u64(TAG_CREATED)
+        self.get_u64(TAG_UPDATED)
     }
 
     pub fn deleted(&self) -> bool {
-        self.get_u64(TAG_DELETE).map(|v| v > 1).unwrap_or(false)
+        self.get_u64(TAG_DELETED).map(|v| v >= 1).unwrap_or(false)
     }
 
     pub fn with_collection<V: Into<String>>(mut self, collection: V) -> Self {
@@ -146,7 +147,7 @@ impl Meta {
     }
 
     pub fn with_deleted(self, deleted: bool) -> Self {
-        self.with_u64(TAG_DELETE, if deleted { 1 } else { 0 })
+        self.with_u64(TAG_DELETED, if deleted { 1 } else { 0 })
     }
 }
 
@@ -295,4 +296,47 @@ pub trait Database: Send + Sync + 'static {
         tags: HashMap<String, String>,
         collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Object>>>;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn meta_try_from_ok() {
+        let mut tags: HashMap<String, String> = HashMap::new();
+        tags.insert("name".into(), "some name".into());
+        tags.insert("parent".into(), "some other value".into());
+        let meta = Meta::try_from(tags);
+
+        assert_eq!(meta.is_ok(), true);
+    }
+
+    #[test]
+    fn meta_try_from_reserved() {
+        let mut tags: HashMap<String, String> = HashMap::new();
+        tags.insert(":reserved".into(), "some name".into());
+        let meta = Meta::try_from(tags);
+
+        assert_eq!(meta.is_err(), true);
+    }
+
+    #[test]
+    fn meta_with_fns() {
+        let meta = Meta::default()
+            .with_collection("collection")
+            .with_size(200)
+            .with_acl(10)
+            .with_created(2000)
+            .with_updated(3000)
+            .with_deleted(true);
+
+        assert_eq!(meta.collection(), Some("collection".into()));
+        assert_eq!(meta.size(), Some(200));
+        assert_eq!(meta.acl(), Some(10));
+        assert_eq!(meta.created(), Some(2000));
+        assert_eq!(meta.updated(), Some(3000));
+        assert_eq!(meta.deleted(), true);
+    }
 }
