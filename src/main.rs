@@ -235,7 +235,6 @@ async fn entry() -> Result<(), Box<dyn std::error::Error>> {
     let identity_service = rpc::IdentityService::new(identity.clone());
 
     let grpc_address: SocketAddr = matches.value_of("grpc").unwrap().parse()?;
-    // TODO: enable rest
 
     let rest_address = matches.value_of("rest").unwrap().into();
     tokio::spawn(async move {
