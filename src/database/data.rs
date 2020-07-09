@@ -302,6 +302,7 @@ where
 mod database_tests {
 
     use super::*;
+    use crate::acl::ACL;
     use crate::database::index::memory::MemoryIndex;
     use crate::database::*;
     use crate::storage::memory::MemoryStorage;
@@ -383,7 +384,7 @@ mod database_tests {
             .await
             .map_err(|e| Reason::from(&e));
 
-        // since no acl associated with this data. we still should got unauthorized
+        // owner should pass
         assert_eq!(result.is_ok(), true);
         let obj = result.unwrap();
 
@@ -402,8 +403,21 @@ mod database_tests {
         let mut tags = HashMap::default();
         tags.insert("tag".into(), "value".into());
         let data: Vec<u8> = "hello world".into();
+        let acl = ACL {
+            perm: "r--".parse().unwrap(),
+            users: vec![100],
+        };
+
+        let acl_id = db.acl.create(&acl).unwrap();
+
         let result = db
-            .set(ctx, collection.into(), data.clone(), tags, None)
+            .set(
+                ctx,
+                collection.into(),
+                data.clone(),
+                tags,
+                Some(acl_id as u64),
+            )
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -419,13 +433,27 @@ mod database_tests {
         assert_eq!(result.is_err(), true);
         assert_eq!(result.err(), Some(Reason::Unauthorized));
 
-        let ctx = Context::default().with_auth(Authorization::User(100)); //some random that
+        let ctx = Context::default().with_auth(Authorization::User(100)); //authorized user
         let result = db
             .get(ctx, key, collection.into())
             .await
             .map_err(|e| Reason::from(&e));
 
-        // since no acl associated with this data. we still should got unauthorized
+        assert_eq!(result.is_ok(), true);
+        let obj = result.unwrap();
+
+        assert_eq!(obj.key, key);
+        assert_eq!(obj.meta.get("tag").unwrap(), "value");
+        assert_eq!(obj.meta.collection().unwrap(), collection);
+        assert_eq!(obj.data.unwrap(), data);
+
+        let ctx = Context::default().with_auth(Authorization::User(1000)); //some random that
+        let result = db
+            .get(ctx, key, collection.into())
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        // since the acl associated with this data does not have this user id. we should got unauthorized
         assert_eq!(result.is_err(), true);
         assert_eq!(result.err(), Some(Reason::Unauthorized));
 
@@ -435,7 +463,6 @@ mod database_tests {
             .await
             .map_err(|e| Reason::from(&e));
 
-        // since no acl associated with this data. we still should got unauthorized
         assert_eq!(result.is_ok(), true);
         let obj = result.unwrap();
 
