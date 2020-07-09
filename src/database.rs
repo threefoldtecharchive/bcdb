@@ -339,4 +339,16 @@ mod test {
         assert_eq!(meta.updated(), Some(3000));
         assert_eq!(meta.deleted(), true);
     }
+
+    #[test]
+    fn meta_deleted() {
+        let meta = Meta::default();
+        assert_eq!(meta.deleted(), false);
+
+        let meta = meta.with_deleted(true);
+        assert_eq!(meta.deleted(), true);
+
+        let meta = meta.with_deleted(false);
+        assert_eq!(meta.deleted(), false);
+    }
 }
