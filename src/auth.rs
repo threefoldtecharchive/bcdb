@@ -1,6 +1,6 @@
 use crate::database::{Authorization, Context, Route};
-use crate::explorer::Explorer;
 use crate::identity::{Identity, PublicKey, Signature};
+use crate::peer::PeersList;
 use anyhow::{Error, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -11,8 +11,8 @@ use tonic::metadata::{AsciiMetadataValue, MetadataMap};
 use tonic::{Request, Status};
 
 #[derive(Clone)]
-pub struct Authenticator {
-    client: Explorer,
+pub struct Authenticator<P> {
+    client: P,
     cache: Arc<Mutex<HashMap<u64, PublicKey>>>,
     id: Identity,
 }
@@ -22,18 +22,21 @@ struct User {
     pub pubkey: PublicKey,
 }
 
-impl Authenticator {
-    pub fn new(base: Option<&str>, id: Identity) -> Result<Authenticator> {
+impl<P> Authenticator<P>
+where
+    P: PeersList,
+{
+    pub fn new(p: P, id: Identity) -> Self {
         let mut cache = HashMap::new();
 
         cache.insert(id.id() as u64, id.public_key());
         let cache = Arc::new(Mutex::new(cache));
 
-        Ok(Authenticator {
-            client: Explorer::new(base)?,
+        Authenticator {
+            client: p,
             cache: cache,
             id: id,
-        })
+        }
     }
 
     async fn get_key(&self, id: u64) -> Result<PublicKey> {
@@ -399,11 +402,130 @@ impl MetadataMapExt for MetadataMap {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::peer::{Peer, PeersList};
+    use tonic::metadata::AsciiMetadataValue;
+    use tonic::Request;
 
     #[tokio::test]
-    async fn get_user_key() {
+    async fn authorize_owner_ok() {
         let id = Identity::from_mnemonic(1, "crunch depend lock agree lava include clown toss runway source better such never bonus divide trade squeeze type ride satoshi slender lottery rain cause").unwrap();
-        let auth = Authenticator::new(None, id).unwrap();
+
+        let head = header(&id, None);
+        let mut request = Request::new(123 as i32);
+        let meta = request.metadata_mut();
+
+        meta.insert(
+            "authorization",
+            AsciiMetadataValue::from_str(head.as_ref()).unwrap(),
+        );
+
+        let list = HashMap::default();
+        let interceptor = Authenticator::new(list, id);
+        let result = interceptor.authenticate(request).await;
+
+        assert_eq!(result.is_ok(), true);
+        let request = result.unwrap();
+        let ctx = request.metadata().context();
+
+        assert_eq!(ctx.is_owner(), true);
+        assert_eq!(ctx.is_local(), true);
+    }
+
+    #[tokio::test]
+    async fn authorize_owner_not_ok() {
+        let owner = Identity::from_mnemonic(1, "crunch depend lock agree lava include clown toss runway source better such never bonus divide trade squeeze type ride satoshi slender lottery rain cause").unwrap();
+        // a user is trying to use the same id but with different sk
+        let id = Identity::from_mnemonic(1, "spirit rug scrap space enact easily flag pause rather rural chuckle clog sponsor cute trip hammer assume work rally same error suggest extend wasp").unwrap();
+
+        let head = header(&id, None);
+        let mut request = Request::new(123 as i32);
+        let meta = request.metadata_mut();
+
+        meta.insert(
+            "authorization",
+            AsciiMetadataValue::from_str(head.as_ref()).unwrap(),
+        );
+
+        let list = HashMap::default();
+        let interceptor = Authenticator::new(list, owner);
+        let result = interceptor.authenticate(request).await;
+
+        assert_eq!(result.is_err(), true);
+        let status = result.err().unwrap();
+        assert_eq!(status.code(), tonic::Code::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn authorize_user_ok() {
+        let owner = Identity::from_mnemonic(1, "crunch depend lock agree lava include clown toss runway source better such never bonus divide trade squeeze type ride satoshi slender lottery rain cause").unwrap();
+        // known user in the peers list.
+        let id = Identity::from_mnemonic(2, "spirit rug scrap space enact easily flag pause rather rural chuckle clog sponsor cute trip hammer assume work rally same error suggest extend wasp").unwrap();
+
+        let head = header(&id, None);
+        let mut request = Request::new(123 as i32);
+        let meta = request.metadata_mut();
+
+        meta.insert(
+            "authorization",
+            AsciiMetadataValue::from_str(head.as_ref()).unwrap(),
+        );
+
+        let mut list = HashMap::default();
+        list.insert(2, Peer::new(&id)); //add the user to the users list
+        let interceptor = Authenticator::new(list, owner);
+        let result = interceptor.authenticate(request).await;
+
+        assert_eq!(result.is_ok(), true);
+        let request = result.unwrap();
+        let ctx = request.metadata().context();
+
+        assert_eq!(ctx.is_owner(), false);
+        assert_eq!(ctx.is_local(), true);
+        assert_eq!(ctx.authorization, Authorization::User(2));
+    }
+
+    #[tokio::test]
+    async fn authorize_user_not_ok() {
+        let owner = Identity::from_mnemonic(1, "crunch depend lock agree lava include clown toss runway source better such never bonus divide trade squeeze type ride satoshi slender lottery rain cause").unwrap();
+        // user is not in the peers list
+        let id = Identity::from_mnemonic(2, "spirit rug scrap space enact easily flag pause rather rural chuckle clog sponsor cute trip hammer assume work rally same error suggest extend wasp").unwrap();
+
+        let head = header(&id, None);
+        let mut request = Request::new(123 as i32);
+        let meta = request.metadata_mut();
+
+        meta.insert(
+            "authorization",
+            AsciiMetadataValue::from_str(head.as_ref()).unwrap(),
+        );
+
+        let list = HashMap::default();
+        let interceptor = Authenticator::new(list, owner);
+        let result = interceptor.authenticate(request).await;
+
+        assert_eq!(result.is_err(), true);
+        let status = result.err().unwrap();
+        assert_eq!(status.code(), tonic::Code::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn authorize_no_header() {
+        let owner = Identity::from_mnemonic(1, "crunch depend lock agree lava include clown toss runway source better such never bonus divide trade squeeze type ride satoshi slender lottery rain cause").unwrap();
+        let list = HashMap::default();
+        let request = Request::new(123 as i32);
+        let interceptor = Authenticator::new(list, owner);
+        let result = interceptor.authenticate(request).await;
+
+        assert_eq!(result.is_err(), true);
+        let status = result.err().unwrap();
+        assert_eq!(status.code(), tonic::Code::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn get_user_owner() {
+        let id = Identity::from_mnemonic(1, "crunch depend lock agree lava include clown toss runway source better such never bonus divide trade squeeze type ride satoshi slender lottery rain cause").unwrap();
+        let list = HashMap::default();
+        let auth = Authenticator::new(list, id);
         match auth.get_key(1).await {
             Ok(key) => println!("pubkey: {:?}", key),
             Err(err) => panic!(err), //assert_eq!(true, false, "failed to get user id: {}", err),
@@ -413,9 +535,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_user_blocking() {
-        let id = Identity::from_mnemonic(0, "crunch depend lock agree lava include clown toss runway source better such never bonus divide trade squeeze type ride satoshi slender lottery rain cause").unwrap();
-        let auth = Authenticator::new(None, id).unwrap();
+    async fn get_user_other() {
+        let owner = Identity::from_mnemonic(0, "crunch depend lock agree lava include clown toss runway source better such never bonus divide trade squeeze type ride satoshi slender lottery rain cause").unwrap();
+        let user = Identity::from_mnemonic(1, "spirit rug scrap space enact easily flag pause rather rural chuckle clog sponsor cute trip hammer assume work rally same error suggest extend wasp").unwrap();
+        let mut list = HashMap::default();
+        list.insert(1, Peer::new(&user));
+        let auth = Authenticator::new(list, owner);
         match futures::executor::block_on(auth.get_key(1)) {
             Ok(key) => println!("pubkey: {:?}", key),
             Err(err) => panic!(err), //assert_eq!(true, false, "failed to get user id: {}", err),
