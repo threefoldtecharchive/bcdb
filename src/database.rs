@@ -20,7 +20,7 @@ const TAG_UPDATED: &str = ":updated";
 const TAG_DELETED: &str = ":deleted";
 const TAG_SIZE: &str = ":size";
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum Reason {
     #[error("Unauthorized")]
     Unauthorized,
@@ -50,6 +50,15 @@ impl From<tonic::Status> for Reason {
             Code::Unavailable => Reason::CannotGetPeer(s.message().into()),
             Code::InvalidArgument => Reason::InvalidTag,
             _ => Reason::Unknown(s.message().into()),
+        }
+    }
+}
+
+impl From<&anyhow::Error> for Reason {
+    fn from(err: &anyhow::Error) -> Self {
+        match err.downcast_ref::<Reason>() {
+            Some(reason) => reason.clone(),
+            None => Reason::Unknown(format!("{}", err)),
         }
     }
 }

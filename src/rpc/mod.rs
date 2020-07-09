@@ -7,7 +7,6 @@ use generated::bcdb_server::Bcdb as BcdbServiceTrait;
 use generated::identity_server::Identity as IdentityTrait;
 use generated::*;
 use std::collections::HashSet;
-use std::convert::TryFrom;
 use std::iter::FromIterator;
 use tokio::sync::mpsc;
 use tonic::{Code, Request, Response, Status};
@@ -29,20 +28,16 @@ trait FailureExt {
 
 impl FailureExt for Error {
     fn status(&self) -> Status {
-        if let Some(e) = self.downcast_ref::<Reason>() {
-            return match e {
-                Reason::Unauthorized => Status::unauthenticated("unauthorized"),
-                Reason::NotFound => Status::not_found("object not found"),
-                Reason::NotSupported => Status::unimplemented("operation not supported"),
-                Reason::InvalidTag => Status::invalid_argument(
-                    "use of invalid tag string (':' prefix is for internal use)",
-                ),
-                Reason::CannotGetPeer(m) => Status::unavailable(m),
-                Reason::Unknown(m) => Status::internal(format!("{}", m)),
-            };
+        match Reason::from(self) {
+            Reason::Unauthorized => Status::unauthenticated("unauthorized"),
+            Reason::NotFound => Status::not_found("object not found"),
+            Reason::NotSupported => Status::unimplemented("operation not supported"),
+            Reason::InvalidTag => Status::invalid_argument(
+                "use of invalid tag string (':' prefix is for internal use)",
+            ),
+            Reason::CannotGetPeer(m) => Status::unavailable(m),
+            Reason::Unknown(m) => Status::internal(m),
         }
-
-        Status::new(Code::Internal, format!("{}", self))
     }
 }
 

@@ -338,22 +338,25 @@ where
 }
 
 #[cfg(test)]
-mod memory {
+pub mod memory {
     use crate::database::{Index, Meta};
     use crate::storage::Key;
     use anyhow::Result;
     use async_trait::async_trait;
     use std::collections::{HashMap, HashSet};
+    use std::sync::Arc;
     use tokio::sync::mpsc;
+    use tokio::sync::Mutex;
 
+    #[derive(Clone)]
     pub struct MemoryIndex {
-        data: HashMap<(String, String), HashSet<u32>>,
+        data: Arc<Mutex<HashMap<(String, String), HashSet<u32>>>>,
     }
 
     impl MemoryIndex {
         pub fn new() -> Self {
             MemoryIndex {
-                data: HashMap::default(),
+                data: Arc::new(Mutex::new(HashMap::default())),
             }
         }
     }
@@ -361,8 +364,9 @@ mod memory {
     #[async_trait]
     impl Index for MemoryIndex {
         async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
+            let mut data = self.data.lock().await;
             for pair in meta {
-                let set = self.data.get_mut(&pair);
+                let set = data.get_mut(&pair);
                 match set {
                     Some(set) => {
                         set.insert(key);
@@ -370,7 +374,7 @@ mod memory {
                     None => {
                         let mut set = HashSet::default();
                         set.insert(key);
-                        self.data.insert(pair, set);
+                        data.insert(pair, set);
                     }
                 };
             }
@@ -378,8 +382,9 @@ mod memory {
         }
 
         async fn get(&mut self, key: Key) -> Result<Meta> {
+            let data = self.data.lock().await;
             let mut meta = Meta::default();
-            for ((k, v), s) in self.data.iter() {
+            for ((k, v), s) in data.iter() {
                 if !s.get(&key).is_none() {
                     meta.insert::<String, String>(k.into(), v.into())
                 }
@@ -389,9 +394,10 @@ mod memory {
         }
 
         async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
+            let data = self.data.lock().await;
             let mut results: Option<HashSet<u32>> = None;
             for pair in meta {
-                let set = self.data.get(&pair);
+                let set = data.get(&pair);
                 match set {
                     None => break,
                     Some(data) => {
