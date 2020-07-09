@@ -196,7 +196,7 @@ pub trait Index: Send + Sync + 'static {
     async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Route {
     Local,
     Remote(u32),
@@ -208,7 +208,7 @@ impl Default for Route {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Authorization {
     Invalid,
     Owner,
@@ -299,7 +299,7 @@ pub trait Database: Send + Sync + 'static {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use std::collections::HashMap;
 
@@ -350,5 +350,12 @@ mod test {
 
         let meta = meta.with_deleted(false);
         assert_eq!(meta.deleted(), false);
+    }
+
+    #[test]
+    fn context_default() {
+        let ctx = Context::default();
+        assert_eq!(ctx.authorization, Authorization::Invalid);
+        assert_eq!(ctx.route, Route::Local);
     }
 }

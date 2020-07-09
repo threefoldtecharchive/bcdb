@@ -509,4 +509,64 @@ mod tests {
             }
         }
     }
+
+    #[tokio::test]
+    async fn sqlite_index() {
+        const dir: &str = "/tmp/sqlite-index.test";
+        let _ = std::fs::remove_dir_all(dir);
+        let builder = SqliteIndexBuilder::new(dir).unwrap();
+
+        let mut index = builder.build("metadata").await.unwrap();
+        let mut meta1 = Meta::default();
+        meta1.insert("name", "user1");
+        meta1.insert("age", "38");
+        let results = index.set(1, meta1).await;
+
+        assert_eq!(results.is_ok(), true);
+
+        let mut meta2 = Meta::default();
+        meta2.insert("name", "user2");
+        meta2.insert("age", "38");
+        let results = index.set(2, meta2).await;
+
+        assert_eq!(results.is_ok(), true);
+
+        let loaded = index.get(1).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user1");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        let loaded = index.get(2).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user2");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        //update
+        let mut meta2 = Meta::default();
+        meta2.insert("name", "updated");
+        let results = index.set(2, meta2).await;
+
+        assert_eq!(results.is_ok(), true);
+        let loaded = index.get(2).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "updated");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        let mut find = Meta::default();
+        find.insert("age", "38");
+
+        use tokio::stream::StreamExt;
+        let found = index.find(find).await.unwrap();
+        let results: Vec<Result<Key>> = found.collect().await;
+
+        assert_eq!(results.len(), 2);
+
+        let mut find = Meta::default();
+        find.insert("name", "updated");
+
+        let found = index.find(find).await.unwrap();
+        let results: Vec<Result<Key>> = found.collect().await;
+
+        assert_eq!(results.len(), 1);
+    }
 }
