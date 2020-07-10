@@ -1,10 +1,10 @@
+use super::*;
 use crate::acl::*;
+use crate::storage::Storage;
 use anyhow::Context as ErrorContext;
+use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
-
-use super::*;
-use crate::storage::Storage;
 
 //TODO: use generics for both object store type and meta factory type.
 #[derive(Clone)]
@@ -78,14 +78,14 @@ where
         ctx: Context,
         collection: String,
         data: Vec<u8>,
-        meta: Meta,
+        tags: HashMap<String, String>,
         acl: Option<u64>,
     ) -> Result<Key> {
         if !ctx.is_owner() {
             bail!(Reason::Unauthorized)
         }
 
-        let mut meta = meta;
+        let mut meta = Meta::try_from(tags)?;
         if let Some(acl) = acl {
             meta = meta.with_acl(acl);
         }
@@ -178,7 +178,7 @@ where
         key: Key,
         collection: String,
         data: Option<Vec<u8>>,
-        meta: Meta,
+        tags: HashMap<String, String>,
         acl: Option<u64>,
     ) -> Result<()> {
         let current = self.meta.get(key).await?;
@@ -189,7 +189,7 @@ where
             bail!(Reason::NotFound);
         }
 
-        let mut meta = meta;
+        let mut meta = Meta::try_from(tags)?;
         if let Some(acl) = acl {
             if !ctx.is_owner() {
                 bail!(Reason::Unauthorized);
@@ -208,7 +208,7 @@ where
         if let Some(data) = data {
             meta = meta.with_size(data.len() as u64);
             let mut db = self.data.clone();
-            spawn_blocking(move || db.set(None, &data).expect("failed to set data"))
+            spawn_blocking(move || db.set(Some(key), &data).expect("failed to set data"))
                 .await
                 .context("failed to run blocking task")?;
         }
@@ -222,14 +222,14 @@ where
     async fn list(
         &mut self,
         ctx: Context,
-        meta: Meta,
+        tags: HashMap<String, String>,
         collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Key>>> {
         if !ctx.is_owner() {
             bail!(Reason::Unauthorized);
         }
 
-        let mut meta = meta;
+        let mut meta = Meta::new(tags);
 
         if let Some(collection) = collection {
             meta.insert(TAG_COLLECTION, collection);
@@ -242,14 +242,14 @@ where
     async fn find(
         &mut self,
         ctx: Context,
-        meta: Meta,
+        tags: HashMap<String, String>,
         collection: Option<String>,
     ) -> Result<mpsc::Receiver<Result<Object>>> {
         if !ctx.is_owner() {
             bail!(Reason::Unauthorized);
         }
 
-        let mut meta = meta;
+        let mut meta = Meta::new(tags);
 
         if let Some(collection) = collection {
             meta.insert(TAG_COLLECTION, collection);
@@ -295,5 +295,321 @@ where
         });
 
         Ok(rx)
+    }
+}
+
+#[cfg(test)]
+pub mod database_tests {
+
+    use super::*;
+    use crate::acl::ACL;
+    use crate::database::index::memory::MemoryIndex;
+    use crate::database::*;
+    use crate::storage::memory::MemoryStorage;
+
+    pub fn get_in_memory_db() -> BcdbDatabase<MemoryStorage, MemoryIndex> {
+        let data = MemoryStorage::new();
+        let acl = MemoryStorage::new();
+        let index = MemoryIndex::new();
+
+        BcdbDatabase::new(data, index, ACLStorage::new(acl))
+    }
+
+    #[tokio::test]
+    async fn database_owner_set() {
+        let mut db = get_in_memory_db();
+
+        // default context has no authorization
+        let ctx = Context::default();
+        let tags = HashMap::default();
+        let result = db
+            .set(ctx, "test".into(), "hello world".into(), tags, None)
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_err(), true);
+        assert_eq!(result.err(), Some(Reason::Unauthorized));
+
+        let ctx = Context::default().with_auth(Authorization::Owner);
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+        let result = db
+            .set(ctx, "test".into(), "hello world".into(), tags, None)
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_ok(), true);
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn database_owner_get() {
+        let collection = "test";
+        let mut db = get_in_memory_db();
+
+        let ctx = Context::default().with_auth(Authorization::Owner);
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+        let data: Vec<u8> = "hello world".into();
+        let result = db
+            .set(ctx, collection.into(), data.clone(), tags, None)
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_ok(), true);
+        let key = result.unwrap();
+
+        let ctx = Context::default(); //no auth (invalid)
+        let result = db
+            .get(ctx, key, collection.into())
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_err(), true);
+        assert_eq!(result.err(), Some(Reason::Unauthorized));
+
+        let ctx = Context::default().with_auth(Authorization::User(100)); //some random that
+        let result = db
+            .get(ctx, key, collection.into())
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        // since no acl associated with this data. we still should got unauthorized
+        assert_eq!(result.is_err(), true);
+        assert_eq!(result.err(), Some(Reason::Unauthorized));
+
+        let ctx = Context::default().with_auth(Authorization::Owner); //some random that
+        let result = db
+            .get(ctx, key, collection.into())
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        // owner should pass
+        assert_eq!(result.is_ok(), true);
+        let obj = result.unwrap();
+
+        assert_eq!(obj.key, key);
+        assert_eq!(obj.meta.get("tag").unwrap(), "value");
+        assert_eq!(obj.meta.collection().unwrap(), collection);
+        assert_eq!(obj.data.unwrap(), data);
+    }
+
+    #[tokio::test]
+    async fn database_user_get() {
+        let collection = "test";
+        let mut db = get_in_memory_db();
+
+        let ctx = Context::default().with_auth(Authorization::Owner);
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+        let data: Vec<u8> = "hello world".into();
+        let acl = ACL {
+            perm: "r--".parse().unwrap(),
+            users: vec![100],
+        };
+
+        let acl_id = db.acl.create(&acl).unwrap();
+
+        let result = db
+            .set(
+                ctx,
+                collection.into(),
+                data.clone(),
+                tags,
+                Some(acl_id as u64),
+            )
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_ok(), true);
+        let key = result.unwrap();
+
+        let ctx = Context::default(); //no auth (invalid)
+        let result = db
+            .get(ctx, key, collection.into())
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_err(), true);
+        assert_eq!(result.err(), Some(Reason::Unauthorized));
+
+        let ctx = Context::default().with_auth(Authorization::User(100)); //authorized user
+        let result = db
+            .get(ctx, key, collection.into())
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_ok(), true);
+        let obj = result.unwrap();
+
+        assert_eq!(obj.key, key);
+        assert_eq!(obj.meta.get("tag").unwrap(), "value");
+        assert_eq!(obj.meta.collection().unwrap(), collection);
+        assert_eq!(obj.data.unwrap(), data);
+
+        let ctx = Context::default().with_auth(Authorization::User(1000)); //some random that
+        let result = db
+            .get(ctx, key, collection.into())
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        // since the acl associated with this data does not have this user id. we should got unauthorized
+        assert_eq!(result.is_err(), true);
+        assert_eq!(result.err(), Some(Reason::Unauthorized));
+
+        let ctx = Context::default().with_auth(Authorization::Owner); //some random that
+        let result = db
+            .get(ctx, key, collection.into())
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_ok(), true);
+        let obj = result.unwrap();
+
+        assert_eq!(obj.key, key);
+        assert_eq!(obj.meta.get("tag").unwrap(), "value");
+        assert_eq!(obj.meta.collection().unwrap(), collection);
+        assert_eq!(obj.data.unwrap(), data);
+    }
+
+    #[tokio::test]
+    async fn database_user_update() {
+        let collection = "test";
+        let mut db = get_in_memory_db();
+
+        let ctx = Context::default().with_auth(Authorization::Owner);
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+        let data: Vec<u8> = "hello world".into();
+        let acl = ACL {
+            // only read perm
+            perm: "r--".parse().unwrap(),
+            users: vec![100],
+        };
+
+        let acl_id = db.acl.create(&acl).unwrap();
+
+        let result = db
+            .set(
+                ctx,
+                collection.into(),
+                data.clone(),
+                tags,
+                Some(acl_id as u64),
+            )
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_ok(), true);
+        let key = result.unwrap();
+
+        let ctx = Context::default().with_auth(Authorization::User(100)); //authorized user
+        let mut tags = HashMap::default();
+        tags.insert("new".into(), "new value".into());
+        let result = db
+            .update(ctx, key, collection.into(), None, tags, None)
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_err(), true);
+        assert_eq!(result.err(), Some(Reason::Unauthorized));
+
+        let acl = ACL {
+            // write only perm
+            perm: "-w-".parse().unwrap(),
+            users: vec![100],
+        };
+
+        db.acl.update(acl_id, &acl).unwrap();
+
+        let ctx = Context::default().with_auth(Authorization::User(100)); //authorized user
+        let mut tags = HashMap::default();
+        tags.insert("new".into(), "new value".into());
+        let result = db
+            .update(ctx, key, collection.into(), None, tags, None)
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_ok(), true);
+
+        // this get operation should fail, even with the same user because the acl doesn't have read access
+        let ctx = Context::default().with_auth(Authorization::User(100)); //some random that
+        let result = db
+            .get(ctx, key, collection.into())
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        // since the acl associated with this data does not have this user id. we should got unauthorized
+        assert_eq!(result.is_err(), true);
+        assert_eq!(result.err(), Some(Reason::Unauthorized));
+    }
+
+    #[tokio::test]
+    async fn database_update() {
+        let collection = "test";
+        let mut db = get_in_memory_db();
+
+        let ctx = Context::default().with_auth(Authorization::Owner);
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+        let data: Vec<u8> = "hello world".into();
+
+        let result = db
+            .set(ctx, collection.into(), data.clone(), tags, None)
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_ok(), true);
+        let key = result.unwrap();
+
+        let ctx = Context::default().with_auth(Authorization::Owner);
+        let mut tags = HashMap::default();
+        tags.insert("new".into(), "new value".into());
+        // update tags only
+        let result = db
+            .update(ctx, key, collection.into(), None, tags, None)
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_ok(), true);
+        let ctx = Context::default().with_auth(Authorization::Owner);
+        let result = db
+            .get(ctx, key, collection.into())
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_ok(), true);
+        let obj = result.unwrap();
+
+        assert_eq!(obj.key, key);
+        assert_eq!(obj.meta.get("tag").unwrap(), "value");
+        assert_eq!(obj.meta.get("new").unwrap(), "new value");
+        assert_eq!(obj.meta.collection().unwrap(), collection);
+        assert_eq!(obj.data.unwrap(), data);
+
+        let ctx = Context::default().with_auth(Authorization::Owner);
+        let tags = HashMap::default();
+        // update data only
+        let data: Vec<u8> = "hello nwe world".into();
+        let result = db
+            .update(ctx, key, collection.into(), Some(data.clone()), tags, None)
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_ok(), true);
+        let ctx = Context::default().with_auth(Authorization::Owner);
+        let result = db
+            .get(ctx, key, collection.into())
+            .await
+            .map_err(|e| Reason::from(&e));
+
+        assert_eq!(result.is_ok(), true);
+        let obj = result.unwrap();
+
+        assert_eq!(obj.key, key);
+        assert_eq!(obj.meta.get("tag").unwrap(), "value");
+        assert_eq!(obj.meta.get("new").unwrap(), "new value");
+        assert_eq!(obj.meta.collection().unwrap(), collection);
+        assert_eq!(obj.data.unwrap(), data);
     }
 }

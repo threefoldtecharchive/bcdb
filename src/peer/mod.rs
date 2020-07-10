@@ -1,6 +1,8 @@
+use crate::identity::PublicKey;
 use anyhow::Error;
 use async_trait::async_trait;
 use lru_time_cache::LruCache;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fs::File;
@@ -14,7 +16,49 @@ pub use router::Router;
 
 type Result<T> = std::result::Result<T, Error>;
 
-pub use crate::explorer::{Explorer, Peer};
+#[derive(Deserialize, Clone)]
+pub struct Peer {
+    pub id: u32,
+
+    #[serde(default)]
+    pub name: String,
+
+    #[serde(default)]
+    pub email: String,
+
+    #[serde(rename = "pubkey")]
+    pub key: PublicKey,
+
+    pub host: String,
+
+    #[serde(default)]
+    pub description: String,
+}
+
+impl Peer {
+    pub async fn connect(&self) -> Result<tonic::transport::Channel> {
+        debug!("connecting to peer: {}", self.host);
+        let con = tonic::transport::Endpoint::new(self.host.clone())?
+            .connect()
+            .await?;
+
+        Ok(con)
+    }
+}
+
+#[cfg(test)]
+impl Peer {
+    pub fn new(id: &crate::identity::Identity) -> Self {
+        Peer {
+            id: id.id(),
+            name: "".into(),
+            email: "".into(),
+            key: id.public_key(),
+            host: "".into(),
+            description: "".into(),
+        }
+    }
+}
 
 #[async_trait]
 pub trait PeersList: Sync + Send + 'static {
@@ -65,9 +109,12 @@ impl PeersList for PeersFile {
 }
 
 #[async_trait]
-impl PeersList for Explorer {
+impl PeersList for HashMap<u32, Peer> {
     async fn get(&self, id: u32) -> Result<Peer> {
-        Explorer::get(self, id).await
+        match Self::get(self, &id) {
+            None => bail!("peer not found"),
+            Some(peer) => Ok(peer.clone()),
+        }
     }
 }
 

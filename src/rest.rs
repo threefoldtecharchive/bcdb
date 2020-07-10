@@ -22,6 +22,7 @@ mod bcdb;
 enum BcdbRejection {
     Error(Error),
     InvalidTagsString,
+    InvalidTag,
     InvalidACLPermission,
 }
 
@@ -37,6 +38,10 @@ fn error_to_code(err: &Error) -> (StatusCode, String) {
             Reason::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".into()),
             Reason::NotFound => (StatusCode::NOT_FOUND, "Not Found".into()),
             Reason::NotSupported => (StatusCode::NOT_IMPLEMENTED, "Not Implemented".into()),
+            Reason::InvalidTag => (
+                StatusCode::BAD_REQUEST,
+                "Use of invalid tag string (':' prefix is for internal use)".into(),
+            ),
             Reason::CannotGetPeer(m) => (StatusCode::BAD_REQUEST, m.into()),
             Reason::Unknown(m) => (StatusCode::INTERNAL_SERVER_ERROR, m.into()),
         };

@@ -215,15 +215,15 @@ async fn entry() -> Result<(), Box<dyn std::error::Error>> {
             matches.value_of("peers-file").unwrap(),
         )?)
     } else {
-        peer::Either::B(peer::Explorer::new(matches.value_of("explorer"))?)
+        peer::Either::B(explorer::Explorer::new(matches.value_of("explorer"))?)
     };
 
     // tracker cache peers from the given source, and validate their identity
     let tracker = peer::Tracker::new(std::time::Duration::from_secs(20 * 60), 1000, peers);
 
-    let db = peer::Router::new(identity.clone(), db, tracker);
+    let db = peer::Router::new(identity.clone(), db, tracker.clone());
 
-    let interceptor = auth::Authenticator::new(matches.value_of("explorer"), identity.clone())?;
+    let interceptor = auth::Authenticator::new(tracker, identity.clone());
     let acl_interceptor = interceptor.clone();
 
     let bcdb_service = rpc::BcdbService::new(db.clone());
@@ -235,7 +235,6 @@ async fn entry() -> Result<(), Box<dyn std::error::Error>> {
     let identity_service = rpc::IdentityService::new(identity.clone());
 
     let grpc_address: SocketAddr = matches.value_of("grpc").unwrap().parse()?;
-    // TODO: enable rest
 
     let rest_address = matches.value_of("rest").unwrap().into();
     tokio::spawn(async move {

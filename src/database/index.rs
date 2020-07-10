@@ -281,7 +281,7 @@ where
             };
 
             let obj = serde_json::from_slice::<ZdbMetaDe>(&data)?;
-            self.inner.set(obj.key, Meta::from(obj.tags)).await?;
+            self.inner.set(obj.key, Meta::new(obj.tags)).await?;
             key += 1;
         }
 
@@ -300,7 +300,7 @@ where
 
             let obj = serde_json::from_slice::<ZdbMetaDe>(&data)?;
 
-            self.inner.set(obj.key, Meta::from(obj.tags)).await?;
+            self.inner.set(obj.key, Meta::new(obj.tags)).await?;
         }
 
         Ok(())
@@ -338,8 +338,146 @@ where
 }
 
 #[cfg(test)]
+pub mod memory {
+    use crate::database::{Index, Meta};
+    use crate::storage::Key;
+    use anyhow::Result;
+    use async_trait::async_trait;
+    use std::collections::{HashMap, HashSet};
+    use std::sync::Arc;
+    use tokio::sync::mpsc;
+    use tokio::sync::Mutex;
+
+    #[derive(Clone)]
+    pub struct MemoryIndex {
+        data: Arc<Mutex<HashMap<(String, String), HashSet<u32>>>>,
+    }
+
+    impl MemoryIndex {
+        pub fn new() -> Self {
+            MemoryIndex {
+                data: Arc::new(Mutex::new(HashMap::default())),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Index for MemoryIndex {
+        async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
+            let mut data = self.data.lock().await;
+            for pair in meta {
+                let set = data.get_mut(&pair);
+                match set {
+                    Some(set) => {
+                        set.insert(key);
+                    }
+                    None => {
+                        let mut set = HashSet::default();
+                        set.insert(key);
+                        data.insert(pair, set);
+                    }
+                };
+            }
+            Ok(())
+        }
+
+        async fn get(&mut self, key: Key) -> Result<Meta> {
+            let data = self.data.lock().await;
+            let mut meta = Meta::default();
+            for ((k, v), s) in data.iter() {
+                if !s.get(&key).is_none() {
+                    meta.insert::<String, String>(k.into(), v.into())
+                }
+            }
+
+            Ok(meta)
+        }
+
+        async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
+            let data = self.data.lock().await;
+            let mut results: Option<HashSet<u32>> = None;
+            for pair in meta {
+                let set = data.get(&pair);
+                match set {
+                    None => break,
+                    Some(data) => {
+                        results = match results {
+                            None => Some(data.clone()),
+                            Some(results) => {
+                                results.intersection(data);
+                                Some(results)
+                            }
+                        }
+                    }
+                }
+            }
+
+            let (mut tx, rx) = mpsc::channel(10);
+            tokio::spawn(async move {
+                let results = match results {
+                    None => return,
+                    Some(results) => results,
+                };
+
+                for result in results {
+                    tx.send(Ok(result)).await.unwrap();
+                }
+            });
+            Ok(rx)
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
+    use super::memory::MemoryIndex;
     use super::*;
+    use crate::database::Meta;
+
+    #[tokio::test]
+    async fn memory_index() {
+        let mut index = MemoryIndex::new();
+        let mut meta1 = Meta::default();
+        meta1.insert("name", "user1");
+        meta1.insert("age", "38");
+        let results = index.set(1, meta1).await;
+
+        assert_eq!(results.is_ok(), true);
+
+        let mut meta2 = Meta::default();
+        meta2.insert("name", "user2");
+        meta2.insert("age", "38");
+        let results = index.set(2, meta2).await;
+
+        assert_eq!(results.is_ok(), true);
+
+        let loaded = index.get(1).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user1");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        let loaded = index.get(2).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user2");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        let mut find = Meta::default();
+        find.insert("age", "38");
+
+        use tokio::stream::StreamExt;
+        let found = index.find(find).await.unwrap();
+        let results: Vec<Result<Key>> = found.collect().await;
+
+        assert_eq!(results.len(), 2);
+
+        let mut find = Meta::default();
+        find.insert("name", "user1");
+
+        let found = index.find(find).await.unwrap();
+        let results: Vec<Result<Key>> = found.collect().await;
+
+        assert_eq!(results.len(), 1);
+    }
 
     #[tokio::test]
     async fn schema() {
@@ -376,5 +514,65 @@ mod tests {
                 println!("{}: {}", k, v);
             }
         }
+    }
+
+    #[tokio::test]
+    async fn sqlite_index() {
+        const dir: &str = "/tmp/sqlite-index.test";
+        let _ = std::fs::remove_dir_all(dir);
+        let builder = SqliteIndexBuilder::new(dir).unwrap();
+
+        let mut index = builder.build("metadata").await.unwrap();
+        let mut meta1 = Meta::default();
+        meta1.insert("name", "user1");
+        meta1.insert("age", "38");
+        let results = index.set(1, meta1).await;
+
+        assert_eq!(results.is_ok(), true);
+
+        let mut meta2 = Meta::default();
+        meta2.insert("name", "user2");
+        meta2.insert("age", "38");
+        let results = index.set(2, meta2).await;
+
+        assert_eq!(results.is_ok(), true);
+
+        let loaded = index.get(1).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user1");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        let loaded = index.get(2).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user2");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        //update
+        let mut meta2 = Meta::default();
+        meta2.insert("name", "updated");
+        let results = index.set(2, meta2).await;
+
+        assert_eq!(results.is_ok(), true);
+        let loaded = index.get(2).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "updated");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        let mut find = Meta::default();
+        find.insert("age", "38");
+
+        use tokio::stream::StreamExt;
+        let found = index.find(find).await.unwrap();
+        let results: Vec<Result<Key>> = found.collect().await;
+
+        assert_eq!(results.len(), 2);
+
+        let mut find = Meta::default();
+        find.insert("name", "updated");
+
+        let found = index.find(find).await.unwrap();
+        let results: Vec<Result<Key>> = found.collect().await;
+
+        assert_eq!(results.len(), 1);
     }
 }

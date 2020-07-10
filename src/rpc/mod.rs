@@ -28,17 +28,16 @@ trait FailureExt {
 
 impl FailureExt for Error {
     fn status(&self) -> Status {
-        if let Some(e) = self.downcast_ref::<Reason>() {
-            return match e {
-                Reason::Unauthorized => Status::unauthenticated("unauthorized"),
-                Reason::NotFound => Status::not_found("object not found"),
-                Reason::NotSupported => Status::unimplemented("operation not supported"),
-                Reason::CannotGetPeer(m) => Status::unavailable(m),
-                Reason::Unknown(m) => Status::internal(format!("{}", m)),
-            };
+        match Reason::from(self) {
+            Reason::Unauthorized => Status::unauthenticated("unauthorized"),
+            Reason::NotFound => Status::not_found("object not found"),
+            Reason::NotSupported => Status::unimplemented("operation not supported"),
+            Reason::InvalidTag => Status::invalid_argument(
+                "use of invalid tag string (':' prefix is for internal use)",
+            ),
+            Reason::CannotGetPeer(m) => Status::unavailable(m),
+            Reason::Unknown(m) => Status::internal(m),
         }
-
-        Status::new(Code::Internal, format!("{}", self))
     }
 }
 
@@ -93,13 +92,7 @@ where
 
         let mut db = self.db.clone();
         let id = db
-            .set(
-                context,
-                metadata.collection,
-                data,
-                Meta::from(metadata.tags),
-                acl,
-            )
+            .set(context, metadata.collection, data, metadata.tags, acl)
             .await
             .map_err(|e| e.status())?;
 
@@ -170,13 +163,13 @@ where
         let acl = metadata.acl.map(|a| a.acl);
 
         let mut db = self.db.clone();
-        let id = db
+        let _ = db
             .update(
                 ctx,
                 id,
                 metadata.collection,
                 data.map(|d| d.data),
-                Meta::from(metadata.tags),
+                metadata.tags,
                 acl,
             )
             .await
@@ -194,7 +187,7 @@ where
         let mut db = self.db.clone();
 
         let mut results = db
-            .list(ctx, Meta::from(request.tags), Some(request.collection))
+            .list(ctx, request.tags, Some(request.collection))
             .await
             .map_err(|e| e.status())?;
 
@@ -223,7 +216,7 @@ where
         let mut db = self.db.clone();
 
         let mut results = db
-            .find(ctx, Meta::from(request.tags), Some(request.collection))
+            .find(ctx, request.tags, Some(request.collection))
             .await
             .map_err(|e| e.status())?;
 
@@ -546,5 +539,362 @@ impl IdentityTrait for IdentityService {
             identity: Some(self.identity_info()),
             signature: signature.to_bytes().to_vec(),
         }))
+    }
+}
+
+#[cfg(test)]
+mod rpc_tests {
+    use super::generated::*;
+    use super::BcdbService;
+    use crate::database::data::database_tests::get_in_memory_db;
+    use crate::database::Database;
+    use crate::database::{Authorization, Context};
+    use crate::rpc::generated::bcdb_server::Bcdb;
+    use std::collections::HashMap;
+    use tonic::Request;
+
+    #[tokio::test]
+    async fn rpc_set_owner() {
+        let mut db = get_in_memory_db();
+        let rpc = BcdbService::new(db.clone());
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+
+        let data: Vec<u8> = "hello world".into();
+        let mut request = Request::new(SetRequest {
+            data: data.clone(),
+            metadata: Some(Metadata {
+                acl: Some(AclRef { acl: 3 }),
+                collection: "test".into(),
+                tags: tags,
+            }),
+        });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.set(request).await;
+        assert_eq!(result.is_ok(), true);
+        let id = result.unwrap().into_inner().id;
+
+        let object = db
+            .fetch(Context::default().with_auth(Authorization::Owner), id)
+            .await
+            .unwrap();
+
+        assert_eq!(object.data.unwrap(), data);
+        assert_eq!(object.meta.is_collection("test"), true);
+        assert_eq!(object.meta.acl(), Some(3));
+        assert_eq!(object.meta.get("tag").unwrap(), "value");
+    }
+
+    #[tokio::test]
+    async fn rpc_set_no_owner() {
+        let db = get_in_memory_db();
+        let rpc = BcdbService::new(db);
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+
+        let data: Vec<u8> = "hello world".into();
+        let mut request = Request::new(SetRequest {
+            data: data.clone(),
+            metadata: Some(Metadata {
+                acl: None,
+                collection: "test".into(),
+                tags: tags,
+            }),
+        });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::User(5))
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.set(request).await;
+        assert_eq!(result.is_err(), true);
+        let status = result.err().unwrap();
+        assert_eq!(status.code(), tonic::Code::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn rpc_get() {
+        let mut db = get_in_memory_db();
+        let data: Vec<u8> = "hello world".into();
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+
+        let id = db
+            .set(
+                Context::default().with_auth(Authorization::Owner),
+                "test".into(),
+                data.clone(),
+                tags,
+                None,
+            )
+            .await
+            .unwrap();
+
+        let rpc = BcdbService::new(db);
+
+        let mut request = Request::new(GetRequest {
+            id: id,
+            collection: "test".into(),
+        });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.get(request).await;
+        assert_eq!(result.is_ok(), true);
+        let object = result.unwrap().into_inner();
+
+        assert_eq!(object.data, data);
+        let metadata = object.metadata.unwrap();
+        assert_eq!(metadata.collection, "test");
+        assert_eq!(metadata.acl, None);
+        assert_eq!(metadata.tags.get("tag").unwrap(), "value");
+    }
+
+    #[tokio::test]
+    async fn rpc_fetch() {
+        let mut db = get_in_memory_db();
+        let data: Vec<u8> = "hello world".into();
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+
+        let id = db
+            .set(
+                Context::default().with_auth(Authorization::Owner),
+                "test".into(),
+                data.clone(),
+                tags,
+                None,
+            )
+            .await
+            .unwrap();
+
+        let rpc = BcdbService::new(db);
+
+        let mut request = Request::new(GetRequest {
+            id: id,
+            collection: "wrong".into(),
+        });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.get(request).await;
+        assert_eq!(result.is_err(), true);
+        let status = result.err().unwrap();
+        assert_eq!(status.code(), tonic::Code::NotFound);
+
+        let mut request = Request::new(FetchRequest { id: id });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.fetch(request).await;
+
+        let object = result.unwrap().into_inner();
+
+        assert_eq!(object.data, data);
+        let metadata = object.metadata.unwrap();
+        assert_eq!(metadata.collection, "test");
+        assert_eq!(metadata.acl, None);
+        assert_eq!(metadata.tags.get("tag").unwrap(), "value");
+    }
+
+    #[tokio::test]
+    async fn rpc_delete() {
+        let mut db = get_in_memory_db();
+        let data: Vec<u8> = "hello world".into();
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+
+        let id = db
+            .set(
+                Context::default().with_auth(Authorization::Owner),
+                "test".into(),
+                data.clone(),
+                tags,
+                None,
+            )
+            .await
+            .unwrap();
+
+        let rpc = BcdbService::new(db);
+
+        let mut request = Request::new(DeleteRequest {
+            id: id,
+            collection: "test".into(),
+        });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.delete(request).await;
+        assert_eq!(result.is_ok(), true);
+
+        let mut request = Request::new(FetchRequest { id: id });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.fetch(request).await;
+
+        let object = result.unwrap().into_inner();
+
+        assert_eq!(object.data, data);
+        let metadata = object.metadata.unwrap();
+        assert_eq!(metadata.collection, "test");
+        assert_eq!(metadata.acl, None);
+        assert_eq!(metadata.tags.get("tag").unwrap(), "value");
+        assert_eq!(metadata.tags.get(":deleted").unwrap(), "1");
+    }
+
+    #[tokio::test]
+    async fn rpc_update() {
+        let mut db = get_in_memory_db();
+        let data: Vec<u8> = "hello world".into();
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+
+        let id = db
+            .set(
+                Context::default().with_auth(Authorization::Owner),
+                "test".into(),
+                data.clone(),
+                tags,
+                None,
+            )
+            .await
+            .unwrap();
+
+        let rpc = BcdbService::new(db);
+        let new_data: Vec<u8> = "hello new world".into();
+        //update data and acl
+        let mut request = Request::new(UpdateRequest {
+            id: id,
+            metadata: Some(Metadata {
+                collection: "test".into(),
+                tags: HashMap::default(),
+                acl: Some(AclRef { acl: 3 }),
+            }),
+            data: Some(update_request::UpdateData {
+                data: new_data.clone(),
+            }),
+        });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.update(request).await;
+        assert_eq!(result.is_ok(), true);
+
+        let mut request = Request::new(FetchRequest { id: id });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.fetch(request).await;
+
+        let object = result.unwrap().into_inner();
+
+        assert_eq!(object.data, new_data);
+        let metadata = object.metadata.unwrap();
+        assert_eq!(metadata.collection, "test");
+        assert_eq!(metadata.acl, Some(AclRef { acl: 3 }));
+        assert_eq!(metadata.tags.get("tag").unwrap(), "value");
+    }
+
+    #[tokio::test]
+    async fn rpc_find() {
+        let mut db = get_in_memory_db();
+        let data: Vec<u8> = "hello world".into();
+        let mut tags = HashMap::default();
+        tags.insert("common".into(), "value".into());
+        tags.insert("name".into(), "object-1".into());
+
+        let id_1 = db
+            .set(
+                Context::default().with_auth(Authorization::Owner),
+                "test".into(),
+                data.clone(),
+                tags,
+                Some(3),
+            )
+            .await
+            .unwrap();
+
+        let mut tags = HashMap::default();
+        tags.insert("common".into(), "value".into());
+        tags.insert("name".into(), "object-2".into());
+
+        let id_2 = db
+            .set(
+                Context::default().with_auth(Authorization::Owner),
+                "test".into(),
+                data.clone(),
+                tags,
+                None,
+            )
+            .await
+            .unwrap();
+
+        let rpc = BcdbService::new(db);
+
+        let mut query = HashMap::new();
+        query.insert("common".into(), "value".into());
+        let mut request = Request::new(QueryRequest {
+            collection: "test".into(),
+            tags: query,
+        });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.find(request).await;
+        assert_eq!(result.is_ok(), true);
+
+        let mut stream = result.unwrap().into_inner();
+
+        let mut results: HashMap<u32, FindResponse> = HashMap::new();
+        while let Some(result) = stream.recv().await {
+            let result = result.unwrap();
+            results.insert(result.id, result);
+        }
+
+        assert_eq!(results.len(), 2);
+        let obj1 = results.get(&id_1).unwrap().clone();
+        let metadata = obj1.metadata.unwrap();
+        assert_eq!(metadata.collection, "test");
+        assert_eq!(metadata.acl, Some(AclRef { acl: 3 }));
+        assert_eq!(metadata.tags.get("common").unwrap(), "value");
+        assert_eq!(metadata.tags.get("name").unwrap(), "object-1");
+
+        let obj2 = results.get(&id_2).unwrap().clone();
+        let metadata = obj2.metadata.unwrap();
+        assert_eq!(metadata.collection, "test");
+        assert_eq!(metadata.acl, None);
+        assert_eq!(metadata.tags.get("common").unwrap(), "value");
+        assert_eq!(metadata.tags.get("name").unwrap(), "object-2");
     }
 }

@@ -4,6 +4,7 @@ use http::response::Builder as ResponseBuilder;
 use hyper::Body;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use warp::http::StatusCode;
 use warp::reject::Rejection;
 use warp::Filter;
@@ -12,7 +13,7 @@ const HEADER_ACL: &str = "x-acl";
 const HEADER_TAGS: &str = "x-tags";
 const HEADER_ROUTE: &str = "x-threebot-id";
 
-fn tags_from_str(s: &str) -> Result<Meta, Rejection> {
+fn tags_from_str(s: &str) -> Result<HashMap<String, String>, Rejection> {
     let map: HashMap<String, String> = match serde_json::from_str(s) {
         Ok(map) => map,
         Err(_) => {
@@ -22,7 +23,7 @@ fn tags_from_str(s: &str) -> Result<Meta, Rejection> {
         }
     };
 
-    Ok(Meta::from(map))
+    Ok(map)
 }
 
 fn tags_to_str(tags: HashMap<String, String>) -> Result<String, Error> {
@@ -43,7 +44,7 @@ async fn handle_set<D: Database>(
 
     let tags = match tags {
         Some(t) => tags_from_str(t.as_ref())?,
-        None => Meta::default(),
+        None => HashMap::default(),
     };
 
     let key = db
@@ -143,7 +144,7 @@ async fn handle_update<D: Database>(
 
     let tags = match tags {
         Some(t) => tags_from_str(t.as_ref())?,
-        None => Meta::default(),
+        None => HashMap::default(),
     };
 
     let data = if data.len() > 0 {
@@ -177,14 +178,14 @@ async fn handle_find<D: Database>(
         .with_auth(Authorization::Owner);
 
     let query = url::Url::parse(&format!("q:///?{}", query)).unwrap();
-    let mut meta = Meta::default();
+    let mut meta = HashMap::default();
     for (k, v) in query.query_pairs() {
         if k == "_" {
             // this is a hack because the query::raw()
             // filter does not work if query string is empty
             continue;
         }
-        meta.insert(k, v);
+        meta.insert(k.into(), v.into());
     }
 
     let results = db

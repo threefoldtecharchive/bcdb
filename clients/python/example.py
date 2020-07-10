@@ -7,7 +7,8 @@ def grpc_client_example():
 
     example = client.collection("example")
 
-    key = example.set(b'hello world', {"example": "value", "tag2": "v2"})
+    key = example.set(
+        b'hello world', {"example": "value", "tag2": "v2", ":invalid": "xxx"})
     obj = example.get(key)
     print("get: ", obj)
 
@@ -36,7 +37,8 @@ def rest_client_example():
     example = client.collection("example")
 
     key = example.set(
-        b'hello world', {"example": "value", "tag2": "v2"}, acl=acl)
+        b'hello world', {"example": "value", "tag2": "v2", ":invalid": "value"}, acl=acl)
+    print(key)
     obj = example.get(key)
     print("get:", obj)
 
@@ -57,4 +59,5 @@ def rest_client_example():
 
 
 if __name__ == '__main__':
+    # grpc_client_example()
     rest_client_example()
