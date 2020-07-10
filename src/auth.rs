@@ -173,7 +173,7 @@ where
         );
 
         if self.id.id() as u64 == header.key_id {
-            meta.insert("owner", AsciiMetadataValue::from_str("true").unwrap());
+            meta.insert("owner", AsciiMetadataValue::from_static("true"));
         }
 
         if let Route::Remote(id) = route {
@@ -405,6 +405,32 @@ mod tests {
     use crate::peer::{Peer, PeersList};
     use tonic::metadata::AsciiMetadataValue;
     use tonic::Request;
+
+    #[test]
+    fn metadata_context_owner_local() {
+        let mut meta = tonic::metadata::MetadataMap::new();
+
+        let ctx = meta.context();
+        assert_eq!(ctx.authorization, Authorization::Invalid);
+        assert_eq!(ctx.is_local(), true);
+
+        meta.insert("key-id", AsciiMetadataValue::from_static("3"));
+        let ctx = meta.context();
+        assert_eq!(ctx.authorization, Authorization::User(3));
+        assert_eq!(ctx.is_local(), true);
+
+        meta.insert("owner", AsciiMetadataValue::from_static("true"));
+
+        let ctx = meta.context();
+        assert_eq!(ctx.is_owner(), true);
+        assert_eq!(ctx.is_local(), true);
+
+        meta.insert("remote", AsciiMetadataValue::from_static("5"));
+
+        let ctx = meta.context();
+        assert_eq!(ctx.is_owner(), true);
+        assert_eq!(ctx.route, Route::Remote(5));
+    }
 
     #[tokio::test]
     async fn authorize_owner_ok() {

@@ -299,7 +299,7 @@ where
 }
 
 #[cfg(test)]
-mod database_tests {
+pub mod database_tests {
 
     use super::*;
     use crate::acl::ACL;
@@ -307,7 +307,7 @@ mod database_tests {
     use crate::database::*;
     use crate::storage::memory::MemoryStorage;
 
-    fn get_in_memory_db() -> BcdbDatabase<MemoryStorage, MemoryIndex> {
+    pub fn get_in_memory_db() -> BcdbDatabase<MemoryStorage, MemoryIndex> {
         let data = MemoryStorage::new();
         let acl = MemoryStorage::new();
         let index = MemoryIndex::new();

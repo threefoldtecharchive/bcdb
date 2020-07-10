@@ -541,3 +541,174 @@ impl IdentityTrait for IdentityService {
         }))
     }
 }
+
+#[cfg(test)]
+mod rpc_tests {
+    use super::generated::*;
+    use super::BcdbService;
+    use crate::database::data::database_tests::get_in_memory_db;
+    use crate::database::Database;
+    use crate::database::{Authorization, Context};
+    use crate::rpc::generated::bcdb_server::Bcdb;
+    use std::collections::HashMap;
+    use tonic::Request;
+
+    #[tokio::test]
+    async fn rpc_set_owner_ok() {
+        let mut db = get_in_memory_db();
+        let rpc = BcdbService::new(db.clone());
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+
+        let data: Vec<u8> = "hello world".into();
+        let mut request = Request::new(SetRequest {
+            data: data.clone(),
+            metadata: Some(Metadata {
+                acl: Some(AclRef { acl: 3 }),
+                collection: "test".into(),
+                tags: tags,
+            }),
+        });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.set(request).await;
+        assert_eq!(result.is_ok(), true);
+        let id = result.unwrap().into_inner().id;
+
+        let object = db
+            .fetch(Context::default().with_auth(Authorization::Owner), id)
+            .await
+            .unwrap();
+
+        assert_eq!(object.data.unwrap(), data);
+        assert_eq!(object.meta.is_collection("test"), true);
+        assert_eq!(object.meta.acl(), Some(3));
+        assert_eq!(object.meta.get("tag").unwrap(), "value");
+    }
+
+    #[tokio::test]
+    async fn rpc_set_no_owner() {
+        let db = get_in_memory_db();
+        let rpc = BcdbService::new(db);
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+
+        let data: Vec<u8> = "hello world".into();
+        let mut request = Request::new(SetRequest {
+            data: data.clone(),
+            metadata: Some(Metadata {
+                acl: None,
+                collection: "test".into(),
+                tags: tags,
+            }),
+        });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::User(5))
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.set(request).await;
+        assert_eq!(result.is_err(), true);
+        let status = result.err().unwrap();
+        assert_eq!(status.code(), tonic::Code::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn rpc_get() {
+        let mut db = get_in_memory_db();
+        let data: Vec<u8> = "hello world".into();
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+
+        let id = db
+            .set(
+                Context::default().with_auth(Authorization::Owner),
+                "test".into(),
+                data.clone(),
+                tags,
+                None,
+            )
+            .await
+            .unwrap();
+
+        let rpc = BcdbService::new(db);
+
+        let mut request = Request::new(GetRequest {
+            id: id,
+            collection: "test".into(),
+        });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.get(request).await;
+        assert_eq!(result.is_ok(), true);
+        let object = result.unwrap().into_inner();
+
+        assert_eq!(object.data, data);
+        let metadata = object.metadata.unwrap();
+        assert_eq!(metadata.collection, "test");
+        assert_eq!(metadata.acl, None);
+        assert_eq!(metadata.tags.get("tag").unwrap(), "value");
+    }
+
+    #[tokio::test]
+    async fn rpc_fetch() {
+        let mut db = get_in_memory_db();
+        let data: Vec<u8> = "hello world".into();
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+
+        let id = db
+            .set(
+                Context::default().with_auth(Authorization::Owner),
+                "test".into(),
+                data.clone(),
+                tags,
+                None,
+            )
+            .await
+            .unwrap();
+
+        let rpc = BcdbService::new(db);
+
+        let mut request = Request::new(GetRequest {
+            id: id,
+            collection: "wrong".into(),
+        });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.get(request).await;
+        assert_eq!(result.is_err(), true);
+        let status = result.err().unwrap();
+        assert_eq!(status.code(), tonic::Code::NotFound);
+
+        let mut request = Request::new(FetchRequest { id: id });
+
+        // set required context on request
+        Context::default()
+            .with_auth(Authorization::Owner)
+            .into_metadata(request.metadata_mut());
+
+        let result = rpc.fetch(request).await;
+
+        let object = result.unwrap().into_inner();
+
+        assert_eq!(object.data, data);
+        let metadata = object.metadata.unwrap();
+        assert_eq!(metadata.collection, "test");
+        assert_eq!(metadata.acl, None);
+        assert_eq!(metadata.tags.get("tag").unwrap(), "value");
+    }
+}

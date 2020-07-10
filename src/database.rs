@@ -6,6 +6,7 @@ use std::convert::TryFrom;
 use std::iter::{FromIterator, IntoIterator};
 use thiserror::Error;
 use tokio::sync::mpsc;
+use tonic::metadata::MetadataMap;
 
 pub mod data;
 pub mod index;
@@ -262,6 +263,32 @@ impl Context {
             Route::Local => true,
             _ => false,
         }
+    }
+
+    pub fn into_metadata(self, meta: &mut MetadataMap) {
+        use tonic::metadata::AsciiMetadataValue;
+        match self.route {
+            Route::Local => {}
+            Route::Remote(r) => {
+                meta.insert(
+                    "remote",
+                    AsciiMetadataValue::from_str(&format!("{}", r)).unwrap(),
+                );
+            }
+        };
+
+        match self.authorization {
+            Authorization::Owner => {
+                meta.insert("owner", AsciiMetadataValue::from_static("true"));
+            }
+            Authorization::User(u) => {
+                meta.insert(
+                    "key-id",
+                    AsciiMetadataValue::from_str(&format!("{}", u)).unwrap(),
+                );
+            }
+            _ => {}
+        };
     }
 }
 
