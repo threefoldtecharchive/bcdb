@@ -284,13 +284,20 @@ where
                     }
                 };
 
-                tx.send(Ok(Object {
-                    key: id,
-                    meta: meta,
-                    data: None,
-                }))
-                .await
-                .unwrap();
+                match tx
+                    .send(Ok(Object {
+                        key: id,
+                        meta: meta,
+                        data: None,
+                    }))
+                    .await
+                {
+                    Ok(_) => {}
+                    Err(err) => {
+                        debug!("failed to send result, broken stream: {}", err);
+                        break;
+                    }
+                };
             }
         });
 

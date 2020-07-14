@@ -184,7 +184,13 @@ impl Schema {
                     },
                 };
 
-                tx.send(res).await.expect("failed to send results");
+                match tx.send(res).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        debug!("failed to send result, broken stream: {}", err);
+                        break;
+                    }
+                };
             }
         });
 
