@@ -1,10 +1,9 @@
-use crate::database::{Authorization, Context, Database, Meta};
+use crate::database::{Authorization, Context, Database};
 use anyhow::Error;
 use http::response::Builder as ResponseBuilder;
 use hyper::Body;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use warp::http::StatusCode;
 use warp::reject::Rejection;
 use warp::Filter;
@@ -203,7 +202,7 @@ async fn handle_find<D: Database>(
             tags: entry.meta.into(),
         };
 
-        Ok(serde_json::to_string(&data)?)
+        Ok(serde_json::to_string(&data)? + "\r")
     });
 
     let body = Body::wrap_stream(response);
