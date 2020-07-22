@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use sqlx::prelude::*;
 use sqlx::SqlitePool;
-use tokio::sync::mpsc;
+use std::ops::Deref;
+use std::sync::Arc;
+use tokio::sync::{mpsc, RwLock};
 use tokio::task::spawn_blocking;
 
 pub struct SqliteIndexBuilder {
@@ -72,15 +74,23 @@ impl Index for SqliteIndex {
 
 #[derive(Clone)]
 struct Schema {
-    c: SqlitePool,
+    // so while the Pool should allow you to execute multiple
+    // operations in parallel but it seems that sqlite itself
+    // has some limitations. You can have a write and read operation
+    // running at the same time. Hence we still wrap the pool in a
+    // RWLock
+    c: Arc<RwLock<SqlitePool>>,
 }
 
 impl Schema {
     fn new(c: SqlitePool) -> Schema {
-        Schema { c }
+        Schema {
+            c: Arc::new(RwLock::new(c)),
+        }
     }
 
     async fn setup(&self) -> Result<()> {
+        let db = self.c.write().await;
         sqlx::query(
             "
         CREATE TABLE IF NOT EXISTS metadata (
@@ -93,13 +103,14 @@ impl Schema {
         CREATE INDEX IF NOT EXISTS metadata_value ON metadata (value);
         ",
         )
-        .execute(&self.c)
+        .execute(db.deref())
         .await?;
 
         Ok(())
     }
 
     async fn insert(&self, key: Key, tags: Meta) -> Result<()> {
+        let db = self.c.write().await;
         for (k, v) in tags {
             sqlx::query(
                 "
@@ -113,7 +124,7 @@ impl Schema {
             .bind(&k)
             .bind(&v)
             .bind(&v)
-            .execute(&self.c)
+            .execute(db.deref())
             .await
             .context("failed to insert data to index")?;
         }
@@ -122,9 +133,10 @@ impl Schema {
     }
 
     async fn get(&self, key: Key) -> Result<Meta> {
+        let db = self.c.read().await;
         let mut cur = sqlx::query("SELECT tag, value FROM metadata WHERE key = ?")
             .bind(key as f64)
-            .fetch(&self.c);
+            .fetch(db.deref());
 
         #[derive(sqlx::FromRow, Debug)]
         struct Row {
@@ -167,8 +179,8 @@ impl Schema {
             for (k, v) in meta {
                 query = query.bind(k).bind(v);
             }
-
-            let mut cur = query.fetch(&pool);
+            let db = pool.read().await;
+            let mut cur = query.fetch(db.deref());
 
             loop {
                 let res = match cur.next().await {
