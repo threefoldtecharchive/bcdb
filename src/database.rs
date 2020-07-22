@@ -68,7 +68,7 @@ pub fn is_reserved(tag: &str) -> bool {
     tag.starts_with(":")
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Meta(HashMap<String, String>);
 
 impl Meta {
@@ -201,9 +201,9 @@ pub struct Object {
 
 #[async_trait]
 pub trait Index: Send + Sync + 'static {
-    async fn set(&mut self, key: Key, meta: Meta) -> Result<()>;
-    async fn get(&mut self, key: Key) -> Result<Meta>;
-    async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>>;
+    async fn set(&self, key: Key, meta: Meta) -> Result<()>;
+    async fn get(&self, key: Key) -> Result<Meta>;
+    async fn find(&self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>>;
 }
 
 #[derive(Debug, PartialEq)]

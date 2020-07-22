@@ -48,7 +48,7 @@ pub struct SqliteIndex {
 impl SqliteIndex {
     async fn new(collection: &str) -> Result<Self> {
         let pool = SqlitePool::new(collection).await?;
-        let mut schema = Schema::new(pool);
+        let schema = Schema::new(pool);
         schema.setup().await?;
 
         Ok(SqliteIndex { schema })
@@ -57,15 +57,15 @@ impl SqliteIndex {
 
 #[async_trait]
 impl Index for SqliteIndex {
-    async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
+    async fn set(&self, key: Key, meta: Meta) -> Result<()> {
         self.schema.insert(key, meta).await
     }
 
-    async fn get(&mut self, key: Key) -> Result<Meta> {
+    async fn get(&self, key: Key) -> Result<Meta> {
         self.schema.get(key).await
     }
 
-    async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
+    async fn find(&self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
         self.schema.find(meta).await
     }
 }
@@ -80,7 +80,7 @@ impl Schema {
         Schema { c }
     }
 
-    async fn setup(&mut self) -> Result<()> {
+    async fn setup(&self) -> Result<()> {
         sqlx::query(
             "
         CREATE TABLE IF NOT EXISTS metadata (
@@ -99,8 +99,8 @@ impl Schema {
         Ok(())
     }
 
-    async fn insert(&mut self, key: Key, tags: Meta) -> Result<()> {
-        let mut tx: sqlx::Transaction<_> = self.c.begin().await?;
+    async fn insert(&self, key: Key, tags: Meta) -> Result<()> {
+        let mut con = self.c.acquire().await?;
         for (k, v) in tags {
             sqlx::query(
                 "
@@ -114,16 +114,15 @@ impl Schema {
             .bind(&k)
             .bind(&v)
             .bind(&v)
-            .execute(&mut tx)
+            .execute(&mut con)
             .await
             .context("failed to insert data to index")?;
         }
 
-        tx.commit().await?;
         Ok(())
     }
 
-    async fn get(&mut self, key: Key) -> Result<Meta> {
+    async fn get(&self, key: Key) -> Result<Meta> {
         let mut cur = sqlx::query("SELECT tag, value FROM metadata WHERE key = ?")
             .bind(key as f64)
             .fetch(&self.c);
@@ -143,7 +142,7 @@ impl Schema {
         Ok(meta)
     }
 
-    async fn find<'a>(&'a mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
+    async fn find<'a>(&'a self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
         let q = "SELECT key FROM metadata WHERE tag = ? AND value = ?";
         let mut query_str = String::new();
 
@@ -319,7 +318,7 @@ where
     I: Index,
     S: Storage + Send + Sync + 'static,
 {
-    async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
+    async fn set(&self, key: Key, meta: Meta) -> Result<()> {
         let m = ZdbMetaSer {
             key: key,
             tags: &meta.0,
@@ -334,11 +333,11 @@ where
         self.inner.set(key, meta).await
     }
 
-    async fn get(&mut self, key: Key) -> Result<Meta> {
+    async fn get(&self, key: Key) -> Result<Meta> {
         self.inner.get(key).await
     }
 
-    async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
+    async fn find(&self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
         self.inner.find(meta).await
     }
 }
@@ -369,7 +368,7 @@ pub mod memory {
 
     #[async_trait]
     impl Index for MemoryIndex {
-        async fn set(&mut self, key: Key, meta: Meta) -> Result<()> {
+        async fn set(&self, key: Key, meta: Meta) -> Result<()> {
             let mut data = self.data.lock().await;
             for pair in meta {
                 let set = data.get_mut(&pair);
@@ -387,7 +386,7 @@ pub mod memory {
             Ok(())
         }
 
-        async fn get(&mut self, key: Key) -> Result<Meta> {
+        async fn get(&self, key: Key) -> Result<Meta> {
             let data = self.data.lock().await;
             let mut meta = Meta::default();
             for ((k, v), s) in data.iter() {
@@ -399,7 +398,7 @@ pub mod memory {
             Ok(meta)
         }
 
-        async fn find(&mut self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
+        async fn find(&self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
             let data = self.data.lock().await;
             let mut results: Option<HashSet<u32>> = None;
             for pair in meta {
@@ -442,7 +441,7 @@ mod tests {
 
     #[tokio::test]
     async fn memory_index() {
-        let mut index = MemoryIndex::new();
+        let index = MemoryIndex::new();
         let mut meta1 = Meta::default();
         meta1.insert("name", "user1");
         meta1.insert("age", "38");
@@ -494,7 +493,7 @@ mod tests {
 
         let constr = format!("sqlite://{}", db);
         let c = SqlitePool::new(&constr).await.expect("failed to connect");
-        let mut schema = Schema::new(c);
+        let schema = Schema::new(c);
         schema.setup().await.expect("failed to create table");
         let mut meta = Meta::default();
         meta.insert("name", "filename");
@@ -506,7 +505,7 @@ mod tests {
             .await
             .expect("failed to insert object");
 
-        let mut getter = schema.clone();
+        let getter = schema.clone();
         let mut filter = Meta::default();
         filter.insert("name", "filename");
         let mut cur = schema.find(filter).await.expect("failed to do fine");
@@ -523,12 +522,55 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn sqlite_index() {
-        const dir: &str = "/tmp/sqlite-index.test";
-        let _ = std::fs::remove_dir_all(dir);
-        let builder = SqliteIndexBuilder::new(dir).unwrap();
+    async fn schema_safety() {
+        let db = "/tmp/testing_safety.sqlite3";
+        if std::path::Path::new(db).exists() {
+            std::fs::remove_file(db).expect("failed to clean up file");
+        }
 
-        let mut index = builder.build("metadata").await.unwrap();
+        let constr = format!("sqlite://{}", db);
+        let c = SqlitePool::new(&constr).await.expect("failed to connect");
+        let schema = Schema::new(c);
+        schema.setup().await.expect("failed to create table");
+        let mut meta = Meta::default();
+        meta.insert("name", "filename");
+        meta.insert("type", "file");
+        meta.insert("parent", "/root/dir");
+
+        let mut handles = vec![];
+        for i in 0..100 {
+            let schema = schema.clone();
+            let meta = meta.clone();
+            let handle = tokio::spawn(async move {
+                schema.insert(i, meta).await.expect("failed to insert data");
+            });
+
+            handles.push(handle);
+        }
+
+        assert_eq!(handles.len(), 100);
+        for handle in handles {
+            assert_eq!(handle.await.is_ok(), true);
+        }
+
+        let mut results = schema.find(Meta::default()).await.expect("find failed");
+
+        let mut keys = vec![];
+        while let Some(item) = results.recv().await {
+            let key = item.expect("expecting a key");
+            keys.push(key);
+        }
+
+        assert_eq!(keys.len(), 100);
+    }
+
+    #[tokio::test]
+    async fn sqlite_index() {
+        const DIR: &str = "/tmp/sqlite-index.test";
+        let _ = std::fs::remove_dir_all(DIR);
+        let builder = SqliteIndexBuilder::new(DIR).unwrap();
+
+        let index = builder.build("metadata").await.unwrap();
         let mut meta1 = Meta::default();
         meta1.insert("name", "user1");
         meta1.insert("age", "38");

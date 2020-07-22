@@ -5,6 +5,16 @@ def grpc_client_example():
     identity = Identity.from_seed("user.seed")
     client = Client("127.0.0.1:50051", identity, ssl=False)
 
+    example = client.collection("random")
+    with open('/dev/urandom', 'rb') as r:
+        data = r.read(1024)
+        for i in range(50000):
+            key = example.set(
+                data, {"iter": "%d" % i, "type": "random"})
+            # print(key)
+
+    return
+
     example = client.collection("example")
 
     key = example.set(
@@ -34,11 +44,15 @@ def rest_client_example():
     client = HTTPClient("/tmp/bcdb.sock")
 
     acl = client.acl.create("r--", [7, 9])
-    example = client.collection("example")
+    example = client.collection("random")
+    with open('/dev/urandom', 'rb') as r:
+        data = r.read(1024)
+        for i in range(50000):
+            key = example.set(
+                data, {"iter": "%d" % i, "type": "random"})
+            # print(key)
 
-    key = example.set(
-        b'hello world', {"example": "value", "tag2": "v2", ":invalid": "value"}, acl=acl)
-    print(key)
+    return
     obj = example.get(key)
     print("get:", obj)
 
@@ -59,5 +73,5 @@ def rest_client_example():
 
 
 if __name__ == '__main__':
-    # grpc_client_example()
-    rest_client_example()
+    grpc_client_example()
+    # rest_client_example()
