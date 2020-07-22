@@ -202,7 +202,7 @@ async fn handle_find<D: Database>(
             tags: entry.meta.into(),
         };
 
-        Ok(serde_json::to_string(&data)? + "\r")
+        Ok(serde_json::to_string(&data)? + "\n")
     });
 
     let body = Body::wrap_stream(response);
