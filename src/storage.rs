@@ -41,13 +41,13 @@ pub trait Storage: Clone {
     /// Set some data, returning a generated key which can later be used to retrieve the data
     /// The caller can optionally provide a previously returned key. If such a key is provided,
     /// the data previously attached to this key will be replaced by the new data.
-    fn set(&mut self, key: Option<Key>, data: &[u8]) -> Result<Key, Error>;
+    fn set(&self, key: Option<Key>, data: &[u8]) -> Result<Key, Error>;
     /// Get data which has been set previously.
-    fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, Error>;
+    fn get(&self, key: Key) -> Result<Option<Vec<u8>>, Error>;
     /// Get an iterator over all keys in a collection
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error>;
+    fn keys(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error>;
     /// Get an iterator over all keys in a collection, in reverse order
-    fn rev(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error>;
+    fn rev(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error>;
 }
 
 #[derive(Debug)]

@@ -1,9 +1,9 @@
+use super::{Error as StorageError, Key, Record, Storage};
 use aead::{generic_array::GenericArray, Aead, NewAead};
 use aes_gcm::{aead, Aes256Gcm};
 use rand::prelude::*;
 use rand::rngs::OsRng;
-
-use super::{Error as StorageError, Key, Record, Storage};
+use std::sync::{Arc, Mutex};
 
 const ENCRYPTION_KEY_SIZE: usize = 32;
 const NONCE_SIZE: usize = 12;
@@ -11,7 +11,7 @@ const NONCE_SIZE: usize = 12;
 #[derive(Clone)]
 pub struct EncryptedStorage<S> {
     cipher: Aes256Gcm,
-    nonce_source: OsRng,
+    nonce_source: Arc<Mutex<OsRng>>,
     backend: S,
 }
 
@@ -33,9 +33,9 @@ where
         let cipher = Aes256Gcm::new(key);
         let nonce_source = OsRng;
         EncryptedStorage {
-            cipher,
-            nonce_source,
-            backend,
+            cipher: cipher,
+            nonce_source: Arc::new(Mutex::new(nonce_source)),
+            backend: backend,
         }
     }
 }
@@ -44,9 +44,12 @@ impl<S> Storage for EncryptedStorage<S>
 where
     S: Storage,
 {
-    fn set(&mut self, key: Option<Key>, data: &[u8]) -> Result<Key, StorageError> {
+    fn set(&self, key: Option<Key>, data: &[u8]) -> Result<Key, StorageError> {
         let mut nonce_slice = vec![0u8; NONCE_SIZE];
-        self.nonce_source.fill_bytes(&mut nonce_slice);
+        self.nonce_source
+            .lock()
+            .map_err(|_| StorageError::Other)?
+            .fill_bytes(&mut nonce_slice);
         let nonce = GenericArray::clone_from_slice(&nonce_slice);
         let mut ciphertext = self.cipher.encrypt(&nonce, data)?;
         let mut final_data = nonce.to_vec();
@@ -54,7 +57,7 @@ where
         self.backend.set(key, &final_data)
     }
 
-    fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, StorageError> {
+    fn get(&self, key: Key) -> Result<Option<Vec<u8>>, StorageError> {
         let data = match self.backend.get(key)? {
             Some(data) => data,
             None => return Ok(None),
@@ -64,11 +67,11 @@ where
         Ok(Some(plaintext))
     }
 
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
+    fn keys(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
         self.backend.keys()
     }
 
-    fn rev(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
+    fn rev(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
         self.backend.rev()
     }
 }

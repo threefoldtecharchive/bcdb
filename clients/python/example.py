@@ -6,12 +6,13 @@ def grpc_client_example():
     client = Client("127.0.0.1:50051", identity, ssl=False)
 
     example = client.collection("random")
-    with open('/dev/urandom', 'rb') as r:
-        data = r.read(1024)
-        for i in range(50000):
-            key = example.set(
-                data, {"iter": "%d" % i, "type": "random"})
-            # print(key)
+    r = open('/dev/urandom', 'rb')
+    data = r.read(10)
+    r.close
+    for i in range(1000):
+        key = example.set(
+            data, {"iter": "%d" % i, "type": "random"})
+        # print(key)
 
     return
 
@@ -47,7 +48,7 @@ def rest_client_example():
     example = client.collection("random")
     with open('/dev/urandom', 'rb') as r:
         data = r.read(1024)
-        for i in range(50000):
+        for i in range(1000):
             key = example.set(
                 data, {"iter": "%d" % i, "type": "random"})
             # print(key)
@@ -73,5 +74,5 @@ def rest_client_example():
 
 
 if __name__ == '__main__':
-    grpc_client_example()
-    # rest_client_example()
+    # grpc_client_example()
+    rest_client_example()
