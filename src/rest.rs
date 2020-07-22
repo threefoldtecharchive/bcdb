@@ -47,7 +47,7 @@ fn error_to_code(err: &Error) -> (StatusCode, String) {
         };
     }
 
-    (StatusCode::INTERNAL_SERVER_ERROR, format!("{}", err))
+    (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err))
 }
 
 /// An API error serializable to JSON.
