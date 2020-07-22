@@ -100,7 +100,6 @@ impl Schema {
     }
 
     async fn insert(&self, key: Key, tags: Meta) -> Result<()> {
-        let mut con = self.c.acquire().await?;
         for (k, v) in tags {
             sqlx::query(
                 "
@@ -114,7 +113,7 @@ impl Schema {
             .bind(&k)
             .bind(&v)
             .bind(&v)
-            .execute(&mut con)
+            .execute(&self.c)
             .await
             .context("failed to insert data to index")?;
         }
