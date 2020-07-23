@@ -770,14 +770,9 @@ mod rpc_tests {
 
         let result = rpc.fetch(request).await;
 
-        let object = result.unwrap().into_inner();
-
-        assert_eq!(object.data, data);
-        let metadata = object.metadata.unwrap();
-        assert_eq!(metadata.collection, "test");
-        assert_eq!(metadata.acl, None);
-        assert_eq!(metadata.tags.get("tag").unwrap(), "value");
-        assert_eq!(metadata.tags.get(":deleted").unwrap(), "1");
+        assert_eq!(result.is_err(), true);
+        let status = result.unwrap_err();
+        assert_eq!(status.code(), tonic::Code::NotFound);
     }
 
     #[tokio::test]

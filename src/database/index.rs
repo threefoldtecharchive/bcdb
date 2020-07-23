@@ -682,6 +682,51 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn sqlite_delete() {
+        const DIR: &str = "/tmp/sqlite-delete.test";
+        let _ = std::fs::remove_dir_all(DIR);
+        let builder = SqliteIndexBuilder::new(DIR).unwrap();
+
+        let index = builder.build("metadata").await.unwrap();
+        let mut meta1 = Meta::default();
+        meta1.insert("name", "user1");
+        meta1.insert("age", "38");
+        let results = index.set(1, meta1).await;
+
+        assert_eq!(results.is_ok(), true);
+
+        let mut meta2 = Meta::default();
+        meta2.insert("name", "user2");
+        meta2.insert("age", "38");
+        let results = index.set(2, meta2).await;
+
+        assert_eq!(results.is_ok(), true);
+
+        let loaded = index.get(1).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user1");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        let loaded = index.get(2).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user2");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        index
+            .set(1, Meta::default().with_deleted(true))
+            .await
+            .unwrap();
+
+        let loaded = index.get(1).await.unwrap();
+        assert_eq!(loaded.count(), 0);
+
+        let loaded = index.get(2).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user2");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+    }
+
+    #[tokio::test]
     async fn sqlite_perf() {
         // this should probably be replaced by a benchmark test
     }
