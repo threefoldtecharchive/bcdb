@@ -60,7 +60,14 @@ impl SqliteIndex {
 #[async_trait]
 impl Index for SqliteIndex {
     async fn set(&self, key: Key, meta: Meta) -> Result<()> {
-        self.schema.insert(key, meta).await
+        if meta.deleted() {
+            // the deleted flag was set on the meta
+            self.schema.delete_key(key).await?;
+        } else {
+            self.schema.insert(key, meta).await?;
+        }
+
+        Ok(())
     }
 
     async fn get(&self, key: Key) -> Result<Meta> {
@@ -151,6 +158,26 @@ impl Schema {
         }
 
         Ok(meta)
+    }
+
+    async fn delete_key(&self, key: Key) -> Result<()> {
+        let db = self.c.write().await;
+        sqlx::query("DELETE FROM metadata WHERE key = ?")
+            .bind(key as i64)
+            .execute(db.deref())
+            .await?;
+
+        Ok(())
+    }
+
+    async fn delete_meta(&self, meta: Meta) -> Result<()> {
+        let mut keys = self.find(meta).await?;
+        while let Some(key) = keys.recv().await {
+            let key = key?;
+            self.delete_key(key).await?;
+        }
+
+        Ok(())
     }
 
     async fn find<'a>(&'a self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {

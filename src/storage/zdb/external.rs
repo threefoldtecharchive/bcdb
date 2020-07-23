@@ -86,6 +86,10 @@ impl Storage for Zdb {
         self.default_namespace.get(key)
     }
 
+    fn delete(&self, key: Key) -> Result<(), StorageError> {
+        self.default_namespace.delete(key)
+    }
+
     fn keys(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
         self.default_namespace.keys()
     }
@@ -159,6 +163,14 @@ impl Storage for Collection {
         Ok(redis::cmd("GET")
             .arg(&key.to_le_bytes())
             .query(&mut *self.pool.get()?)?)
+    }
+
+    fn delete(&self, key: Key) -> Result<(), StorageError> {
+        redis::cmd("DEL")
+            .arg(&key.to_le_bytes()[..])
+            .query(&mut *self.pool.get()?)?;
+
+        Ok(())
     }
 
     fn keys(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {

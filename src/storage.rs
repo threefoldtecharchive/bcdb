@@ -42,6 +42,8 @@ pub trait Storage: Clone {
     /// The caller can optionally provide a previously returned key. If such a key is provided,
     /// the data previously attached to this key will be replaced by the new data.
     fn set(&self, key: Option<Key>, data: &[u8]) -> Result<Key, Error>;
+    /// Delete data from stroage
+    fn delete(&self, key: Key) -> Result<(), Error>;
     /// Get data which has been set previously.
     fn get(&self, key: Key) -> Result<Option<Vec<u8>>, Error>;
     /// Get an iterator over all keys in a collection
