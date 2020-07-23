@@ -1,3 +1,4 @@
+use super::Error;
 use bip39::{Language, Mnemonic};
 use ed25519_dalek::{
     Keypair, PublicKey as PubKey, SecretKey, Signature as Sig, KEYPAIR_LENGTH, PUBLIC_KEY_LENGTH,
@@ -5,11 +6,9 @@ use ed25519_dalek::{
 };
 use serde::de::{Error as SerdeError, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use signature::Signer; //required for the github build!
+use signature::{Signature as SignatureTrait, Signer, Verifier};
 use std::fmt;
 use std::path::Path;
-
-use super::Error;
 
 /// An identity representation on the threefold grid. This can be used to sign messages, and verify
 /// signatures of messages created by this identity. The public key can be exported and exchanged
