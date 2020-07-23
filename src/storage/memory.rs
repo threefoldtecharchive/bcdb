@@ -50,6 +50,12 @@ impl Storage for MemoryStorage {
         }
     }
 
+    fn delete(&self, key: Key) -> Result<(), Error> {
+        let mut handle = self.internal.write().unwrap();
+        handle.backend.remove(&key);
+        Ok(())
+    }
+
     fn keys(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error> {
         let handle = self.internal.read().unwrap();
         Ok(Box::new(

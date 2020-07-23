@@ -181,6 +181,18 @@ where
 
         self.is_authorized(&ctx, &meta, "--d".parse().unwrap())?;
 
+        // TODO: should the data associated with that object also
+        // be deleted? changes to metadata can be restored if you
+        // replay the transaction log to the point until the object
+        // is not deleted.
+
+        let db = self.data.clone();
+
+        spawn_blocking(move || db.delete(key))
+            .await
+            .context("failed to run blocking task")?
+            .context("failed to delete data")?;
+
         let meta = Meta::default().with_deleted(true);
         self.meta.set(key, meta).await?;
 
@@ -223,9 +235,10 @@ where
         if let Some(data) = data {
             meta = meta.with_size(data.len() as u64);
             let db = self.data.clone();
-            spawn_blocking(move || db.set(Some(key), &data).expect("failed to set data"))
+            spawn_blocking(move || db.set(Some(key), &data))
                 .await
-                .context("failed to run blocking task")?;
+                .context("failed to run blocking task")?
+                .context("failed to set data")?;
         }
 
         self.meta.set(key, meta).await?;

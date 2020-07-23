@@ -3,7 +3,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::iter::{FromIterator, IntoIterator};
+use std::iter::IntoIterator;
 use thiserror::Error;
 use tokio::sync::mpsc;
 use tonic::metadata::MetadataMap;
@@ -201,6 +201,14 @@ pub struct Object {
 
 #[async_trait]
 pub trait Index: Send + Sync + 'static {
+    /// set operation is used to associate meta data to key
+    /// the operation will do an update (merge) of key metadata
+    /// if metadata already exists for that key.
+    ///
+    /// If the meta.deleted flag is set, the entire key is deleted
+    /// We don't have a separate "delete" operation so metadata interceptors
+    /// that needs to keep a transaction log of metadata change can reply
+    /// the metadata changes associated with a key.
     async fn set(&self, key: Key, meta: Meta) -> Result<()>;
     async fn get(&self, key: Key) -> Result<Meta>;
     async fn find(&self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>>;

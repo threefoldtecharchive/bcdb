@@ -57,6 +57,10 @@ where
         self.backend.set(key, &final_data)
     }
 
+    fn delete(&self, key: Key) -> Result<(), StorageError> {
+        self.backend.delete(key)
+    }
+
     fn get(&self, key: Key) -> Result<Option<Vec<u8>>, StorageError> {
         let data = match self.backend.get(key)? {
             Some(data) => data,

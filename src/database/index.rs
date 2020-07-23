@@ -60,7 +60,16 @@ impl SqliteIndex {
 #[async_trait]
 impl Index for SqliteIndex {
     async fn set(&self, key: Key, meta: Meta) -> Result<()> {
-        self.schema.insert(key, meta).await
+        if meta.deleted() {
+            // the deleted flag was set on the meta
+            // then we need to delete the object from
+            // the schema database.
+            self.schema.delete_key(key).await?;
+        } else {
+            self.schema.insert(key, meta).await?;
+        }
+
+        Ok(())
     }
 
     async fn get(&self, key: Key) -> Result<Meta> {
@@ -151,6 +160,26 @@ impl Schema {
         }
 
         Ok(meta)
+    }
+
+    async fn delete_key(&self, key: Key) -> Result<()> {
+        let db = self.c.write().await;
+        sqlx::query("DELETE FROM metadata WHERE key = ?")
+            .bind(key as i64)
+            .execute(db.deref())
+            .await?;
+
+        Ok(())
+    }
+
+    async fn delete_meta(&self, meta: Meta) -> Result<()> {
+        let mut keys = self.find(meta).await?;
+        while let Some(key) = keys.recv().await {
+            let key = key?;
+            self.delete_key(key).await?;
+        }
+
+        Ok(())
     }
 
     async fn find<'a>(&'a self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
@@ -336,10 +365,11 @@ where
         };
 
         let bytes = serde_json::to_vec(&m)?;
-        let mut db = self.storage.clone();
-        spawn_blocking(move || db.set(None, &bytes).expect("failed to set metadata"))
+        let db = self.storage.clone();
+        spawn_blocking(move || db.set(None, &bytes))
             .await
-            .context("failed to run blocking task")?;
+            .context("failed to run blocking task")?
+            .context("failed to set metadata")?;
 
         self.inner.set(key, meta).await
     }
@@ -649,6 +679,51 @@ mod tests {
         let results: Vec<Result<Key>> = found.collect().await;
 
         assert_eq!(results.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn sqlite_delete() {
+        const DIR: &str = "/tmp/sqlite-delete.test";
+        let _ = std::fs::remove_dir_all(DIR);
+        let builder = SqliteIndexBuilder::new(DIR).unwrap();
+
+        let index = builder.build("metadata").await.unwrap();
+        let mut meta1 = Meta::default();
+        meta1.insert("name", "user1");
+        meta1.insert("age", "38");
+        let results = index.set(1, meta1).await;
+
+        assert_eq!(results.is_ok(), true);
+
+        let mut meta2 = Meta::default();
+        meta2.insert("name", "user2");
+        meta2.insert("age", "38");
+        let results = index.set(2, meta2).await;
+
+        assert_eq!(results.is_ok(), true);
+
+        let loaded = index.get(1).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user1");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        let loaded = index.get(2).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user2");
+        assert_eq!(loaded.get("age").unwrap(), "38");
+
+        index
+            .set(1, Meta::default().with_deleted(true))
+            .await
+            .unwrap();
+
+        let loaded = index.get(1).await.unwrap();
+        assert_eq!(loaded.count(), 0);
+
+        let loaded = index.get(2).await.unwrap();
+        assert_eq!(loaded.count(), 2);
+        assert_eq!(loaded.get("name").unwrap(), "user2");
+        assert_eq!(loaded.get("age").unwrap(), "38");
     }
 
     #[tokio::test]
