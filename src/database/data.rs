@@ -181,7 +181,13 @@ where
 
         self.is_authorized(&ctx, &meta, "--d".parse().unwrap())?;
 
+        // TODO: should the data associated with that object also
+        // be deleted? changes to metadata can be restored if you
+        // replay the transaction log to the point until the object
+        // is not deleted.
+
         let db = self.data.clone();
+
         spawn_blocking(move || db.delete(key))
             .await
             .context("failed to run blocking task")?

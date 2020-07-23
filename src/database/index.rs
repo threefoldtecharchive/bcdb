@@ -62,6 +62,8 @@ impl Index for SqliteIndex {
     async fn set(&self, key: Key, meta: Meta) -> Result<()> {
         if meta.deleted() {
             // the deleted flag was set on the meta
+            // then we need to delete the object from
+            // the schema database.
             self.schema.delete_key(key).await?;
         } else {
             self.schema.insert(key, meta).await?;
@@ -363,10 +365,11 @@ where
         };
 
         let bytes = serde_json::to_vec(&m)?;
-        let mut db = self.storage.clone();
-        spawn_blocking(move || db.set(None, &bytes).expect("failed to set metadata"))
+        let db = self.storage.clone();
+        spawn_blocking(move || db.set(None, &bytes))
             .await
-            .context("failed to run blocking task")?;
+            .context("failed to run blocking task")?
+            .context("failed to set metadata")?;
 
         self.inner.set(key, meta).await
     }
