@@ -5,6 +5,7 @@ use ed25519_dalek::{
 };
 use serde::de::{Error as SerdeError, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use signature::Signer; //required for the github build!
 use std::fmt;
 use std::path::Path;
 

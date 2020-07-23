@@ -37,6 +37,7 @@ hyper = "0.13.6"
 openssl-sys = { version="*", features = ["vendored"] }
 thiserror = "1.0.20"
 num_cpus = "0.2"
+signature = "1.1.0"
 
 [build-dependencies]
 bindgen = "0.53"
