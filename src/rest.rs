@@ -98,6 +98,7 @@ where
     let acl_api = acl::router(acl);
 
     let api = bcdb_api.or(acl_api).recover(handle_rejections);
+
     let _ = std::fs::remove_file(&unx);
     let mut listener = UnixListener::bind(&unx)?;
     let incoming = listener.incoming();

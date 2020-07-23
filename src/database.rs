@@ -307,6 +307,8 @@ pub trait Database: Send + Sync + 'static {
 
     async fn get(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object>;
 
+    async fn head(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object>;
+
     async fn delete(&mut self, ctx: Context, key: Key, collection: String) -> Result<()>;
 
     async fn update(

@@ -27,8 +27,9 @@ const MEAT_DIR: &str = ".bcdb-meta";
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = Builder::default()
         .threaded_scheduler()
+        .core_threads(num_cpus::get())
         .enable_all()
-        .thread_stack_size(10 * 1024 * 1024) //set stack size to 10MB
+        .thread_stack_size(5 * 1024 * 1024) //set stack size to 5MB
         .build()
         .unwrap();
 
@@ -236,7 +237,7 @@ async fn entry() -> Result<(), Box<dyn std::error::Error>> {
 
     let grpc_address: SocketAddr = matches.value_of("grpc").unwrap().parse()?;
 
-    let rest_address = matches.value_of("rest").unwrap().into();
+    let rest_address: String = matches.value_of("rest").unwrap().into();
     tokio::spawn(async move {
         match rest::run(db, acl_store, rest_address).await {
             Ok(_) => {}

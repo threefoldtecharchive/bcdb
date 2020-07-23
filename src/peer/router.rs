@@ -64,6 +64,10 @@ where
         bail!(Reason::NotSupported)
     }
 
+    async fn remote_head(&self, id: u32, key: Key, collection: String) -> Result<Object> {
+        bail!(Reason::NotSupported)
+    }
+
     async fn remote_get(&self, id: u32, key: Key, collection: String) -> Result<Object> {
         let request = GetRequest {
             id: key,
@@ -208,6 +212,13 @@ where
         match ctx.route {
             Route::Local => self.local.get(ctx, key, collection).await,
             Route::Remote(id) => self.remote_get(id, key, collection).await,
+        }
+    }
+
+    async fn head(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object> {
+        match ctx.route {
+            Route::Local => self.local.get(ctx, key, collection).await,
+            Route::Remote(id) => self.remote_head(id, key, collection).await,
         }
     }
 
