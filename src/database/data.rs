@@ -100,13 +100,14 @@ where
                     .as_secs(),
             );
 
-        let mut db = self.data.clone();
+        let db = self.data.clone();
         let id = spawn_blocking(move || db.set(None, &data).expect("failed to set data"))
             .await
             .context("failed to run blocking task")?;
 
-        let mut index = self.meta.clone();
-        index.set(id, meta).await.map(|_| id)
+        self.meta.set(id, meta).await?;
+
+        Ok(id)
     }
 
     async fn fetch(&mut self, ctx: Context, key: Key) -> Result<Object> {
@@ -114,7 +115,7 @@ where
 
         self.is_authorized(&ctx, &meta, "r--".parse().unwrap())?;
 
-        let mut db = self.data.clone();
+        let db = self.data.clone();
         let data = spawn_blocking(move || db.get(key))
             .await
             .context("failed to run blocking task")?
@@ -139,7 +140,7 @@ where
 
         self.is_authorized(&ctx, &meta, "r--".parse().unwrap())?;
 
-        let mut db = self.data.clone();
+        let db = self.data.clone();
         let data = spawn_blocking(move || db.get(key))
             .await
             .context("failed to run blocking task")?
@@ -164,10 +165,8 @@ where
 
         self.is_authorized(&ctx, &meta, "--d".parse().unwrap())?;
 
-        let mut index = self.meta.clone();
         let meta = Meta::default().with_deleted(true);
-
-        index.set(key, meta).await?;
+        self.meta.set(key, meta).await?;
 
         Ok(())
     }
@@ -207,14 +206,13 @@ where
 
         if let Some(data) = data {
             meta = meta.with_size(data.len() as u64);
-            let mut db = self.data.clone();
+            let db = self.data.clone();
             spawn_blocking(move || db.set(Some(key), &data).expect("failed to set data"))
                 .await
                 .context("failed to run blocking task")?;
         }
 
-        let mut index = self.meta.clone();
-        index.set(key, meta).await?;
+        self.meta.set(key, meta).await?;
 
         Ok(())
     }
@@ -235,8 +233,7 @@ where
             meta.insert(TAG_COLLECTION, collection);
         }
 
-        let mut index = self.meta.clone();
-        index.find(meta).await
+        self.meta.find(meta).await
     }
 
     async fn find(
@@ -255,7 +252,7 @@ where
             meta.insert(TAG_COLLECTION, collection);
         }
 
-        let mut index = self.meta.clone();
+        let index = self.meta.clone();
 
         let (mut tx, rx) = mpsc::channel(10);
         tokio::spawn(async move {
@@ -618,5 +615,32 @@ pub mod database_tests {
         assert_eq!(obj.meta.get("new").unwrap(), "new value");
         assert_eq!(obj.meta.collection().unwrap(), collection);
         assert_eq!(obj.data.unwrap(), data);
+    }
+
+    #[tokio::test]
+    async fn database_insert_perf() {
+        let collection: String = "test".into();
+        let mut db = get_in_memory_db();
+
+        let ctx = Context::default().with_auth(Authorization::Owner);
+        let mut tags = HashMap::default();
+        tags.insert("tag".into(), "value".into());
+        let data: Vec<u8> = "hello world".into();
+
+        let now = std::time::Instant::now();
+        for i in 0..10000u32 {
+            db.set(
+                ctx.clone(),
+                collection.clone(),
+                data.clone(),
+                tags.clone(),
+                None,
+            )
+            .await
+            .expect("failed to do insert");
+        }
+
+        let dur = std::time::Instant::now().duration_since(now);
+        println!("Duration: {:?}", dur);
     }
 }

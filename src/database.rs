@@ -206,7 +206,7 @@ pub trait Index: Send + Sync + 'static {
     async fn find(&self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>>;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Route {
     Local,
     Remote(u32),
@@ -218,7 +218,7 @@ impl Default for Route {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Authorization {
     Invalid,
     Owner,
@@ -231,7 +231,7 @@ impl Default for Authorization {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Context {
     pub route: Route,
     pub authorization: Authorization,

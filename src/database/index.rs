@@ -442,6 +442,22 @@ pub mod memory {
             Ok(rx)
         }
     }
+
+    #[derive(Clone)]
+    pub struct NullIndex;
+
+    #[async_trait]
+    impl Index for NullIndex {
+        async fn set(&self, key: Key, meta: Meta) -> Result<()> {
+            Ok(())
+        }
+        async fn get(&self, key: Key) -> Result<Meta> {
+            bail!("not supported");
+        }
+        async fn find(&self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
+            bail!("not supported");
+        }
+    }
 }
 
 #[cfg(test)]
@@ -633,5 +649,10 @@ mod tests {
         let results: Vec<Result<Key>> = found.collect().await;
 
         assert_eq!(results.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn sqlite_perf() {
+        // this should probably be replaced by a benchmark test
     }
 }

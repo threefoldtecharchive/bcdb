@@ -28,7 +28,7 @@ impl MemoryStorage {
 }
 
 impl Storage for MemoryStorage {
-    fn set(&mut self, key: Option<Key>, data: &[u8]) -> Result<Key, Error> {
+    fn set(&self, key: Option<Key>, data: &[u8]) -> Result<Key, Error> {
         let mut handle = self.internal.write().unwrap();
         let key = match key {
             Some(key) => key,
@@ -42,7 +42,7 @@ impl Storage for MemoryStorage {
         Ok(key)
     }
 
-    fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, Error> {
+    fn get(&self, key: Key) -> Result<Option<Vec<u8>>, Error> {
         let handle = self.internal.read().unwrap();
         match handle.backend.get(&key) {
             Some(data) => Ok(Some(data.clone())),
@@ -50,7 +50,7 @@ impl Storage for MemoryStorage {
         }
     }
 
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error> {
+    fn keys(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error> {
         let handle = self.internal.read().unwrap();
         Ok(Box::new(
             handle
@@ -67,7 +67,7 @@ impl Storage for MemoryStorage {
         ))
     }
 
-    fn rev(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error> {
+    fn rev(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, Error> {
         let handle = self.internal.read().unwrap();
         Ok(Box::new(
             handle

@@ -78,19 +78,19 @@ impl Zdb {
 }
 
 impl Storage for Zdb {
-    fn set(&mut self, key: Option<Key>, data: &[u8]) -> Result<Key, StorageError> {
+    fn set(&self, key: Option<Key>, data: &[u8]) -> Result<Key, StorageError> {
         self.default_namespace.set(key, data)
     }
 
-    fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, StorageError> {
+    fn get(&self, key: Key) -> Result<Option<Vec<u8>>, StorageError> {
         self.default_namespace.get(key)
     }
 
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
+    fn keys(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
         self.default_namespace.keys()
     }
 
-    fn rev(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
+    fn rev(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
         self.default_namespace.rev()
     }
 }
@@ -136,7 +136,7 @@ impl Collection {
 }
 
 impl Storage for Collection {
-    fn set(&mut self, key: Option<Key>, data: &[u8]) -> Result<Key, StorageError> {
+    fn set(&self, key: Option<Key>, data: &[u8]) -> Result<Key, StorageError> {
         let raw_key: Vec<u8> = redis::cmd("SET")
             .arg(if let Some(key) = key {
                 Vec::from(&key.to_le_bytes()[..])
@@ -155,13 +155,13 @@ impl Storage for Collection {
         }
     }
 
-    fn get(&mut self, key: Key) -> Result<Option<Vec<u8>>, StorageError> {
+    fn get(&self, key: Key) -> Result<Option<Vec<u8>>, StorageError> {
         Ok(redis::cmd("GET")
             .arg(&key.to_le_bytes())
             .query(&mut *self.pool.get()?)?)
     }
 
-    fn keys(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
+    fn keys(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
         Ok(Box::new(CollectionKeys {
             conn: self.pool.get()?,
             cursor: None,
@@ -171,7 +171,7 @@ impl Storage for Collection {
         }))
     }
 
-    fn rev(&mut self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
+    fn rev(&self) -> Result<Box<dyn Iterator<Item = Record> + Send>, StorageError> {
         Ok(Box::new(CollectionKeys {
             conn: self.pool.get()?,
             cursor: None,
