@@ -65,7 +65,29 @@ where
     }
 
     async fn remote_head(&self, id: u32, key: Key, collection: String) -> Result<Object> {
-        bail!(Reason::NotSupported)
+        let request = GetRequest {
+            id: key,
+            collection: collection,
+        };
+
+        let mut request = tonic::Request::new(request);
+        self.set_headers(&mut request);
+
+        let mut cl = self.get_peer(id).await?;
+
+        let response = cl.head(request).await.map_err(|s| Reason::from(s))?;
+
+        let response = response.into_inner();
+        let meta = match response.metadata {
+            Some(meta) => Meta::new(meta.tags),
+            None => Meta::default(),
+        };
+
+        Ok(Object {
+            key: key,
+            data: None,
+            meta: meta,
+        })
     }
 
     async fn remote_get(&self, id: u32, key: Key, collection: String) -> Result<Object> {
