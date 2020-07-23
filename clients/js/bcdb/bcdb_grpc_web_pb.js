@@ -233,6 +233,86 @@ proto.bcdb.BCDBPromiseClient.prototype.get =
 /**
  * @const
  * @type {!grpc.web.MethodDescriptor<
+ *   !proto.bcdb.GetRequest,
+ *   !proto.bcdb.HeadResponse>}
+ */
+const methodDescriptor_BCDB_Head = new grpc.web.MethodDescriptor(
+  '/bcdb.BCDB/Head',
+  grpc.web.MethodType.UNARY,
+  proto.bcdb.GetRequest,
+  proto.bcdb.HeadResponse,
+  /**
+   * @param {!proto.bcdb.GetRequest} request
+   * @return {!Uint8Array}
+   */
+  function(request) {
+    return request.serializeBinary();
+  },
+  proto.bcdb.HeadResponse.deserializeBinary
+);
+
+
+/**
+ * @const
+ * @type {!grpc.web.AbstractClientBase.MethodInfo<
+ *   !proto.bcdb.GetRequest,
+ *   !proto.bcdb.HeadResponse>}
+ */
+const methodInfo_BCDB_Head = new grpc.web.AbstractClientBase.MethodInfo(
+  proto.bcdb.HeadResponse,
+  /**
+   * @param {!proto.bcdb.GetRequest} request
+   * @return {!Uint8Array}
+   */
+  function(request) {
+    return request.serializeBinary();
+  },
+  proto.bcdb.HeadResponse.deserializeBinary
+);
+
+
+/**
+ * @param {!proto.bcdb.GetRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
+ *     call metadata
+ * @param {function(?grpc.web.Error, ?proto.bcdb.HeadResponse)}
+ *     callback The callback function(error, response)
+ * @return {!grpc.web.ClientReadableStream<!proto.bcdb.HeadResponse>|undefined}
+ *     The XHR Node Readable Stream
+ */
+proto.bcdb.BCDBClient.prototype.head =
+    function(request, metadata, callback) {
+  return this.client_.rpcCall(this.hostname_ +
+      '/bcdb.BCDB/Head',
+      request,
+      metadata || {},
+      methodDescriptor_BCDB_Head,
+      callback);
+};
+
+
+/**
+ * @param {!proto.bcdb.GetRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
+ *     call metadata
+ * @return {!Promise<!proto.bcdb.HeadResponse>}
+ *     A native promise that resolves to the response
+ */
+proto.bcdb.BCDBPromiseClient.prototype.head =
+    function(request, metadata) {
+  return this.client_.unaryCall(this.hostname_ +
+      '/bcdb.BCDB/Head',
+      request,
+      metadata || {},
+      methodDescriptor_BCDB_Head);
+};
+
+
+/**
+ * @const
+ * @type {!grpc.web.MethodDescriptor<
  *   !proto.bcdb.FetchRequest,
  *   !proto.bcdb.GetResponse>}
  */

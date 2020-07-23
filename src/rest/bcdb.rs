@@ -86,6 +86,35 @@ async fn handle_get<D: Database>(
     }
 }
 
+async fn handle_head<D: Database>(
+    mut db: D,
+    route: Option<u32>,
+    collection: String,
+    key: u32,
+) -> Result<impl warp::Reply, Rejection> {
+    let ctx = Context::default()
+        .with_route(route)
+        .with_auth(Authorization::Owner);
+
+    let object = db
+        .head(ctx, key, collection)
+        .await
+        .map_err(|e| super::rejection(e))?;
+
+    let mut builder = ResponseBuilder::new().status(StatusCode::OK);
+
+    if let Some(acl) = object.meta.acl() {
+        builder = builder.header(HEADER_ACL, acl)
+    }
+
+    builder = builder.header(HEADER_TAGS, tags_to_str(object.meta.into()).unwrap());
+
+    match object.data {
+        Some(data) => Ok(builder.body(data)),
+        None => Ok(builder.body(Vec::default())),
+    }
+}
+
 async fn handle_fetch<D: Database>(
     mut db: D,
     route: Option<u32>,
@@ -248,6 +277,12 @@ where
         .and(warp::get())
         .and_then(handle_get);
 
+    let head = collection
+        .clone()
+        .and(warp::path::param::<u32>()) // key
+        .and(warp::head())
+        .and_then(handle_head);
+
     let delete = collection
         .clone()
         .and(warp::path::param::<u32>()) // key
@@ -270,5 +305,13 @@ where
         .and(warp::query::raw()) // query
         .and_then(handle_find);
 
-    warp::path("db").and(fetch.or(set).or(get).or(delete).or(update).or(find))
+    warp::path("db").and(
+        fetch
+            .or(set)
+            .or(get)
+            .or(head)
+            .or(delete)
+            .or(update)
+            .or(find),
+    )
 }

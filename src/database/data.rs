@@ -156,6 +156,22 @@ where
         })
     }
 
+    async fn head(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object> {
+        let meta = self.meta.get(key).await?;
+
+        if !meta.is_collection(collection) {
+            bail!(Reason::NotFound);
+        }
+
+        self.is_authorized(&ctx, &meta, "r--".parse().unwrap())?;
+
+        Ok(Object {
+            key: key,
+            data: None,
+            meta: meta,
+        })
+    }
+
     async fn delete(&mut self, ctx: Context, key: Key, collection: String) -> Result<()> {
         let meta = self.meta.get(key).await?;
 
