@@ -29,6 +29,14 @@ The GET response also return the following headers:
 set)
 - `x-tags: <tags>` the object tags as a dict in json format
 
+### HEAD `/db/:collection/:id`
+Gets an object metadata from the database.
+
+The HEAD response returns the following headers:
+- optional `x-acl: <acl-key>` the acl associated with this object (if
+set)
+- `x-tags: <tags>` the object tags as a dict in json format
+
 ### DELETE `/db/:collection/:id`
 Marks object as deleted.
 
