@@ -116,6 +116,22 @@ where
         }))
     }
 
+    async fn head(&self, request: Request<GetRequest>) -> Result<Response<HeadResponse>, Status> {
+        let ctx = request.metadata().context();
+        let request = request.into_inner();
+        let id = request.id;
+
+        let mut db = self.db.clone();
+        let object = db
+            .head(ctx, id, request.collection)
+            .await
+            .map_err(|e| e.status())?;
+
+        Ok(Response::new(HeadResponse {
+            metadata: Some(Self::build_meta(object.meta)),
+        }))
+    }
+
     async fn fetch(&self, request: Request<FetchRequest>) -> Result<Response<GetResponse>, Status> {
         let ctx = request.metadata().context();
         let request = request.into_inner();

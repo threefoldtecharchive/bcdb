@@ -10,6 +10,9 @@ service BCDB {
   // Get a document from header
   rpc Get(GetRequest) returns (GetResponse) {}
 
+  // Get a document from header
+  rpc Head(GetRequest) returns (HeadResponse) {}
+
   // Fetch is similar to Get but does not require a collection
   rpc Fetch(FetchRequest) returns (GetResponse) {}
 
@@ -72,6 +75,9 @@ message GetResponse {
   Metadata metadata = 1;
   bytes data = 2;
 }
+
+// Get response
+message HeadResponse { Metadata metadata = 1; }
 
 // Update request
 message UpdateRequest {
