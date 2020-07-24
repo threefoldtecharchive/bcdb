@@ -78,7 +78,7 @@ where
     D: Database + Clone,
 {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
-        let context = request.metadata().context();
+        let ctx = request.metadata().context();
 
         let request = request.into_inner();
 
@@ -92,7 +92,7 @@ where
 
         let mut db = self.db.clone();
         let id = db
-            .set(context, metadata.collection, data, metadata.tags, acl)
+            .set(&ctx, &metadata.collection, data, metadata.tags, acl)
             .await
             .map_err(|e| e.status())?;
 
@@ -106,7 +106,7 @@ where
 
         let mut db = self.db.clone();
         let object = db
-            .get(ctx, id, request.collection)
+            .get(&ctx, id, &request.collection)
             .await
             .map_err(|e| e.status())?;
 
@@ -123,7 +123,7 @@ where
 
         let mut db = self.db.clone();
         let object = db
-            .head(ctx, id, request.collection)
+            .head(&ctx, id, &request.collection)
             .await
             .map_err(|e| e.status())?;
 
@@ -138,7 +138,7 @@ where
         let id = request.id;
 
         let mut db = self.db.clone();
-        let object = db.fetch(ctx, id).await.map_err(|e| e.status())?;
+        let object = db.fetch(&ctx, id).await.map_err(|e| e.status())?;
 
         Ok(Response::new(GetResponse {
             data: object.data.unwrap_or_default(), // This unwrap is safe as we checked the none case above
@@ -155,7 +155,7 @@ where
         let id = request.id;
 
         let mut db = self.db.clone();
-        db.delete(ctx, id, request.collection)
+        db.delete(&ctx, id, &request.collection)
             .await
             .map_err(|e| e.status())?;
 
@@ -181,9 +181,9 @@ where
         let mut db = self.db.clone();
         let _ = db
             .update(
-                ctx,
+                &ctx,
                 id,
-                metadata.collection,
+                &metadata.collection,
                 data.map(|d| d.data),
                 metadata.tags,
                 acl,
@@ -203,7 +203,7 @@ where
         let mut db = self.db.clone();
 
         let mut results = db
-            .list(ctx, request.tags, Some(request.collection))
+            .list(&ctx, request.tags, Some(&request.collection))
             .await
             .map_err(|e| e.status())?;
 
@@ -232,7 +232,7 @@ where
         let mut db = self.db.clone();
 
         let mut results = db
-            .find(ctx, request.tags, Some(request.collection))
+            .find(&ctx, request.tags, Some(&request.collection))
             .await
             .map_err(|e| e.status())?;
 
@@ -596,7 +596,7 @@ mod rpc_tests {
         let id = result.unwrap().into_inner().id;
 
         let object = db
-            .fetch(Context::default().with_auth(Authorization::Owner), id)
+            .fetch(&Context::default().with_auth(Authorization::Owner), id)
             .await
             .unwrap();
 
@@ -643,7 +643,7 @@ mod rpc_tests {
 
         let id = db
             .set(
-                Context::default().with_auth(Authorization::Owner),
+                &Context::default().with_auth(Authorization::Owner),
                 "test".into(),
                 data.clone(),
                 tags,
@@ -684,7 +684,7 @@ mod rpc_tests {
 
         let id = db
             .set(
-                Context::default().with_auth(Authorization::Owner),
+                &Context::default().with_auth(Authorization::Owner),
                 "test".into(),
                 data.clone(),
                 tags,
@@ -737,7 +737,7 @@ mod rpc_tests {
 
         let id = db
             .set(
-                Context::default().with_auth(Authorization::Owner),
+                &Context::default().with_auth(Authorization::Owner),
                 "test".into(),
                 data.clone(),
                 tags,
@@ -784,7 +784,7 @@ mod rpc_tests {
 
         let id = db
             .set(
-                Context::default().with_auth(Authorization::Owner),
+                &Context::default().with_auth(Authorization::Owner),
                 "test".into(),
                 data.clone(),
                 tags,
@@ -844,8 +844,8 @@ mod rpc_tests {
 
         let id_1 = db
             .set(
-                Context::default().with_auth(Authorization::Owner),
-                "test".into(),
+                &Context::default().with_auth(Authorization::Owner),
+                "test",
                 data.clone(),
                 tags,
                 Some(3),
@@ -859,8 +859,8 @@ mod rpc_tests {
 
         let id_2 = db
             .set(
-                Context::default().with_auth(Authorization::Owner),
-                "test".into(),
+                &Context::default().with_auth(Authorization::Owner),
+                "test",
                 data.clone(),
                 tags,
                 None,

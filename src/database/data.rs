@@ -75,8 +75,8 @@ where
 {
     async fn set(
         &mut self,
-        ctx: Context,
-        collection: String,
+        ctx: &Context,
+        collection: &str,
         data: Vec<u8>,
         tags: HashMap<String, String>,
         acl: Option<u64>,
@@ -110,7 +110,7 @@ where
         Ok(id)
     }
 
-    async fn fetch(&mut self, ctx: Context, key: Key) -> Result<Object> {
+    async fn fetch(&mut self, ctx: &Context, key: Key) -> Result<Object> {
         let meta = self.meta.get(key).await?;
 
         self.is_authorized(&ctx, &meta, "r--".parse().unwrap())?;
@@ -131,10 +131,10 @@ where
         })
     }
 
-    async fn get(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object> {
+    async fn get(&mut self, ctx: &Context, key: Key, collection: &str) -> Result<Object> {
         let meta = self.meta.get(key).await?;
 
-        if !meta.is_collection(collection) {
+        if !meta.is_collection(&collection) {
             bail!(Reason::NotFound);
         }
 
@@ -156,10 +156,10 @@ where
         })
     }
 
-    async fn head(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object> {
+    async fn head(&mut self, ctx: &Context, key: Key, collection: &str) -> Result<Object> {
         let meta = self.meta.get(key).await?;
 
-        if !meta.is_collection(collection) {
+        if !meta.is_collection(&collection) {
             bail!(Reason::NotFound);
         }
 
@@ -172,14 +172,17 @@ where
         })
     }
 
-    async fn delete(&mut self, ctx: Context, key: Key, collection: String) -> Result<()> {
+    async fn delete(&mut self, ctx: &Context, key: Key, collection: &str) -> Result<()> {
         let meta = self.meta.get(key).await?;
 
-        if !meta.is_collection(collection) {
+        if !meta.is_collection(&collection) {
             bail!(Reason::NotFound);
         }
 
         self.is_authorized(&ctx, &meta, "--d".parse().unwrap())?;
+
+        let meta = Meta::default().with_deleted(true);
+        self.meta.set(key, meta).await?;
 
         // TODO: should the data associated with that object also
         // be deleted? changes to metadata can be restored if you
@@ -193,17 +196,14 @@ where
             .context("failed to run blocking task")?
             .context("failed to delete data")?;
 
-        let meta = Meta::default().with_deleted(true);
-        self.meta.set(key, meta).await?;
-
         Ok(())
     }
 
     async fn update(
         &mut self,
-        ctx: Context,
+        ctx: &Context,
         key: Key,
-        collection: String,
+        collection: &str,
         data: Option<Vec<u8>>,
         tags: HashMap<String, String>,
         acl: Option<u64>,
@@ -212,7 +212,7 @@ where
 
         self.is_authorized(&ctx, &current, "-w-".parse().unwrap())?;
 
-        if !current.is_collection(collection) {
+        if !current.is_collection(&collection) {
             bail!(Reason::NotFound);
         }
 
@@ -248,9 +248,9 @@ where
 
     async fn list(
         &mut self,
-        ctx: Context,
+        ctx: &Context,
         tags: HashMap<String, String>,
-        collection: Option<String>,
+        collection: Option<&str>,
     ) -> Result<mpsc::Receiver<Result<Key>>> {
         if !ctx.is_owner() {
             bail!(Reason::Unauthorized);
@@ -267,9 +267,9 @@ where
 
     async fn find(
         &mut self,
-        ctx: Context,
+        ctx: &Context,
         tags: HashMap<String, String>,
-        collection: Option<String>,
+        collection: Option<&str>,
     ) -> Result<mpsc::Receiver<Result<Object>>> {
         if !ctx.is_owner() {
             bail!(Reason::Unauthorized);
@@ -356,7 +356,7 @@ pub mod database_tests {
         let ctx = Context::default();
         let tags = HashMap::default();
         let result = db
-            .set(ctx, "test".into(), "hello world".into(), tags, None)
+            .set(&ctx, "test", "hello world".into(), tags, None)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -367,7 +367,7 @@ pub mod database_tests {
         let mut tags = HashMap::default();
         tags.insert("tag".into(), "value".into());
         let result = db
-            .set(ctx, "test".into(), "hello world".into(), tags, None)
+            .set(&ctx, "test", "hello world".into(), tags, None)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -385,7 +385,7 @@ pub mod database_tests {
         tags.insert("tag".into(), "value".into());
         let data: Vec<u8> = "hello world".into();
         let result = db
-            .set(ctx, collection.into(), data.clone(), tags, None)
+            .set(&ctx, collection, data.clone(), tags, None)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -394,7 +394,7 @@ pub mod database_tests {
 
         let ctx = Context::default(); //no auth (invalid)
         let result = db
-            .get(ctx, key, collection.into())
+            .get(&ctx, key, collection)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -403,7 +403,7 @@ pub mod database_tests {
 
         let ctx = Context::default().with_auth(Authorization::User(100)); //some random that
         let result = db
-            .get(ctx, key, collection.into())
+            .get(&ctx, key, collection)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -413,7 +413,7 @@ pub mod database_tests {
 
         let ctx = Context::default().with_auth(Authorization::Owner); //some random that
         let result = db
-            .get(ctx, key, collection.into())
+            .get(&ctx, key, collection)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -444,13 +444,7 @@ pub mod database_tests {
         let acl_id = db.acl.create(&acl).unwrap();
 
         let result = db
-            .set(
-                ctx,
-                collection.into(),
-                data.clone(),
-                tags,
-                Some(acl_id as u64),
-            )
+            .set(&ctx, collection, data.clone(), tags, Some(acl_id as u64))
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -459,7 +453,7 @@ pub mod database_tests {
 
         let ctx = Context::default(); //no auth (invalid)
         let result = db
-            .get(ctx, key, collection.into())
+            .get(&ctx, key, collection.into())
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -468,7 +462,7 @@ pub mod database_tests {
 
         let ctx = Context::default().with_auth(Authorization::User(100)); //authorized user
         let result = db
-            .get(ctx, key, collection.into())
+            .get(&ctx, key, collection)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -482,7 +476,7 @@ pub mod database_tests {
 
         let ctx = Context::default().with_auth(Authorization::User(1000)); //some random that
         let result = db
-            .get(ctx, key, collection.into())
+            .get(&ctx, key, collection)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -492,7 +486,7 @@ pub mod database_tests {
 
         let ctx = Context::default().with_auth(Authorization::Owner); //some random that
         let result = db
-            .get(ctx, key, collection.into())
+            .get(&ctx, key, collection)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -523,13 +517,7 @@ pub mod database_tests {
         let acl_id = db.acl.create(&acl).unwrap();
 
         let result = db
-            .set(
-                ctx,
-                collection.into(),
-                data.clone(),
-                tags,
-                Some(acl_id as u64),
-            )
+            .set(&ctx, collection, data.clone(), tags, Some(acl_id as u64))
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -540,7 +528,7 @@ pub mod database_tests {
         let mut tags = HashMap::default();
         tags.insert("new".into(), "new value".into());
         let result = db
-            .update(ctx, key, collection.into(), None, tags, None)
+            .update(&ctx, key, collection, None, tags, None)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -559,7 +547,7 @@ pub mod database_tests {
         let mut tags = HashMap::default();
         tags.insert("new".into(), "new value".into());
         let result = db
-            .update(ctx, key, collection.into(), None, tags, None)
+            .update(&ctx, key, collection, None, tags, None)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -568,7 +556,7 @@ pub mod database_tests {
         // this get operation should fail, even with the same user because the acl doesn't have read access
         let ctx = Context::default().with_auth(Authorization::User(100)); //some random that
         let result = db
-            .get(ctx, key, collection.into())
+            .get(&ctx, key, collection)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -588,7 +576,7 @@ pub mod database_tests {
         let data: Vec<u8> = "hello world".into();
 
         let result = db
-            .set(ctx, collection.into(), data.clone(), tags, None)
+            .set(&ctx, collection, data.clone(), tags, None)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -600,14 +588,14 @@ pub mod database_tests {
         tags.insert("new".into(), "new value".into());
         // update tags only
         let result = db
-            .update(ctx, key, collection.into(), None, tags, None)
+            .update(&ctx, key, collection, None, tags, None)
             .await
             .map_err(|e| Reason::from(&e));
 
         assert_eq!(result.is_ok(), true);
         let ctx = Context::default().with_auth(Authorization::Owner);
         let result = db
-            .get(ctx, key, collection.into())
+            .get(&ctx, key, collection)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -625,14 +613,14 @@ pub mod database_tests {
         // update data only
         let data: Vec<u8> = "hello nwe world".into();
         let result = db
-            .update(ctx, key, collection.into(), Some(data.clone()), tags, None)
+            .update(&ctx, key, collection, Some(data.clone()), tags, None)
             .await
             .map_err(|e| Reason::from(&e));
 
         assert_eq!(result.is_ok(), true);
         let ctx = Context::default().with_auth(Authorization::Owner);
         let result = db
-            .get(ctx, key, collection.into())
+            .get(&ctx, key, collection)
             .await
             .map_err(|e| Reason::from(&e));
 
@@ -648,7 +636,7 @@ pub mod database_tests {
 
     #[tokio::test]
     async fn database_insert_perf() {
-        let collection: String = "test".into();
+        let collection = "test";
         let mut db = get_in_memory_db();
 
         let ctx = Context::default().with_auth(Authorization::Owner);
@@ -658,15 +646,9 @@ pub mod database_tests {
 
         let now = std::time::Instant::now();
         for i in 0..10000u32 {
-            db.set(
-                ctx.clone(),
-                collection.clone(),
-                data.clone(),
-                tags.clone(),
-                None,
-            )
-            .await
-            .expect("failed to do insert");
+            db.set(&ctx, collection, data.clone(), tags.clone(), None)
+                .await
+                .expect("failed to do insert");
         }
 
         let dur = std::time::Instant::now().duration_since(now);

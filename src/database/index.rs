@@ -172,16 +172,6 @@ impl Schema {
         Ok(())
     }
 
-    async fn delete_meta(&self, meta: Meta) -> Result<()> {
-        let mut keys = self.find(meta).await?;
-        while let Some(key) = keys.recv().await {
-            let key = key?;
-            self.delete_key(key).await?;
-        }
-
-        Ok(())
-    }
-
     async fn find<'a>(&'a self, meta: Meta) -> Result<mpsc::Receiver<Result<Key>>> {
         let q = "SELECT key FROM metadata WHERE tag = ? AND value = ?";
         let mut query_str = String::new();

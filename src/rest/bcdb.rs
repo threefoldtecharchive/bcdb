@@ -68,7 +68,7 @@ async fn handle_set<D: Database>(
     };
 
     let key = db
-        .set(ctx, collection, Vec::from(data.as_ref()), tags, acl)
+        .set(&ctx, &collection, Vec::from(data.as_ref()), tags, acl)
         .await
         .map_err(|e| super::rejection(e))?;
 
@@ -89,7 +89,7 @@ async fn handle_get<D: Database>(
         .with_auth(Authorization::Owner);
 
     let object = db
-        .get(ctx, key, collection)
+        .get(&ctx, key, &collection)
         .await
         .map_err(|e| super::rejection(e))?;
 
@@ -118,7 +118,7 @@ async fn handle_head<D: Database>(
         .with_auth(Authorization::Owner);
 
     let object = db
-        .head(ctx, key, collection)
+        .head(&ctx, key, &collection)
         .await
         .map_err(|e| super::rejection(e))?;
 
@@ -145,7 +145,7 @@ async fn handle_fetch<D: Database>(
         .with_route(route)
         .with_auth(Authorization::Owner);
 
-    let object = db.fetch(ctx, key).await.map_err(|e| super::rejection(e))?;
+    let object = db.fetch(&ctx, key).await.map_err(|e| super::rejection(e))?;
 
     let mut builder = ResponseBuilder::new().status(StatusCode::OK);
 
@@ -171,7 +171,7 @@ async fn handle_delete<D: Database>(
         .with_route(route)
         .with_auth(Authorization::Owner);
 
-    db.delete(ctx, key, collection)
+    db.delete(&ctx, key, &collection)
         .await
         .map_err(|e| super::rejection(e))?;
 
@@ -202,7 +202,7 @@ async fn handle_update<D: Database>(
         None
     };
 
-    db.update(ctx, key, collection, data, tags, acl)
+    db.update(&ctx, key, &collection, data, tags, acl)
         .await
         .map_err(|e| super::rejection(e))?;
 
@@ -216,6 +216,21 @@ struct FindResult {
     acl: Option<u64>,
 }
 
+fn parse_query(query: &str) -> HashMap<String, String> {
+    let query = serde_urlencoded::from_str::<Vec<(String, String)>>(query).unwrap();
+    let mut meta = HashMap::default();
+    for (k, v) in query {
+        if k == "_" {
+            // this is a hack because the query::raw()
+            // filter does not work if query string is empty
+            continue;
+        }
+        meta.insert(k.into(), v.into());
+    }
+
+    meta
+}
+
 async fn handle_find<D: Database>(
     mut db: D,
     route: Option<u32>,
@@ -227,17 +242,8 @@ async fn handle_find<D: Database>(
         .with_route(route)
         .with_auth(Authorization::Owner);
 
-    let query = url::Url::parse(&format!("q:///?{}", query)).unwrap();
-    let mut meta = HashMap::default();
-    for (k, v) in query.query_pairs() {
-        if k == "_" {
-            // this is a hack because the query::raw()
-            // filter does not work if query string is empty
-            continue;
-        }
-        meta.insert(k.into(), v.into());
-    }
-    debug!("find mode: {:?}", mode);
+    let meta = parse_query(&query);
+
     use tokio::stream::StreamExt;
     let mode = match mode {
         Some(mode) => mode,
@@ -248,7 +254,7 @@ async fn handle_find<D: Database>(
     let response: Box<dyn Stream<Item = Result<String, Error>> + Unpin + Send + Sync> = match mode {
         FindMode::Find => {
             let results = db
-                .find(ctx, meta, Some(collection))
+                .find(&ctx, meta, Some(&collection))
                 .await
                 .map_err(|e| super::rejection(e))?;
 
@@ -266,7 +272,7 @@ async fn handle_find<D: Database>(
         }
         FindMode::List => {
             let results = db
-                .list(ctx, meta, Some(collection))
+                .list(&ctx, meta, Some(&collection))
                 .await
                 .map_err(|e| super::rejection(e))?;
 
@@ -281,6 +287,40 @@ async fn handle_find<D: Database>(
     let body = Body::wrap_stream(response);
 
     Ok(warp::reply::Response::new(body))
+}
+
+async fn handle_delete_all<D: Database>(
+    mut db: D,
+    route: Option<u32>,
+    collection: String,
+    query: String,
+) -> Result<impl warp::Reply, Rejection> {
+    let ctx = Context::default()
+        .with_route(route)
+        .with_auth(Authorization::Owner);
+
+    let meta = parse_query(&query);
+
+    let results = db
+        .list(&ctx, meta, Some(&collection))
+        .await
+        .map_err(|e| super::rejection(e))?;
+
+    use crate::storage::Key;
+    use tokio::stream::StreamExt;
+    // We have to do collect here because the index implementation
+    // does not allow "write" operations while doing a search.
+    // so instead, we collect the results and then delete all matches.
+    let matches: Vec<Result<Key, Error>> = results.collect().await;
+    for key in matches {
+        let key = key.map_err(|e| super::rejection(e))?;
+        match db.delete(&ctx, key, &collection).await {
+            Ok(_) => {}
+            Err(err) => error!("failed to delete object: {:?}", err),
+        };
+    }
+
+    Ok(warp::reply())
 }
 
 fn with_database<D>(d: D) -> impl Filter<Extract = (D,), Error = std::convert::Infallible> + Clone
@@ -350,6 +390,12 @@ where
         .and(warp::query::raw()) // query
         .and_then(handle_find);
 
+    let delete_all = collection
+        .clone()
+        .and(warp::delete())
+        .and(warp::query::raw()) // query
+        .and_then(handle_delete_all);
+
     warp::path("db").and(
         fetch
             .or(set)
@@ -357,6 +403,7 @@ where
             .or(head)
             .or(delete)
             .or(update)
-            .or(find),
+            .or(find)
+            .or(delete_all),
     )
 }
