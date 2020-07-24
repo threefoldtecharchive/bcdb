@@ -304,26 +304,26 @@ impl Context {
 pub trait Database: Send + Sync + 'static {
     async fn set(
         &mut self,
-        ctx: Context,
-        collection: String,
+        ctx: &Context,
+        collection: &str,
         data: Vec<u8>,
         meta: HashMap<String, String>,
         acl: Option<u64>,
     ) -> Result<Key>;
 
-    async fn fetch(&mut self, ctx: Context, key: Key) -> Result<Object>;
+    async fn fetch(&mut self, ctx: &Context, key: Key) -> Result<Object>;
 
-    async fn get(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object>;
+    async fn get(&mut self, ctx: &Context, key: Key, collection: &str) -> Result<Object>;
 
-    async fn head(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object>;
+    async fn head(&mut self, ctx: &Context, key: Key, collection: &str) -> Result<Object>;
 
-    async fn delete(&mut self, ctx: Context, key: Key, collection: String) -> Result<()>;
+    async fn delete(&mut self, ctx: &Context, key: Key, collection: &str) -> Result<()>;
 
     async fn update(
         &mut self,
-        ctx: Context,
+        ctx: &Context,
         key: Key,
-        collection: String,
+        collection: &str,
         data: Option<Vec<u8>>,
         tags: HashMap<String, String>,
         acl: Option<u64>,
@@ -331,16 +331,16 @@ pub trait Database: Send + Sync + 'static {
 
     async fn list(
         &mut self,
-        ctx: Context,
+        ctx: &Context,
         tags: HashMap<String, String>,
-        collection: Option<String>,
+        collection: Option<&str>,
     ) -> Result<mpsc::Receiver<Result<Key>>>;
 
     async fn find(
         &mut self,
-        ctx: Context,
+        ctx: &Context,
         tags: HashMap<String, String>,
-        collection: Option<String>,
+        collection: Option<&str>,
     ) -> Result<mpsc::Receiver<Result<Object>>>;
 }
 

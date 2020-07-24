@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .threaded_scheduler()
         .core_threads(num_cpus::get())
         .enable_all()
-        .thread_stack_size(5 * 1024 * 1024) //set stack size to 5MB
+        .thread_stack_size(10 * 1024 * 1024) //set stack size to 10MB
         .build()
         .unwrap();
 

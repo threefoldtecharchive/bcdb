@@ -56,7 +56,7 @@ where
     async fn remote_set(
         &self,
         _id: u32,
-        _collection: String,
+        _collection: &str,
         _data: Vec<u8>,
         _tags: HashMap<String, String>,
         _acl: Option<u64>,
@@ -64,10 +64,10 @@ where
         bail!(Reason::NotSupported)
     }
 
-    async fn remote_head(&self, id: u32, key: Key, collection: String) -> Result<Object> {
+    async fn remote_head(&self, id: u32, key: Key, collection: &str) -> Result<Object> {
         let request = GetRequest {
             id: key,
-            collection: collection,
+            collection: collection.into(),
         };
 
         let mut request = tonic::Request::new(request);
@@ -90,10 +90,10 @@ where
         })
     }
 
-    async fn remote_get(&self, id: u32, key: Key, collection: String) -> Result<Object> {
+    async fn remote_get(&self, id: u32, key: Key, collection: &str) -> Result<Object> {
         let request = GetRequest {
             id: key,
-            collection: collection,
+            collection: collection.into(),
         };
 
         let mut request = tonic::Request::new(request);
@@ -139,10 +139,10 @@ where
         })
     }
 
-    async fn remote_delete(&mut self, id: u32, key: Key, collection: String) -> Result<()> {
+    async fn remote_delete(&mut self, id: u32, key: Key, collection: &str) -> Result<()> {
         let request = DeleteRequest {
             id: key,
-            collection: collection,
+            collection: collection.into(),
         };
 
         let mut request = tonic::Request::new(request);
@@ -159,7 +159,7 @@ where
         &self,
         id: u32,
         key: Key,
-        collection: String,
+        collection: &str,
         data: Option<Vec<u8>>,
         tags: HashMap<String, String>,
         acl: Option<u64>,
@@ -168,7 +168,7 @@ where
             id: key,
             metadata: Some(Metadata {
                 tags: tags,
-                collection: collection,
+                collection: collection.into(),
                 acl: acl.map(|acl| AclRef { acl }),
             }),
             data: data.map(|data| update_request::UpdateData { data }),
@@ -188,7 +188,7 @@ where
         &self,
         _id: u32,
         _tags: HashMap<String, String>,
-        _collection: Option<String>,
+        _collection: Option<&str>,
     ) -> Result<mpsc::Receiver<Result<Key>>> {
         bail!(Reason::NotSupported);
     }
@@ -197,7 +197,7 @@ where
         &self,
         _id: u32,
         _tags: HashMap<String, String>,
-        _collection: Option<String>,
+        _collection: Option<&str>,
     ) -> Result<mpsc::Receiver<Result<Object>>> {
         bail!(Reason::NotSupported);
     }
@@ -211,8 +211,8 @@ where
 {
     async fn set(
         &mut self,
-        ctx: Context,
-        collection: String,
+        ctx: &Context,
+        collection: &str,
         data: Vec<u8>,
         tags: HashMap<String, String>,
         acl: Option<u64>,
@@ -223,28 +223,28 @@ where
         }
     }
 
-    async fn fetch(&mut self, ctx: Context, key: Key) -> Result<Object> {
+    async fn fetch(&mut self, ctx: &Context, key: Key) -> Result<Object> {
         match ctx.route {
             Route::Local => self.local.fetch(ctx, key).await,
             Route::Remote(id) => self.remote_fetch(id, key).await,
         }
     }
 
-    async fn get(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object> {
+    async fn get(&mut self, ctx: &Context, key: Key, collection: &str) -> Result<Object> {
         match ctx.route {
             Route::Local => self.local.get(ctx, key, collection).await,
             Route::Remote(id) => self.remote_get(id, key, collection).await,
         }
     }
 
-    async fn head(&mut self, ctx: Context, key: Key, collection: String) -> Result<Object> {
+    async fn head(&mut self, ctx: &Context, key: Key, collection: &str) -> Result<Object> {
         match ctx.route {
             Route::Local => self.local.get(ctx, key, collection).await,
             Route::Remote(id) => self.remote_head(id, key, collection).await,
         }
     }
 
-    async fn delete(&mut self, ctx: Context, key: Key, collection: String) -> Result<()> {
+    async fn delete(&mut self, ctx: &Context, key: Key, collection: &str) -> Result<()> {
         match ctx.route {
             Route::Local => self.local.delete(ctx, key, collection).await,
             Route::Remote(id) => self.remote_delete(id, key, collection).await,
@@ -253,9 +253,9 @@ where
 
     async fn update(
         &mut self,
-        ctx: Context,
+        ctx: &Context,
         key: Key,
-        collection: String,
+        collection: &str,
         data: Option<Vec<u8>>,
         tags: HashMap<String, String>,
         acl: Option<u64>,
@@ -275,9 +275,9 @@ where
 
     async fn list(
         &mut self,
-        ctx: Context,
+        ctx: &Context,
         tags: HashMap<String, String>,
-        collection: Option<String>,
+        collection: Option<&str>,
     ) -> Result<mpsc::Receiver<Result<Key>>> {
         match ctx.route {
             Route::Local => self.local.list(ctx, tags, collection).await,
@@ -287,9 +287,9 @@ where
 
     async fn find(
         &mut self,
-        ctx: Context,
+        ctx: &Context,
         tags: HashMap<String, String>,
-        collection: Option<String>,
+        collection: Option<&str>,
     ) -> Result<mpsc::Receiver<Result<Object>>> {
         match ctx.route {
             Route::Local => self.local.find(ctx, tags, collection).await,
