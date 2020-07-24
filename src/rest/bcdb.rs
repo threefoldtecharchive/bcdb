@@ -11,6 +11,27 @@ use warp::Filter;
 const HEADER_ACL: &str = "x-acl";
 const HEADER_TAGS: &str = "x-tags";
 const HEADER_ROUTE: &str = "x-threebot-id";
+const HEADER_FIND_MODE: &str = "x-find-mode";
+
+#[derive(Debug)]
+enum FindMode {
+    Find,
+    List,
+}
+
+impl std::str::FromStr for FindMode {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<FindMode, Self::Err> {
+        let s = s.to_lowercase();
+        let m = match s.as_ref() {
+            "find" => FindMode::Find,
+            "list" => FindMode::List,
+            _ => bail!("unknown find mode: '{}'", s),
+        };
+
+        Ok(m)
+    }
+}
 
 fn tags_from_str(s: &str) -> Result<HashMap<String, String>, Rejection> {
     let map: HashMap<String, String> = match serde_json::from_str(s) {
@@ -199,6 +220,7 @@ async fn handle_find<D: Database>(
     mut db: D,
     route: Option<u32>,
     collection: String,
+    mode: Option<FindMode>,
     query: String,
 ) -> Result<impl warp::Reply, Rejection> {
     let ctx = Context::default()
@@ -215,24 +237,46 @@ async fn handle_find<D: Database>(
         }
         meta.insert(k.into(), v.into());
     }
-
-    let results = db
-        .find(ctx, meta, Some(collection))
-        .await
-        .map_err(|e| super::rejection(e))?;
-
+    debug!("find mode: {:?}", mode);
     use tokio::stream::StreamExt;
-    let response = results.map(|entry| -> Result<String, Error> {
-        let entry = entry?;
-        //let meta = entry.metadata.unwrap();
-        let data = FindResult {
-            id: entry.key,
-            acl: entry.meta.acl(),
-            tags: entry.meta.into(),
-        };
+    let mode = match mode {
+        Some(mode) => mode,
+        None => FindMode::Find,
+    };
 
-        Ok(serde_json::to_string(&data)? + "\n")
-    });
+    use tokio::stream::Stream;
+    let response: Box<dyn Stream<Item = Result<String, Error>> + Unpin + Send + Sync> = match mode {
+        FindMode::Find => {
+            let results = db
+                .find(ctx, meta, Some(collection))
+                .await
+                .map_err(|e| super::rejection(e))?;
+
+            Box::new(results.map(|entry| -> Result<String, Error> {
+                let entry = entry?;
+                //let meta = entry.metadata.unwrap();
+                let data = FindResult {
+                    id: entry.key,
+                    acl: entry.meta.acl(),
+                    tags: entry.meta.into(),
+                };
+
+                Ok(serde_json::to_string(&data)? + "\n")
+            }))
+        }
+        FindMode::List => {
+            let results = db
+                .list(ctx, meta, Some(collection))
+                .await
+                .map_err(|e| super::rejection(e))?;
+
+            Box::new(results.map(|entry| -> Result<String, Error> {
+                let entry = entry?;
+
+                Ok(serde_json::to_string(&entry)? + "\n")
+            }))
+        }
+    };
 
     let body = Body::wrap_stream(response);
 
@@ -302,6 +346,7 @@ where
     let find = collection
         .clone()
         .and(warp::get())
+        .and(warp::header::optional::<FindMode>(HEADER_FIND_MODE))
         .and(warp::query::raw()) // query
         .and_then(handle_find);
 
