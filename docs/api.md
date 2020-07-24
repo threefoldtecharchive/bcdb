@@ -56,6 +56,13 @@ You can select the `find` mode, using an optional header `x-find-mode`. This onl
 Returns a stream of json object (not a list). The object ONLY contains the id and the metadata (tags) but not the content, if you need to retrieve the content a separate GET call must be done.
 - `list` this has to be selected by setting the `x-find-mode: list` header. In this mode the returned objects are just the ids of your objects that are matching your query. No tags are returned
 
+### DELETE `/db/:collection`
+The delete interface to delete object(s) using tags. It accepts an arbitrary query string based on the tags you used to store the object in the first place.
+
+> **Note**: due to a bug in the server router, the query params must always be provided, to do an empty query (delete everything) use `?_=` as query string. (for example `DELETE http:://localhost:50061/db/mycollection/?_=`)
+
+> **Note**: due to some limitation in the index implementation. A patch delete operation is heavy, because a find operation need to be executed first, then collect all the matching keys, then iterate over all keys and delete them. So this operation is really not recommended right now, except for small result set.
+
 ## Acl endpoints
 Acl are use to configure `access control list` groups. A single ACL object is a group of user ids, associated with a permission string. Then the same object can be assigned to multiple objects at the same time.
 

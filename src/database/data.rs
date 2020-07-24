@@ -181,6 +181,9 @@ where
 
         self.is_authorized(&ctx, &meta, "--d".parse().unwrap())?;
 
+        let meta = Meta::default().with_deleted(true);
+        self.meta.set(key, meta).await?;
+
         // TODO: should the data associated with that object also
         // be deleted? changes to metadata can be restored if you
         // replay the transaction log to the point until the object
@@ -192,9 +195,6 @@ where
             .await
             .context("failed to run blocking task")?
             .context("failed to delete data")?;
-
-        let meta = Meta::default().with_deleted(true);
-        self.meta.set(key, meta).await?;
 
         Ok(())
     }

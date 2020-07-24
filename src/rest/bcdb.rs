@@ -301,16 +301,23 @@ async fn handle_delete_all<D: Database>(
 
     let meta = parse_query(&query);
 
-    let mut results = db
+    let results = db
         .list(&ctx, meta, Some(&collection))
         .await
         .map_err(|e| super::rejection(e))?;
 
-    while let Some(key) = results.recv().await {
+    use crate::storage::Key;
+    use tokio::stream::StreamExt;
+    // We have to do collect here because the index implementation
+    // does not allow "write" operations while doing a search.
+    // so instead, we collect the results and then delete all matches.
+    let matches: Vec<Result<Key, Error>> = results.collect().await;
+    for key in matches {
         let key = key.map_err(|e| super::rejection(e))?;
-        db.delete(&ctx, key, &collection)
-            .await
-            .map_err(|e| super::rejection(e))?;
+        match db.delete(&ctx, key, &collection).await {
+            Ok(_) => {}
+            Err(err) => error!("failed to delete object: {:?}", err),
+        };
     }
 
     Ok(warp::reply())
