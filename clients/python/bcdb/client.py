@@ -519,6 +519,13 @@ class HTTPBcdbClient:
             ),
         )
 
+    def __scan(self, s):
+        for i, c in enumerate(s):
+            if c.isspace():
+                continue
+            return s[i:]
+        return ''
+
     def find(self, **kwargs):
         if kwargs is None or len(kwargs) == 0:
             # due to a bug in the warp router (server side)
@@ -533,11 +540,36 @@ class HTTPBcdbClient:
         content = response.text
         dec = json.JSONDecoder()
         while content:
-            obj, idx = dec.raw_decode(content)
+            try:
+                obj, idx = dec.raw_decode(content)
+            except:
+                print("content: '%s'" % content)
+                raise
             yield Object(
                 id=obj['id'],
                 tags=obj['tags'],
                 data=None,
             )
 
-            content = content[idx:]
+            content = self.__scan(content[idx:])
+
+    def list(self, **kwargs):
+        if kwargs is None or len(kwargs) == 0:
+            # due to a bug in the warp router (server side)
+            # this call does not match if no queries are supplied
+            # hence we add a dummy query that is ignred by the server
+            kwargs = {'_': ''}
+
+        # this should instead read response "stream" and parse each object individually
+        response = self.session.get(
+            self.url(), params=kwargs,
+            headers=self.headers(x_find_mode="list"),
+        )
+
+        content = response.text
+        dec = json.JSONDecoder()
+        while content:
+            obj, idx = dec.raw_decode(content)
+            yield obj
+
+            content = self.__scan(content[idx:])
